@@ -1,0 +1,13 @@
+[package]
+name = "gitui"
+version = "0.1.0"
+description = "Terminal based git interface"
+authors = ["rattleworks <gasimov.abdulali@gmail.com>"]
+license = "MIT"
+edition = "2024"
+
+[dependencies]
+crossterm = "0.28.1"
+ratatui = "0.29.0"
+color-eyre = "0.6.3"
+git2 = "0.20.2"
