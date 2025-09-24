@@ -77,18 +77,20 @@ impl Widget for &App {
         let mut revwalk = repo.revwalk().expect("msg");
         let _ = revwalk.push_head(); // Start from HEAD
 
+        let mut lines: Vec<String> = Vec::new();
+
         // Iterate over the commit IDs
         for oid_result in revwalk {
             let oid = oid_result.expect("msg");
             let commit = repo.find_commit(oid).expect("msg");
 
-            println!(
+            lines.push(format!(
                 "commit {}\nAuthor: {}\nDate: {:?}\n\n    {}\n",
                 commit.id(),
                 commit.author(),
                 commit.time(),
                 commit.message().unwrap_or("<no message>")
-            );
+            ));
         }
 
         // Split the widget's area into two vertical chunks
@@ -115,10 +117,13 @@ impl Widget for &App {
             .title_bottom(instructions.centered())
             .border_set(border::THICK);
 
-        let counter_text = Text::from(vec![Line::from(vec![
-            "Value: ".into(),
-            self.counter.to_string().yellow(),
-        ])]);
+
+
+
+        let counter_text = Text::from(    lines
+        .into_iter()
+        .map(|s| Line::from(s)) // convert each String into a Line
+        .collect::<Vec<Line>>(),);
 
         Paragraph::new(counter_text)
             .centered()
