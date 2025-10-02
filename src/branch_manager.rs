@@ -18,12 +18,12 @@ impl BranchManager {
             next_color: 0,
             next_id: 0,
             palette: vec![
+                Color::Cyan,
+                Color::Magenta,
                 Color::Red,
                 Color::Green,
                 Color::Yellow,
                 Color::Blue,
-                Color::Magenta,
-                Color::Cyan,
                 Color::White,
                 Color::LightRed,
                 Color::LightGreen,
@@ -63,5 +63,9 @@ impl BranchManager {
         // Pick the oldest branch to determine the color
         let oldest = &sorted[0];
         *self.color_map.get(oldest).unwrap_or(&Color::White)
+    }
+
+    pub fn get_color(&self, branch: &String) -> Color {
+        *self.color_map.get(branch).unwrap_or(&Color::White)
     }
 }

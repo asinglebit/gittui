@@ -9,7 +9,7 @@ use ratatui::{
 
 use crate::branch_manager::BranchManager;
 
-pub fn get_commits() -> (Vec<Line<'static>>, Vec<Line<'static>>) {
+pub fn get_commits() -> (Vec<Line<'static>>, Vec<Line<'static>>, Vec<Line<'static>>) {
     
     let args: Vec<String> = env::args().collect();
     let path = if args.len() > 1 {
@@ -44,6 +44,7 @@ pub fn get_commits() -> (Vec<Line<'static>>, Vec<Line<'static>>) {
         
     let mut structure = Vec::new();
     let mut descriptors = Vec::new();
+    let mut messages = Vec::new();
 
     for oid in oids {
         let commit = repo.find_commit(oid).unwrap();
@@ -93,9 +94,17 @@ pub fn get_commits() -> (Vec<Line<'static>>, Vec<Line<'static>>) {
         tree_spans.push(Span::raw(format!("{:<10}", ' ')));
 
         // Branch names
-        let branch_span = if let Some(branch_prints) = branch_tips.get(&oid) {
-            format!("* {}", branch_prints.join(", * "))
-        } else { format!("") };
+        let mut branch_spans: Vec<Span<'_>> = Vec::new();
+        if let Some(branch_prints) = branch_tips.get(&oid) {
+            for branch in branch_prints {
+                // Create a Span for each branch name
+                let span = Span::styled(
+                    format!("* {} ", branch),
+                    Style::default().fg(branch_colors.get_color(&branch))
+                );
+                branch_spans.push(span);
+            }
+        }
         
         // Commit message
         let commit_msg = commit.summary().unwrap_or("<no message>").to_string();
@@ -103,14 +112,11 @@ pub fn get_commits() -> (Vec<Line<'static>>, Vec<Line<'static>>) {
         // Short SHA
         let sha_span = Span::styled(oid.to_string()[..8].to_string(), Style::default().fg(Color::DarkGray));
 
-        // Branch tips
-        let branch_spans = Span::styled(format!("{:<20}", branch_span.clone()), Style::default().fg(Color::Yellow));
-
         // Whole branches
         let whole_branch_spans = Span::styled(format!("{:<30}", map_branch_commits.get(&oid).unwrap().join(",")), Style::default().fg(Color::Yellow));
 
         // Commit message
-        let msg_span = Span::styled(format!("{:<10}", commit_msg), Style::default().fg(Color::Cyan));
+        let msg_span = Span::styled(format!("{:<10}", commit_msg), Style::default().fg(Color::DarkGray));
 
         // Combine into a Line
         let mut structure_spans = Vec::new();
@@ -120,17 +126,20 @@ pub fn get_commits() -> (Vec<Line<'static>>, Vec<Line<'static>>) {
         structure.push(Line::from(structure_spans));
 
         let mut descriptors_spans = Vec::new();
-        descriptors_spans.push(branch_spans);
-        descriptors_spans.push(whole_branch_spans);
-        descriptors_spans.push(msg_span);
+        descriptors_spans.extend(branch_spans);
+        // descriptors_spans.push(whole_branch_spans);
         descriptors.push(Line::from(descriptors_spans));
+
+        let mut messages_spans = Vec::new();
+        messages_spans.push(msg_span);
+        messages.push(Line::from(messages_spans));
 
         // Update buffer for tree hierarchy
         split_inner(&mut buffer);
         replace_or_append_oid(&mut buffer, oid, parent_oids);
     }
 
-    (structure, descriptors)
+    (structure, descriptors, messages)
 }
 
 fn collect_branch_tips(repo: &Repository) -> Vec<(String, Oid)> {
