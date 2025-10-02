@@ -91,7 +91,6 @@ pub fn get_commits() -> (Vec<Line<'static>>, Vec<Line<'static>>, Vec<Line<'stati
                 tree_spans.push(Span::styled(symbol.to_string(), Style::default().fg(branch_colors.get_branch_color(&oid, &map_branch_commits))));
             }
         }
-        tree_spans.push(Span::raw(format!("{:<10}", ' ')));
 
         // Branch names
         let mut branch_spans: Vec<Span<'_>> = Vec::new();
