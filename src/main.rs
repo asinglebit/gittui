@@ -2,14 +2,12 @@ use std::collections::{HashMap};
 use std::io;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use git2::{BranchType, Oid, Repository};
-use ratatui::layout::{Layout, Constraint, Direction};
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
-    style::Stylize,
-    style::{Color, Modifier, Style},
-    text::{Line, Span, Text},
-    widgets::{Block, Paragraph, Widget},
+    style::{Color, Style},
+    text::{Line, Span},
+    widgets::{Widget},
     DefaultTerminal, Frame,
 };
 
@@ -19,13 +17,6 @@ fn main() -> io::Result<()> {
     ratatui::restore();
     app_result
 }
-
-// fn main() {
-//     let lines = get_commits();
-//     for line in lines {
-//         println!("{line}");
-//     }
-// }
 
 #[derive(Debug, Default)]
 pub struct App {
@@ -158,27 +149,17 @@ impl BranchManager {
     }
 }
 
-
 pub fn get_commits() -> (Vec<Line<'static>>, Vec<Line<'static>>) {
     let repo = Repository::open("../playground").expect("Could not open repo");
 
     // Collect branch tips
-    let mut branch_commit_tuples = Vec::new();
-    for branch_type in [BranchType::Local, BranchType::Remote] {
-        for branch in repo.branches(Some(branch_type)).unwrap() {
-            let (branch, _) = branch.unwrap();
-            let name = branch.name().unwrap().unwrap_or("unknown").to_string();
-            if let Some(target) = branch.get().target() {
-                branch_commit_tuples.push((name, target));
-            }
-        }
-    }
+    let branch_commit_tuples = collect_branch_tips(&repo);
 
     let mut branch_tips: HashMap<Oid, Vec<String>> = HashMap::new();
     for (branch, oid) in &branch_commit_tuples {
         branch_tips.entry(*oid).or_default().push(branch.clone());
     }
-
+    
     // Map commit Oids to branches
     let map_branch_commits = map_commits_to_branches(&repo, &branch_commit_tuples);
 
@@ -283,6 +264,20 @@ pub fn get_commits() -> (Vec<Line<'static>>, Vec<Line<'static>>) {
     }
 
     (structure, descriptors)
+}
+
+fn collect_branch_tips(repo: &Repository) -> Vec<(String, Oid)> {
+    let mut branch_commit_tuples = Vec::new();
+    for branch_type in [BranchType::Local, BranchType::Remote] {
+        for branch in repo.branches(Some(branch_type)).unwrap() {
+            let (branch, _) = branch.unwrap();
+            if let Some(target) = branch.get().target() {
+                let name = branch.name().unwrap().unwrap_or("unknown").to_string();
+                branch_commit_tuples.push((name, target));
+            }
+        }
+    }
+    branch_commit_tuples
 }
 
 fn map_commits_to_branches(repo: &Repository, branch_commit_tuples: &[(String, Oid)]) -> HashMap<Oid, Vec<String>> {
