@@ -1,199 +1,313 @@
-use std::env;
-use std::path::PathBuf;
-use std::collections::{HashMap};
-use git2::{BranchType, Oid, Repository};
+use std::{collections::HashMap};
+use git2::{BranchType, Commit, Oid, Repository, Time};
 use ratatui::{
     style::{Color, Style},
     text::{Line, Span},
 };
 
-use crate::branch_manager::BranchManager;
+use crate::colors::Colors;
 
-pub fn get_commits() -> (Vec<Line<'static>>, Vec<Line<'static>>, Vec<Line<'static>>) {
+#[derive(Clone)]
+struct CommitMetadata {
+    sha: Oid,
+    parents: Vec<Oid>
+}
+
+pub fn get_commits(repo: &Repository) -> (Vec<Line<'static>>, Vec<Line<'static>>, Vec<Line<'static>>, Vec<Line<'static>>) {
     
-    let args: Vec<String> = env::args().collect();
-    let path = if args.len() > 1 {
-        PathBuf::from(&args[1])
-    } else {
-        PathBuf::from(".")
-    };
-    let repo = Repository::open(path).expect("Could not open repo");
-
-    // Collect branch tips
-    let branch_commit_tuples = collect_branch_tips(&repo);
-
-    let mut branch_tips: HashMap<Oid, Vec<String>> = HashMap::new();
-    for (branch, oid) in &branch_commit_tuples {
-        branch_tips.entry(*oid).or_default().push(branch.clone());
-    }
-    
-    // Map commit Oids to branches
-    let map_branch_commits = map_commits_to_branches(&repo, &branch_commit_tuples);
-
-    // Collect commit times for sorting
-    let commit_times = map_commit_times(&repo, &map_branch_commits);
-
-    // Sort commits by time (most recent first)
-    let mut oids: Vec<_> = map_branch_commits.keys().copied().collect();
-    oids.sort_by_key(|oid| commit_times[oid]);
-    oids.reverse();
-
-    let mut branch_colors = BranchManager::new();
-
-    let mut buffer: Vec<Vec<Oid>> = Vec::new();
-        
-    let mut structure = Vec::new();
-    let mut descriptors = Vec::new();
+    let mut colors = Colors::new();
+    let mut graph = Vec::new();
+    let mut branches = Vec::new();
     let mut messages = Vec::new();
+    let mut buffer = Vec::new();
+    
+    let mut _buffer: Vec<CommitMetadata> = Vec::new();        
+    let _tips: HashMap<Oid, Vec<String>> = get_tips(&repo);
+    let _branches: HashMap<Oid, Vec<String>> = get_branches(&repo, &_tips);
+    let _timestamps: HashMap<Oid, Time> = get_timestamps(&repo, &_branches);
+    let _sorted: Vec<Oid> = sort(&_timestamps);
+    
+    for sha in _sorted {
+        let commit = repo.find_commit(sha).unwrap();
+        let parents: Vec<Oid> = commit.parent_ids().collect();
+        let metadata = CommitMetadata {
+            sha,
+            parents,
+        };
+        
+        let mut spans_graph = Vec::new();
+        
+        // Update
+        update_buffer(&mut _buffer, metadata);
 
-    for oid in oids {
-        let commit = repo.find_commit(oid).unwrap();
-        let parent_oids: Vec<Oid> = commit.parent_ids().collect();
+        // Flags
+        let mut is_commit_found = false;
 
-        // Build tree markers as Spans
-        let mut tree_spans = Vec::new();
-        let mut found = false;
+        // Symbols
+        let symbol_commit = if _tips.contains_key(&sha) { "● " } else { "○ " };
+        let symbol_pass = "│ ";
+        let symbol_empty = "  ";
 
-        if buffer.is_empty() {
-            let symbol = if branch_tips.contains_key(&oid) { "*" } else { "·" };
-            tree_spans.push(Span::styled(symbol.to_string(), Style::default().fg(branch_colors.get_branch_color(&oid, &map_branch_commits))));
-        } else {
-            for oid_tuple in &buffer {
-                match oid_tuple.len() {
-                    1 => {
-                        let symbol = if oid == oid_tuple[0] {
-                            if found { "┘ " } 
-                            else { found = true; if branch_tips.contains_key(&oid) { "* " } else { "· " } }
-                        } else { "│ " };
-                        // tree_spans.push(Span::raw(symbol.to_string()));
-                        tree_spans.push(Span::styled(symbol.to_string(), Style::default().fg(branch_colors.get_branch_color(&oid_tuple[0], &map_branch_commits))));
+        // Preassembled line
+        let mut preassembled: HashMap<i32, Vec<(String, Color)>> = HashMap::new();
+        let mut preassemble = |layer: i32, symbol: String, sha: &Oid| {
+            preassembled.entry(layer).or_default().push((symbol, colors.get_branch_color(&sha, &_branches)));
+        };
+
+        // Find double shas if present
+        let mut double: Option<CommitMetadata> = None;
+        let mut last: Option<Oid> = None;
+        for metadata in &_buffer {
+            if let Some(last_oid) = last {
+                if last_oid == metadata.sha {
+                    double = Some(CommitMetadata {
+                        sha: metadata.sha,
+                        parents: vec![*metadata.parents.first().unwrap()],
+                    });
+                }
+            }
+            last = Some(metadata.sha);
+        }
+
+        if let Some(double) = double {
+            // If succeded, remove the double from the buffer
+            _buffer.retain(|metadata|
+                metadata.sha != double.sha || *metadata.parents.first().unwrap() != *double.parents.first().unwrap()
+            );
+            
+            // And add a merge layer, with connected merge arrow
+            let double_sha = double.sha;
+            let double_parent = *double.parents.first().unwrap(); // safe because we constructed it with a parent
+
+            let mut in_merge_path = false; // tracks if we are currently along the merge path
+            let mut first_found = false;
+
+            // And add a merge layer, with connected merge arrow
+            for metadata in &_buffer {
+                let current_sha = metadata.sha;
+                let current_parent_sha = *metadata.parents.first().unwrap();
+
+                if current_sha == double_sha || current_parent_sha == double_parent {
+                    if !first_found {
+                        first_found = true;
+                        if current_sha == double_sha {
+                            preassemble(1, "  ".to_string(), &current_sha);
+                            preassemble(1, "≺─".to_string(), &current_sha);
+                        } else {
+                            // preassemble(1, "≺─".to_string(), &metadata.sha);
+                        }
+                    } else {
+                        if current_sha == double_sha {
+                            // preassemble(1, "  ≺─".to_string(), &current_sha);
+                        } else {
+                            preassemble(1, "⎨ ".to_string(), &current_sha);
+                        }
                     }
-                    _ => {
-                        let len = oid_tuple.len();
-                        for (i, item) in oid_tuple.iter().enumerate() {
-                            let symbol = match i {
-                                0 => "├─",
-                                x if x == len - 1 => {
-                                    if oid == *item { found = true; if branch_tips.contains_key(&oid) { "*" } else { "·" } } 
-                                    else { "┐" }
-                                }
-                                _ => "─",
-                            };
-                            // tree_spans.push(Span::raw(symbol.to_string()));
-                        tree_spans.push(Span::styled(symbol.to_string(), Style::default().fg(branch_colors.get_branch_color(&oid_tuple[0], &map_branch_commits))));
+                    in_merge_path = true;
+                } else if in_merge_path {
+                    in_merge_path = false;
+                }
+
+                if in_merge_path && current_sha != double_sha && current_parent_sha != double_parent {
+                    preassemble(1, "──".to_string(), &current_sha);
+                }
+            }
+        }
+
+        // Add commit layer
+        for metadata in &_buffer {
+            if metadata.parents.len() == 0 { continue }
+            let is_at_parent = sha == metadata.sha;
+            
+            if !is_commit_found {
+                if is_at_parent {
+                    is_commit_found = true;
+                    preassemble(0, symbol_commit.to_string(), &metadata.sha);
+                    preassemble(2, symbol_empty.to_string(), &metadata.sha);
+                } else {
+                    preassemble(0, symbol_empty.to_string(), &metadata.sha);
+                    preassemble(2, symbol_pass.to_string(), &metadata.sha);
+                }
+            } else {
+                preassemble(0, symbol_empty.to_string(), &metadata.sha);
+                preassemble(2, symbol_pass.to_string(), &metadata.sha);
+            };
+            
+        }        
+        if !is_commit_found {
+            preassemble(0, symbol_commit.to_string(), &sha);
+            preassemble(2, symbol_empty.to_string(), &sha);
+        }
+
+        // Add filler layer
+
+        // Merge preassembled layers
+        // Determine max length of layers
+        let max_len = preassembled.values().map(|v| v.len()).max().unwrap_or(0);
+        for i in 0..max_len {
+            let mut symbol = "  "; // default whitespace
+            let mut color: Color = Color::Black;
+            for layer in 0..3 as i32 {
+                if let Some(vec) = preassembled.get(&layer) {
+                    if i < vec.len() {
+                        let (s, _color) = &vec[i];
+                        if s.trim() != "" {
+                            symbol = s; // take the first non-whitespace symbol
+                            color = *_color;
+                            break;
                         }
                     }
                 }
             }
-            if !found {
-                let symbol = if branch_tips.contains_key(&oid) { "*" } else { "·" };
-                // tree_spans.push(Span::raw(symbol.to_string()));
-                tree_spans.push(Span::styled(symbol.to_string(), Style::default().fg(branch_colors.get_branch_color(&oid, &map_branch_commits))));
-            }
+            spans_graph.push(Span::styled(symbol.to_string(), Style::default().fg(color)));
         }
 
-        // Branch names
-        let mut branch_spans: Vec<Span<'_>> = Vec::new();
-        if let Some(branch_prints) = branch_tips.get(&oid) {
-            for branch in branch_prints {
-                // Create a Span for each branch name
-                let span = Span::styled(
-                    format!("* {} ", branch),
-                    Style::default().fg(branch_colors.get_color(&branch))
-                );
-                branch_spans.push(span);
-            }
-        }
-        
-        // Commit message
-        let commit_msg = commit.summary().unwrap_or("<no message>").to_string();
+        // Render
+        // for layer in preassembled.keys() {
+        //     if let Some(items) = preassembled.get(&layer) {
+        //         for (symbol, color) in items {
+        //             spans_graph.push(Span::styled(symbol.to_string(), Style::default().fg(*color)));
+        //         }
+        //     }
+        // }
 
-        // Short SHA
-        let sha_span = Span::styled(oid.to_string()[..8].to_string(), Style::default().fg(Color::DarkGray));
-
-        // Whole branches
-        let whole_branch_spans = Span::styled(format!("{:<30}", map_branch_commits.get(&oid).unwrap().join(",")), Style::default().fg(Color::Yellow));
-
-        // Commit message
-        let msg_span = Span::styled(format!("{:<10}", commit_msg), Style::default().fg(Color::DarkGray));
-
-        // Combine into a Line
-        let mut structure_spans = Vec::new();
-        structure_spans.push(sha_span);
-        structure_spans.push(Span::raw(" ".to_string()));
-        structure_spans.extend(tree_spans);
-        structure.push(Line::from(structure_spans));
-
-        let mut descriptors_spans = Vec::new();
-        descriptors_spans.extend(branch_spans);
-        // descriptors_spans.push(whole_branch_spans);
-        descriptors.push(Line::from(descriptors_spans));
-
-        let mut messages_spans = Vec::new();
-        messages_spans.push(msg_span);
-        messages.push(Line::from(messages_spans));
-
-        // Update buffer for tree hierarchy
-        split_inner(&mut buffer);
-        replace_or_append_oid(&mut buffer, oid, parent_oids);
+        // Serialize        
+        serialize_graph(&sha, &mut graph, spans_graph);
+        serialize_branches(&sha, &mut branches, &_tips, &_branches, &colors);
+        serialize_messages(&commit, &mut messages);
+        serialize_buffer(&sha, &_buffer, &_timestamps, &mut buffer);
     }
 
-    (structure, descriptors, messages)
+    (graph, branches, messages, buffer)
 }
 
-fn collect_branch_tips(repo: &Repository) -> Vec<(String, Oid)> {
-    let mut branch_commit_tuples = Vec::new();
-    for branch_type in [BranchType::Local, BranchType::Remote] {
-        for branch in repo.branches(Some(branch_type)).unwrap() {
-            let (branch, _) = branch.unwrap();
-            if let Some(target) = branch.get().target() {
-                let name = branch.name().unwrap().unwrap_or("unknown").to_string();
-                branch_commit_tuples.push((name, target));
-            }
-        }
+fn update_buffer(buffer: &mut Vec<CommitMetadata>, metadata: CommitMetadata) {
+    let sha = metadata.sha;
+    if let Some(first_idx) = buffer.iter().position(|inner| inner.parents.contains(&sha)) {
+        buffer[first_idx] = metadata;
+        let keep_ptr = buffer[first_idx].parents.as_ptr();
+        buffer.retain(|inner| !inner.parents.contains(&sha) || inner.parents.as_ptr() == keep_ptr);
+    } else {
+        buffer.push(metadata);
     }
-    branch_commit_tuples
+    flatten(buffer);
 }
 
-fn map_commits_to_branches(repo: &Repository, branch_commit_tuples: &[(String, Oid)]) -> HashMap<Oid, Vec<String>> {
-    let mut map: HashMap<Oid, Vec<String>> = HashMap::new();
-    for (branch_name, tip_oid) in branch_commit_tuples {
-        let mut revwalk = repo.revwalk().unwrap();
-        revwalk.push(*tip_oid).unwrap();
-        for oid_result in revwalk {
-            let oid = oid_result.unwrap();
-            map.entry(oid).or_default().push(branch_name.clone());
-        }
-    }
-    map
-}
-
-fn map_commit_times(repo: &Repository, map_branch_commits: &HashMap<Oid, Vec<String>>) -> HashMap<Oid, i64> {
-    map_branch_commits.keys().map(|&oid| (oid, repo.find_commit(oid).unwrap().time().seconds())).collect()
-}
-
-
-fn split_inner(data: &mut Vec<Vec<Oid>>) {
+fn flatten(buffer: &mut Vec<CommitMetadata>) {
     let mut i = 0;
-    while i < data.len() {
-        if data[i].len() > 1 {
-            let mut inner = data.remove(i);
-            for (j, item) in inner.drain(..).enumerate() {
-                data.insert(i + j, vec![item]);
+    while i < buffer.len() {
+        if buffer[i].parents.len() > 1 {
+            let mut inner = buffer.remove(i);
+            for (j, item) in inner.parents.drain(..).enumerate() {
+                let metadata = CommitMetadata {
+                    sha: inner.sha,
+                    parents: vec![item]
+                };
+                buffer.insert(i + j, metadata);
             }
-            i += inner.len();
+            i += inner.parents.len();
         } else {
             i += 1;
         }
     }
 }
 
-fn replace_or_append_oid(data: &mut Vec<Vec<Oid>>, target: Oid, replacement: Vec<Oid>) {
-    if let Some(first_idx) = data.iter().position(|inner| inner.contains(&target)) {
-        data[first_idx] = replacement;
-        let keep_ptr = data[first_idx].as_ptr();
-        data.retain(|inner| !inner.contains(&target) || inner.as_ptr() == keep_ptr);
-    } else {
-        data.push(replacement);
+fn sort(_timestamps: &HashMap<Oid, Time>) -> Vec<Oid> {
+    let mut shas: Vec<Oid> = _timestamps.keys().copied().collect();
+    shas.sort_by(|a, b| {
+        let ta = _timestamps[a].seconds();
+        let tb = _timestamps[b].seconds();
+        tb.cmp(&ta).then(a.cmp(b))
+    });
+    shas
+}
+
+fn get_tips(repo: &Repository) -> HashMap<Oid, Vec<String>> {
+    let mut tips: HashMap<Oid, Vec<String>> = HashMap::new();
+    for branch_type in [BranchType::Local, BranchType::Remote] {
+        for branch in repo.branches(Some(branch_type)).unwrap() {
+            let (branch, _) = branch.unwrap();
+            if let Some(target) = branch.get().target() {
+                let name = branch.name().unwrap().unwrap_or("unknown").to_string();
+                tips.entry(target).or_default().push(name);
+            }
+        }
     }
+    tips
+}
+
+fn get_branches(repo: &Repository, tips: &HashMap<Oid, Vec<String>>) -> HashMap<Oid, Vec<String>> {
+    let mut map: HashMap<Oid, Vec<String>> = HashMap::new();
+    for (sha_tip, names) in tips {
+        let mut revwalk = repo.revwalk().unwrap();
+        revwalk.push(*sha_tip).unwrap();
+        for sha_step in revwalk {
+            let sha = sha_step.unwrap();
+            for name in names {
+                map.entry(sha).or_default().push(name.clone());
+            }
+        }
+    }
+    map
+}
+
+fn get_timestamps(repo: &Repository, _branches: &HashMap<Oid, Vec<String>>) -> HashMap<Oid, Time> {
+    _branches
+        .keys()
+        .map(|&sha| {
+            let commit = repo.find_commit(sha).unwrap();
+            let time = commit.author().when();
+            (sha, time)
+        })
+        .collect()
+}
+
+fn serialize_graph(sha: &Oid, graph: &mut Vec<Line<>>, spans_graph: Vec<Span<'static>>) {
+    let span_sha = Span::styled(sha.to_string()[..2].to_string(), Style::default().fg(Color::DarkGray));
+    let mut spans = Vec::new();
+    spans.push(span_sha);
+    spans.push(Span::raw(" ".to_string()));
+    spans.extend(spans_graph);
+    graph.push(Line::from(spans));
+}
+
+fn serialize_branches(sha: &Oid, branches: &mut Vec<Line<>>, _tips: &HashMap<Oid, Vec<String>>, _branches: &HashMap<Oid, Vec<String>>, colors: &Colors) {
+    let mut spans = Vec::new();
+    let span_tips: Vec<Span<'_>> = _tips.get(&sha).map(|branches| {
+        branches.iter().map(|branch| {
+            Span::styled(format!("* {} ", branch), Style::default().fg(colors.get_color(branch)))
+        }).collect()
+    }).unwrap_or_default();
+    spans.extend(span_tips);
+    // let span_branches = Span::styled(_branches.get(&sha).unwrap().join(","), Style::default().fg(Color::Yellow));
+    // spans.push(span_branches);
+    branches.push(Line::from(spans));
+}
+
+fn serialize_messages(commit: &Commit<'_>, messages: &mut Vec<Line<>>) {
+    let mut spans = Vec::new();
+    let span_message = Span::styled(commit.summary().unwrap_or("<no message>").to_string(), Style::default().fg(Color::DarkGray));
+    spans.push(span_message);
+    messages.push(Line::from(spans));
+}
+
+fn serialize_buffer(_sha: &Oid, _buffer: &Vec<CommitMetadata>, _timestamps: &HashMap<Oid, Time>, buffer: &mut Vec<Line<>>) {
+    let mut spans = Vec::new();
+
+    // let time = _timestamps.get(_sha).unwrap().seconds();
+    // let offset = _timestamps.get(_sha).unwrap().offset_minutes();
+    // let span_timestamp = Span::styled(format!("{}:{:<3} ", time, offset), Style::default().fg(Color::DarkGray));
+    // spans.push(span_timestamp);
+    
+    let formatted_buffer: String = _buffer.iter().map(|metadata| {
+            format!(
+                "{:.2}({})",
+                metadata.sha,
+                metadata.parents.iter().map(|oid| {format!("{:.2}", oid)}).collect::<Vec<String>>().join(" - ")
+            )
+        }).collect::<Vec<String>>().join(" ");
+    let span_buffer = Span::styled(formatted_buffer, Style::default().fg(Color::DarkGray));
+    spans.push(span_buffer);
+
+    buffer.push(Line::from(spans));
 }

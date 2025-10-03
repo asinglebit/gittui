@@ -1,5 +1,5 @@
 mod app;
-mod branch_manager;
+mod colors;
 mod helpers;
 
 use std::io;

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use git2::{Oid};
 use ratatui::style::Color;
 
-pub struct BranchManager {
+pub struct Colors {
     color_map: HashMap<String, Color>,
     id_map: HashMap<String, usize>,
     next_color: usize,
@@ -10,7 +10,7 @@ pub struct BranchManager {
     palette: Vec<Color>,
 }
 
-impl BranchManager {
+impl Colors {
     pub fn new() -> Self {
         Self {
             color_map: HashMap::new(),
