@@ -1,4 +1,5 @@
 use std::{collections::HashMap};
+use chrono::offset;
 use git2::{BranchType, Commit, Oid, Repository, Time};
 use ratatui::{
     style::{Color, Style},
@@ -11,8 +12,25 @@ use crate::colors::Colors;
 struct CommitMetadata {
     sha: Oid,
     tip: Option<Oid>,
-    parents: Vec<Oid>
+    parents: Vec<Oid>,
+    kind: i32,
 }
+
+impl CommitMetadata {
+    fn dummy() -> Self {
+        CommitMetadata {
+            sha: Oid::zero(),
+            tip: Some(Oid::zero()),
+            parents: Vec::new(),
+            kind: 0,
+        }
+    }
+
+    fn is_dummy(&self) -> bool {
+        self.sha == Oid::zero() && self.tip == Some(Oid::zero()) && self.parents.is_empty()
+    }
+}
+
 #[derive(Eq, Hash, PartialEq)]
 enum Layers {
     Commits = 0,
@@ -28,14 +46,14 @@ pub fn get_commits(repo: &Repository) -> (Vec<Line<'static>>, Vec<Line<'static>>
     let mut messages = Vec::new();
     let mut buffer = Vec::new();
     
-    let mut _offset_prev: HashMap<Oid, i32> = HashMap::new();
-    let mut _offset: HashMap<Oid, i32> = HashMap::new();
-    let mut _buffer_prev: Vec<CommitMetadata> = Vec::new();     
-    let mut _buffer: Vec<CommitMetadata> = Vec::new();        
+    let mut _buffer_prev: Vec<CommitMetadata> = Vec::new();
+    let mut _buffer: Vec<CommitMetadata> = Vec::new();
     let _tips: HashMap<Oid, Vec<String>> = get_tips(&repo);
     let _branches: HashMap<Oid, Vec<String>> = get_branches(&repo, &_tips);
-    let _timestamps: HashMap<Oid, Time> = get_timestamps(&repo, &_branches);
-    let _sorted: Vec<Oid> = sort(&_timestamps);
+    let _timestamps: HashMap<Oid, (Time, Time, Time)> = get_timestamps(&repo, &_branches);
+    let _sorted: Vec<Oid> = get_sorted_commits(&repo);
+
+    let mut _offsets: Vec<Oid> = Vec::new();
     
     for sha in _sorted {
         let commit = repo.find_commit(sha).unwrap();
@@ -44,21 +62,27 @@ pub fn get_commits(repo: &Repository) -> (Vec<Line<'static>>, Vec<Line<'static>>
             sha,
             tip: if _tips.contains_key(&sha) {Some(sha)} else {None},
             parents,
+            kind: 0
         };
         
         let mut spans_graph = Vec::new();
         
         // Update
-        update_buffer(&mut _buffer, &mut _offset, metadata);
+        update_buffer(&mut _buffer, &mut _offsets, metadata);
 
         // Symbols
-        let symbol_commit = if _tips.contains_key(&sha) { "● " } else { "○ " };
-        let symbol_vertical = "│ ";
-        let symbol_horizontal = "──";
-        let symbol_empty = "  ";
-        let symbol_merge_left_to = "⏴─";
-        let symbol_merge_left_from = "┤ ";
-        let symbol_branch_right = "╯ ";
+        let symbol_commit = if _tips.contains_key(&sha) { "●" } else { "○" };
+        let symbol_vertical = "│";
+        let symbol_cross = "┼";
+        let symbol_horizontal = "─";
+        let symbol_empty = " ";
+        let symbol_merge_left_to = "≺";
+        let symbol_merge_left_from = "╮"; // ⎨
+        let symbol_merge_right_to = "≻";
+        let symbol_merge_right_from = "╭"; // ⎬
+        let symbol_branch_up = "╯";
+        let symbol_branch_down = "╮";
+        let symbol_merge = "⨯";
 
         // Layers
         let mut layers: HashMap<Layers, Vec<(String, Color)>> = HashMap::new();
@@ -66,145 +90,153 @@ pub fn get_commits(repo: &Repository) -> (Vec<Line<'static>>, Vec<Line<'static>>
             layers.entry(layer).or_default().push((symbol, colors.get_branch_color(&sha, &_branches)));
         };
 
-        // Merge layer
         {
-            let mut merge: Option<CommitMetadata> = None;
-
-            // Find merge if present
-            {
-                let mut last: Option<Oid> = None;
-                for metadata in &_buffer {
-                    if let Some(last_oid) = last {
-                        if last_oid == metadata.sha {
-                            merge = Some(CommitMetadata {
-                                sha: metadata.sha,
-                                tip: None,
-                                parents: vec![*metadata.parents.first().unwrap()],
-                            });
-                        }
-                    }
-                    last = Some(metadata.sha);
-                }
-            }
-            
-            // If merge is present, compute the merge layer
-            if let Some(mut merge) = merge {
-
-                // If succeded, remove the merge from the buffer
-                _buffer.retain(|metadata|
-                    metadata.sha != merge.sha || *metadata.parents.first().unwrap() != *merge.parents.first().unwrap()
-                );
-                
-                // Now find the correct tip
-                for metadata in &_buffer {
-                    if merge.parents.first().unwrap() == metadata.parents.first().unwrap() {
-                        merge.tip = Some(metadata.tip.unwrap_or(Oid::zero()));
-                    }
-                }
-                
-                let merge_sha = merge.sha;
-                let merge_tip = merge.tip.unwrap_or(Oid::zero());
-                let merge_parent = *merge.parents.first().unwrap_or(&Oid::zero()); // Safe because we constructed it with a parent
-                let mut in_merge_path = false; // Tracks if we are currently along the merge path
-                let mut first_found = false; // Used to track if we found commit itself or the parent first
-
-                // And add a merge layer, with connected merge arrow
-                for metadata in &_buffer {
-                    let current_sha = metadata.sha;
-                    let current_parent_sha = *metadata.parents.first().unwrap();
-                    if current_sha == merge_sha || current_parent_sha == merge_parent {
-                        if !first_found {
-                            first_found = true;
-                            if current_sha == merge_sha {
-                                layer(Layers::Merges, symbol_empty.to_string(), &merge_tip);
-                                layer(Layers::Merges, symbol_merge_left_to.to_string(), &merge_tip);
-                            } else {
-                                // layer(Layers::Merges, "≺─".to_string(), &metadata.sha);
-                            }
-                        } else {
-                            if current_sha == merge_sha {
-                                // layer(Layers::Merges, "  ≺─".to_string(), &current_sha);
-                            } else {
-                                layer(Layers::Merges, symbol_merge_left_from.to_string(), &merge_tip);
-                            }
-                        }
-                        in_merge_path = true;
-                    } else if in_merge_path {
-                        in_merge_path = false;
-                    }
-
-                    if in_merge_path && current_sha != merge_sha && current_parent_sha != merge_parent {
-                        layer(Layers::Merges, symbol_horizontal.to_string(), &merge_tip);
-                    }
-                }
-            }
-        }
-
-        // Commit and Pipe layers
-        {
-            if _buffer_prev.len() > _buffer.len() {
-                // If buffer decreased (meaning theres a branch)
-                let mut is_commit_found = false;
-                for metadata in &_buffer_prev {
-                    if metadata.parents.len() == 0 { continue }
-                    let metadata_parent = *metadata.parents.first().unwrap_or(&Oid::zero());
-                    if !is_commit_found {
-                        if sha == metadata_parent {
-                            is_commit_found = true;
-                            layer(Layers::Commits, symbol_commit.to_string(), &metadata.sha);
-                            layer(Layers::Pipes, symbol_empty.to_string(), &metadata.sha);
-                        } else {
-                            layer(Layers::Commits, symbol_empty.to_string(), &metadata.sha);
-                            layer(Layers::Pipes, symbol_vertical.to_string(), &metadata.sha);
-                        }
-                    } else {
-                        if sha == metadata_parent {
-                            layer(Layers::Commits, symbol_empty.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
-                            layer(Layers::Pipes, symbol_branch_right.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
-                        } else {
-                            layer(Layers::Commits, symbol_empty.to_string(), &metadata.sha);
-                            layer(Layers::Pipes, symbol_vertical.to_string(), &metadata.sha);
-                        }
-                    }                    
-                }
-            } else {
-                // Otherwise (meaning we reached a tip, merge or a non-branching commit)
-                let mut is_commit_found = false;
-                for metadata in &_buffer {
-                    if metadata.parents.len() == 0 { continue }
-                    if sha == metadata.sha {
-                        is_commit_found = true;
-                        layer(Layers::Commits, symbol_commit.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
-                        layer(Layers::Pipes, symbol_empty.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
+            // Otherwise (meaning we reached a tip, merge or a non-branching commit)
+            let mut is_commit_found = false;
+            let mut i = 0;
+            for metadata in &_buffer {
+                if metadata.sha == Oid::zero() {
+                    if _buffer_prev[i].parents.len() == 1 {
+                        let tip = _buffer_prev[i].tip.unwrap_or(Oid::zero());
+                        layer(Layers::Commits, symbol_empty.to_string(), &tip);
+                        layer(Layers::Commits, symbol_empty.to_string(), &tip);
+                        layer(Layers::Pipes, symbol_branch_up.to_string(), &tip);
+                        layer(Layers::Pipes, symbol_empty.to_string(), &tip);
                     } else {
                         layer(Layers::Commits, symbol_empty.to_string(), &metadata.sha);
-                        layer(Layers::Pipes, symbol_vertical.to_string(), &metadata.sha);
+                        layer(Layers::Commits, symbol_empty.to_string(), &metadata.sha);
+                        layer(Layers::Pipes, symbol_empty.to_string(), &metadata.sha);
+                        layer(Layers::Pipes, symbol_empty.to_string(), &metadata.sha);
                     }
+                } else if sha == metadata.sha {
+                    is_commit_found = true;
 
-                    if _offset_prev.contains_key(&metadata.tip.unwrap_or(Oid::zero())) {
-                        let offset = _offset_prev.get(&metadata.tip.unwrap_or(Oid::zero())).unwrap().clone();
-                        for i in 0..offset {
-                            if i == offset - 1 {
-                                layer(Layers::Commits, symbol_empty.to_string(), &metadata.sha);
-                                layer(Layers::Pipes, symbol_branch_right.to_string(), &metadata.sha);
-                            } else {
-                                layer(Layers::Commits, symbol_empty.to_string(), &metadata.sha);
-                                layer(Layers::Pipes, symbol_horizontal.to_string(), &metadata.sha);
+                    if metadata.parents.len() > 1 {
+                        layer(Layers::Commits, symbol_merge.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
+                    } else {
+
+                        layer(Layers::Commits, symbol_commit.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
+                    }
+                    layer(Layers::Commits, symbol_empty.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
+                    layer(Layers::Pipes, symbol_empty.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
+                    layer(Layers::Pipes, symbol_empty.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
+
+                    // Check if commit is being merged into
+                    let mut is_mergee_found = false;
+                    let mut is_drawing = false;
+                    if metadata.parents.len() > 1 {
+
+                        let mut is_merger_found = false;
+                        for mtdt in &_buffer {
+                            if mtdt.parents.len() == 1 && metadata.parents.contains(&mtdt.parents.first().unwrap()) {
+                                is_merger_found = true;
                             }
                         }
+
+                        for mtdt in &_buffer {
+                            if !is_mergee_found {
+                                if sha == mtdt.sha {
+                                    is_mergee_found = true;
+                                    if !is_merger_found {
+                                        layer(Layers::Merges, symbol_empty.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
+                                        layer(Layers::Merges, symbol_empty.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
+                                    } else {
+                                        if is_drawing {
+                                            layer(Layers::Merges, symbol_empty.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
+                                            layer(Layers::Merges, symbol_empty.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
+                                        } else {
+                                            layer(Layers::Merges, symbol_empty.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
+                                            layer(Layers::Merges, symbol_empty.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
+                                        }
+                                        is_drawing = !is_drawing;
+                                    }
+                                } else {
+                                    // Before the commit
+                                    if !is_merger_found {
+                                        layer(Layers::Merges, symbol_empty.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
+                                        layer(Layers::Merges, symbol_empty.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
+                                    } else {
+                                        if mtdt.parents.len() == 1 && metadata.parents.contains(&mtdt.parents.first().unwrap()) {
+                                            layer(Layers::Merges, symbol_merge_right_from.to_string(), &mtdt.tip.unwrap_or(Oid::zero()));
+                                            layer(Layers::Merges, symbol_empty.to_string(), &mtdt.tip.unwrap_or(Oid::zero()));
+                                            is_drawing = true;
+                                        } else {
+                                            if is_drawing {
+                                                layer(Layers::Merges, symbol_cross.to_string(), &mtdt.tip.unwrap_or(Oid::zero()));
+                                                layer(Layers::Merges, symbol_horizontal.to_string(), &mtdt.tip.unwrap_or(Oid::zero()));
+                                            } else {
+                                                layer(Layers::Merges, symbol_empty.to_string(), &mtdt.tip.unwrap_or(Oid::zero()));
+                                                layer(Layers::Merges, symbol_empty.to_string(), &mtdt.tip.unwrap_or(Oid::zero()));
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                // After the commit
+                                if !is_merger_found {
+                                    // layer(Layers::Merges, symbol_empty.to_string(), &mtdt.tip.unwrap_or(Oid::zero()));
+                                    // layer(Layers::Merges, symbol_empty.to_string(), &mtdt.tip.unwrap_or(Oid::zero()));
+                                } else {
+                                    if mtdt.parents.len() == 1 && metadata.parents.contains(&mtdt.parents.first().unwrap()) {
+                                        layer(Layers::Merges, symbol_merge_left_from.to_string(), &mtdt.tip.unwrap_or(Oid::zero()));
+                                        layer(Layers::Merges, symbol_empty.to_string(), &mtdt.tip.unwrap_or(Oid::zero()));
+                                        is_drawing = false;
+                                    } else {
+                                        if is_drawing {
+                                            layer(Layers::Merges, symbol_cross.to_string(), &mtdt.tip.unwrap_or(Oid::zero()));
+                                            layer(Layers::Merges, symbol_horizontal.to_string(), &mtdt.tip.unwrap_or(Oid::zero()));
+                                        }
+                                        else {
+                                            layer(Layers::Merges, symbol_empty.to_string(), &mtdt.tip.unwrap_or(Oid::zero()));
+                                            layer(Layers::Merges, symbol_empty.to_string(), &mtdt.tip.unwrap_or(Oid::zero()));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if !is_merger_found {
+
+                            if i + 1 == _buffer.len() {
+                                layer(Layers::Merges, symbol_branch_down.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
+                                layer(Layers::Merges, symbol_empty.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
+                            } else if i + 1 < _buffer_prev.len() && _buffer_prev[i+1].is_dummy() {
+                                layer(Layers::Merges, symbol_branch_down.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
+                                layer(Layers::Merges, symbol_empty.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
+                            } else if i + 1 < _buffer.len() && _buffer[i+1].is_dummy() {
+                                layer(Layers::Merges, symbol_merge_left_from.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
+                                layer(Layers::Merges, symbol_empty.to_string(), &metadata.tip.unwrap_or(Oid::zero()));
+                            }
+
+                            _offsets.push(metadata.sha.clone());
+                        }
                     }
-                }        
-                if !is_commit_found {
-                    layer(Layers::Commits, symbol_commit.to_string(), &sha);
-                    layer(Layers::Pipes, symbol_empty.to_string(), &sha);
+                } else {
+                    layer(Layers::Commits, symbol_empty.to_string(), &metadata.sha);
+                    layer(Layers::Commits, symbol_empty.to_string(), &metadata.sha);
+                    layer(Layers::Pipes, symbol_vertical.to_string(), &metadata.sha);
+                    layer(Layers::Pipes, symbol_empty.to_string(), &metadata.sha);
                 }
+
+                i += 1;
+            }        
+            if !is_commit_found {
+                layer(Layers::Commits, symbol_commit.to_string(), &sha);
+                layer(Layers::Commits, symbol_empty.to_string(), &sha);
+                layer(Layers::Pipes, symbol_empty.to_string(), &sha);
+                layer(Layers::Pipes, symbol_empty.to_string(), &sha);
             }
         }
 
-        // Assemble layers into the graph
+        // Blend layers into the graph
         {
-            // Determine max length of layers
-            let max_len = layers.get(&Layers::Commits).unwrap().len();
+            // Determine max length across all layers
+            let max_len = [Layers::Commits, Layers::Merges, Layers::Pipes]
+                .iter()
+                .filter_map(|layer| layers.get(layer))
+                .map(|tokens| tokens.len())
+                .max()
+                .unwrap_or(0);
 
             // For each token
             for token_index in 0..max_len {
@@ -212,16 +244,16 @@ pub fn get_commits(repo: &Repository) -> (Vec<Line<'static>>, Vec<Line<'static>>
                 let mut color: Color = Color::Black;
 
                 // For each layer
-                for layer in [Layers::Commits, Layers::Merges, Layers::Pipes] {
+                for layer in [ Layers::Commits, Layers::Merges, Layers::Pipes] {
                     if let Some(tokens) = layers.get(&layer) {
                         if token_index < tokens.len() {
-
-                            // Take the first non-whitespace symbol
-                            let (_symbol, _color) = &tokens[token_index];
-                            if _symbol.trim() != "" {
-                                symbol = _symbol;
-                                color = *_color;
-                                break;
+                            // If the layer has a token at this index
+                            if let Some((_symbol, _color)) = tokens.get(token_index) {
+                                if _symbol.trim() != "" {
+                                    symbol = _symbol;
+                                    color = *_color;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -231,86 +263,85 @@ pub fn get_commits(repo: &Repository) -> (Vec<Line<'static>>, Vec<Line<'static>>
         }
 
         _buffer_prev = _buffer.clone();
-        _offset_prev = _offset.clone();
 
         // Serialize        
         serialize_graph(&sha, &mut graph, spans_graph);
         serialize_branches(&sha, &mut branches, &_tips, &_branches, &colors);
         serialize_messages(&commit, &mut messages);
-        serialize_buffer(&sha, &_buffer, &mut _offset, &_timestamps, &mut buffer);
+        serialize_buffer(&sha, &_buffer, &_timestamps, &mut buffer);
     }
 
     (graph, branches, messages, buffer)
 }
 
-fn update_buffer(buffer: &mut Vec<CommitMetadata>, offset: &mut HashMap<Oid, i32>, metadata: CommitMetadata) {
-    
-    // Clear offsets from the previous iteration
-    offset.clear();
+fn update_buffer(buffer: &mut Vec<CommitMetadata>, _offsets: &mut Vec<Oid>, metadata: CommitMetadata) {
 
+    // Erase trailing dummy metadata
+    while buffer.last().map_or(false, |c| c.is_dummy()) {
+        buffer.pop();
+    }
+
+    // If we have a merge from the same lane
+    if let Some(offset_idx) = buffer.iter().position(|inner| {
+        _offsets.iter().any(|sha| sha == &inner.sha)
+    }) {
+        // Find the index in `_offsets` of the matching SHA
+        if let Some(offsets_pos) = _offsets.iter().position(|sha| sha == &buffer[offset_idx].sha) {
+            _offsets.remove(offsets_pos);
+        }
+
+        // Clone the element at offset_idx
+        let mut clone = buffer[offset_idx].clone();
+        clone.parents.remove(0);
+
+        // Remove second parent from the original
+        buffer[offset_idx].parents.remove(1);
+
+        // Insert it right after the found index
+        buffer.insert(offset_idx + 1, clone);
+    }
+    
     // Replace or append buffer metadata    
     if let Some(first_idx) = buffer.iter().position(|inner| inner.parents.contains(&metadata.sha)) {
-        let sha = metadata.sha;
-        let tip = buffer[first_idx].tip;
+
+        // If 
+
+        let old_sha = metadata.sha;
+        let old_tip = buffer[first_idx].tip;
+        let old_parents = buffer[first_idx].parents.clone();
+        
+        // Replace metadata
         buffer[first_idx] = metadata;
-        buffer[first_idx].tip = tip;
+        buffer[first_idx].tip = old_tip;
         let keep_ptr = buffer[first_idx].parents.as_ptr();
 
-        // Calculate and store offsets for the next iteration
-        let old_len = buffer.len() as i32;
-        buffer.retain(|inner| !inner.parents.contains(&sha) || inner.parents.as_ptr() == keep_ptr);
-        let new_len = buffer.len() as i32;
-        let _offset = old_len - new_len;
-        
-        if _offset > 0 {
-            let mut found = false;
-            for item in buffer.iter() {
-                let _tip = item.tip.unwrap_or(Oid::zero());
-                if !found {
-                    if tip.unwrap_or(Oid::zero()) == _tip {
-                        found = true;
-                    }
-                } else {
-                    offset.entry(_tip).or_insert(_offset);
-                }
+        // Place dummies in case of branching
+        for inner in buffer.iter_mut() {
+            if inner.parents.contains(&old_sha) && inner.parents.as_ptr() != keep_ptr {
+                *inner = CommitMetadata::dummy();
             }
         }
+
     } else {
         buffer.push(metadata);
     }
-
-    // Flatten merge
-    flatten(buffer);
 }
 
-fn flatten(buffer: &mut Vec<CommitMetadata>) {
-    let mut i = 0;
-    while i < buffer.len() {
-        if buffer[i].parents.len() > 1 {
-            let mut inner = buffer.remove(i);
-            for (j, item) in inner.parents.drain(..).enumerate() {
-                let metadata = CommitMetadata {
-                    sha: inner.sha,
-                    tip: inner.tip,
-                    parents: vec![item]
-                };
-                buffer.insert(i + j, metadata);
-            }
-            i += inner.parents.len();
-        } else {
-            i += 1;
+fn get_sorted_commits(repo: &Repository) -> Vec<Oid> {
+    let mut revwalk = repo.revwalk().unwrap();
+
+    // Push all branch tips
+    for branch in repo.branches(None).unwrap() {
+        let (branch, _) = branch.unwrap();
+        if let Some(oid) = branch.get().target() {
+            revwalk.push(oid).unwrap();
         }
     }
-}
 
-fn sort(_timestamps: &HashMap<Oid, Time>) -> Vec<Oid> {
-    let mut shas: Vec<Oid> = _timestamps.keys().copied().collect();
-    shas.sort_by(|a, b| {
-        let ta = _timestamps[a].seconds();
-        let tb = _timestamps[b].seconds();
-        tb.cmp(&ta).then(a.cmp(b))
-    });
-    shas
+    // Topological + chronological order
+    revwalk.set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME).unwrap();
+
+    revwalk.filter_map(Result::ok).collect()
 }
 
 fn get_tips(repo: &Repository) -> HashMap<Oid, Vec<String>> {
@@ -342,13 +373,15 @@ fn get_branches(repo: &Repository, tips: &HashMap<Oid, Vec<String>>) -> HashMap<
     map
 }
 
-fn get_timestamps(repo: &Repository, _branches: &HashMap<Oid, Vec<String>>) -> HashMap<Oid, Time> {
+fn get_timestamps(repo: &Repository, _branches: &HashMap<Oid, Vec<String>>) -> HashMap<Oid, (Time, Time, Time)> {
     _branches
         .keys()
         .map(|&sha| {
             let commit = repo.find_commit(sha).unwrap();
-            let time = commit.author().when();
-            (sha, time)
+            let author_time = commit.author().when();
+            let committer_time = commit.committer().when();
+            let time = commit.time();
+            (sha, (time, committer_time, author_time))
         })
         .collect()
 }
@@ -382,30 +415,27 @@ fn serialize_messages(commit: &Commit<'_>, messages: &mut Vec<Line<>>) {
     messages.push(Line::from(spans));
 }
 
-fn serialize_buffer(_sha: &Oid, _buffer: &Vec<CommitMetadata>, _offset: &mut HashMap<Oid, i32>, _timestamps: &HashMap<Oid, Time>, buffer: &mut Vec<Line<>>) {
+fn serialize_buffer(_sha: &Oid, _buffer: &Vec<CommitMetadata>, _timestamps: &HashMap<Oid, (Time, Time, Time)>, buffer: &mut Vec<Line<>>) {
     let mut spans = Vec::new();
 
-    // let time = _timestamps.get(_sha).unwrap().seconds();
-    // let offset = _timestamps.get(_sha).unwrap().offset_minutes();
-    // let span_timestamp = Span::styled(format!("{}:{:<3} ", time, offset), Style::default().fg(Color::DarkGray));
+    // let time = _timestamps.get(_sha).unwrap().0.seconds();
+    // let o_time = _timestamps.get(_sha).unwrap().0.offset_minutes();
+    // let committer_time = _timestamps.get(_sha).unwrap().1.seconds();
+    // let o_committer_time = _timestamps.get(_sha).unwrap().1.offset_minutes();
+    // let author_time = _timestamps.get(_sha).unwrap().1.seconds();
+    // let o_author_time = _timestamps.get(_sha).unwrap().1.offset_minutes();
+    // let span_timestamp = Span::styled(format!("{}:{:.3}:{}:{:.3}:{}:{:.3} ", time, o_time, committer_time, o_committer_time, author_time, o_author_time), Style::default().fg(Color::DarkGray));
     // spans.push(span_timestamp);
     
     let formatted_buffer: String = _buffer.iter().map(|metadata| {
             format!(
                 "{:.2}({})[{:.2}]",
                 metadata.sha,
-                metadata.parents.iter().map(|oid| {format!("{:.2}", oid)}).collect::<Vec<String>>().join(" - "),
+                if metadata.parents.len() > 0 {metadata.parents.iter().map(|oid| {format!("{:.2}", oid)}).collect::<Vec<String>>().join(" - ")} else {"--".to_string()},
                 metadata.tip.unwrap_or(Oid::zero()),
             )
         }).collect::<Vec<String>>().join(" ");
-    let formatted_offsets: String = _offset.iter().map(|(oid, offset)| {
-            format!(
-                "{:.2}|{}",
-                oid,
-                offset,
-            )
-        }).collect::<Vec<String>>().join(" ");
-    let span_buffer = Span::styled(format!("{:<50} : {}", formatted_buffer, formatted_offsets), Style::default().fg(Color::DarkGray));
+    let span_buffer = Span::styled(formatted_buffer, Style::default().fg(Color::DarkGray));
     spans.push(span_buffer);
 
     buffer.push(Line::from(spans));
