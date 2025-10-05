@@ -266,7 +266,7 @@ pub fn get_commits(repo: &Repository) -> (Vec<Line<'static>>, Vec<Line<'static>>
 
         // Serialize        
         serialize_graph(&sha, &mut graph, spans_graph);
-        serialize_branches(&sha, &mut branches, &_tips, &_tip_colors, &_branches, &commit, &mut messages);
+        serialize_branches(&sha, &mut branches, &_tips, &_tip_colors, &_branches, &commit);
         serialize_messages(&commit, &mut messages);
         serialize_buffer(&sha, &_buffer, &_timestamps, &mut buffer);
     }
@@ -410,7 +410,7 @@ fn serialize_graph(sha: &Oid, graph: &mut Vec<Line<>>, spans_graph: Vec<Span<'st
     graph.push(Line::from(spans));
 }
 
-fn serialize_branches(sha: &Oid, branches: &mut Vec<Line<>>, _tips: &HashMap<Oid, Vec<String>>, _tip_colors: &HashMap<Oid, Color>, _branches: &HashMap<Oid, Vec<String>>, commit: &Commit<'_>, messages: &mut Vec<Line<>>) {
+fn serialize_branches(sha: &Oid, branches: &mut Vec<Line<>>, _tips: &HashMap<Oid, Vec<String>>, _tip_colors: &HashMap<Oid, Color>, _branches: &HashMap<Oid, Vec<String>>, commit: &Commit<'_>) {
     let mut spans = Vec::new();
     let span_tips: Vec<Span<'_>> = _tips.get(&sha).map(|branches| {
         branches.iter().flat_map(|branch| {

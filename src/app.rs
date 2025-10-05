@@ -10,7 +10,7 @@ use crate::helpers::get_commits;
 
 pub struct App {
     // General
-    // path: String,
+    path: String,
     repo: Repository,
     
     // Data
@@ -80,12 +80,13 @@ impl Default for App {
 
         let args: Vec<String> = env::args().collect();
         let path = if args.len() > 1 { &args[1] } else { &".".to_string() };
-        let path_buf = PathBuf::from(&path);
-        let repo = Repository::open(path_buf).expect("Could not open repo");
+        let absolute_path: PathBuf = std::fs::canonicalize(&path).unwrap_or_else(|_| PathBuf::from(path));
+        // let path_buf = PathBuf::from(&path);
+        let repo = Repository::open(absolute_path.clone()).expect("Could not open repo");
         
         App {
             // General
-            // path: path.to_string(),
+            path: absolute_path.display().to_string(),
             repo,
             
             // Data
@@ -106,13 +107,22 @@ impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
 
         // Layout
-        let chunks = ratatui::layout::Layout::default()
-            .direction(ratatui::layout::Direction::Horizontal)
-            .constraints([ratatui::layout::Constraint::Percentage(15), ratatui::layout::Constraint::Percentage(55), ratatui::layout::Constraint::Percentage(30)])
+        let chunks_vertical = ratatui::layout::Layout::default()
+            .direction(ratatui::layout::Direction::Vertical)
+            .constraints([ratatui::layout::Constraint::Length(1), ratatui::layout::Constraint::Percentage(100), ratatui::layout::Constraint::Length(1)])
             .split(area);
+        let chunks_title_bar = ratatui::layout::Layout::default()
+            .direction(ratatui::layout::Direction::Horizontal)
+            .constraints([ratatui::layout::Constraint::Percentage(80), ratatui::layout::Constraint::Percentage(0), ratatui::layout::Constraint::Percentage(20)])
+            .split(chunks_vertical[0]);
+        let chunks_horizontal = ratatui::layout::Layout::default()
+            .direction(ratatui::layout::Direction::Horizontal)
+            // .constraints([ratatui::layout::Constraint::Percentage(15), ratatui::layout::Constraint::Percentage(55), ratatui::layout::Constraint::Percentage(30)])
+            .constraints([ratatui::layout::Constraint::Length(15), ratatui::layout::Constraint::Percentage(100), ratatui::layout::Constraint::Length(1)])
+            .split(chunks_vertical[1]);
 
         // Clamp scroll so selected line is visible
-        let height = chunks[0].height as usize - 2;
+        let height = chunks_horizontal[0].height as usize - 2;
         if self.selected < self.scroll.get() as usize {
             self.scroll.set(self.selected as u16);
         } else if self.selected >= self.scroll.get() as usize + height {
@@ -120,7 +130,7 @@ impl Widget for &App {
         }
 
         // Graph
-        let width = chunks[0].width as usize;
+        let width = chunks_horizontal[0].width as usize;
         let graph_lines: Vec<Line> = self.graph
             .iter()
             .enumerate()
@@ -128,8 +138,8 @@ impl Widget for &App {
                 if i == self.selected {
                     let content = line.to_string();
                     let mut line_content = content.clone();
-                    if line_content.len() < width { line_content.push_str(&" ".repeat(width)); }
-                    Line::from(Span::styled(line_content, Style::default().bg(Color::Blue).fg(Color::White)))
+                    line_content.push_str(&" ".repeat(width));
+                    Line::from(Span::styled(line_content, Style::default().bg(Color::Blue).fg(Color::Gray)))
                 } else {
                     line.clone()
                 }
@@ -138,7 +148,7 @@ impl Widget for &App {
         let graph_text = Text::from(graph_lines);
 
         // Branches
-        let width = chunks[1].width as usize;
+        let width = chunks_horizontal[1].width as usize;
         let branches_lines: Vec<Line> = self.branches
             .iter()
             .enumerate()
@@ -146,8 +156,8 @@ impl Widget for &App {
                 if i == self.selected {
                     let content = line.to_string();
                     let mut line_content = content.clone();
-                    if line_content.len() < width { line_content.push_str(&" ".repeat(width - line_content.len())); }
-                    Line::from(Span::styled(line_content, Style::default().bg(Color::Blue).fg(Color::White)))
+                    line_content.push_str(&" ".repeat(width));
+                    Line::from(Span::styled(line_content, Style::default().bg(Color::Blue).fg(Color::Gray)))
                 } else {
                     line.clone()
                 }
@@ -156,7 +166,7 @@ impl Widget for &App {
         let branches_text = Text::from(branches_lines);
 
         // Commits
-        let width = chunks[2].width as usize;
+        let width = chunks_horizontal[2].width as usize;
         let messages_lines: Vec<Line> = self.buffers
             .iter()
             .enumerate()
@@ -164,14 +174,30 @@ impl Widget for &App {
                 if i == self.selected {
                     let content = line.to_string();
                     let mut line_content = content.clone();
-                    if line_content.len() < width { line_content.push_str(&" ".repeat(width - line_content.len())); }
-                    Line::from(Span::styled(line_content, Style::default().bg(Color::Blue).fg(Color::White),))
+                    line_content.push_str(&" ".repeat(width));
+                    Line::from(Span::styled(line_content, Style::default().bg(Color::Blue).fg(Color::Gray)))
                 } else {
                     line.clone()
                 }
             })
             .collect();
         let messages_text = Text::from(messages_lines);
+
+        // Title
+        ratatui::widgets::Paragraph::new(Text::from(Line::from(Span::styled(format!(" 🖿 {}", self.path), Style::default().fg(Color::Rgb(160, 160, 160))))))
+            .left_aligned()
+            .block(ratatui::widgets::Block::default())
+            .render(chunks_title_bar[0], buf);
+        ratatui::widgets::Paragraph::new(Text::from(Line::from(Span::styled(format!("{}/{} ", self.selected + 1, self.messages.len()), Style::default().fg(Color::Rgb(160, 160, 160))))))
+            .right_aligned()
+            .block(ratatui::widgets::Block::default())
+            .render(chunks_title_bar[2], buf);
+
+        // Status bar
+        ratatui::widgets::Paragraph::new(Text::from(Line::from(Span::styled(format!("⟨r⟩ reload ⟨j|k⟩ scroll ⟨q⟩ quit"), Style::default().fg(Color::DarkGray)))))
+            .centered()
+            .block(ratatui::widgets::Block::default())
+            .render(chunks_vertical[2], buf);
 
         // Paragraphs
         ratatui::widgets::Paragraph::new(graph_text.clone())
@@ -181,7 +207,7 @@ impl Widget for &App {
                 .borders(Borders::LEFT | Borders::TOP | Borders::BOTTOM)
                 .border_style(Style::default().fg(Color::Rgb(60, 60, 60)))
                 .border_type(ratatui::widgets::BorderType::Rounded))
-            .render(chunks[0], buf);
+            .render(chunks_horizontal[0], buf);
         ratatui::widgets::Paragraph::new(branches_text)
             .left_aligned()
             .scroll((self.scroll.get(), 0))
@@ -189,7 +215,7 @@ impl Widget for &App {
                 .borders(Borders::TOP | Borders::BOTTOM)
                 .border_style(Style::default().fg(Color::Rgb(60, 60, 60)))
                 .border_type(ratatui::widgets::BorderType::Rounded))
-            .render(chunks[1], buf);
+            .render(chunks_horizontal[1], buf);
         ratatui::widgets::Paragraph::new(messages_text)
             .left_aligned()
             .scroll((self.scroll.get(), 0))
@@ -197,6 +223,6 @@ impl Widget for &App {
                 .borders(Borders::RIGHT | Borders::TOP | Borders::BOTTOM)
                 .border_style(Style::default().fg(Color::Rgb(60, 60, 60)))
                 .border_type(ratatui::widgets::BorderType::Rounded))
-            .render(chunks[2], buf);
+            .render(chunks_horizontal[2], buf);
     }
 }
