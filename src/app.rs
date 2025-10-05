@@ -108,7 +108,7 @@ impl Widget for &App {
         // Layout
         let chunks = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Horizontal)
-            .constraints([ratatui::layout::Constraint::Percentage(15), ratatui::layout::Constraint::Percentage(15), ratatui::layout::Constraint::Percentage(70)])
+            .constraints([ratatui::layout::Constraint::Percentage(15), ratatui::layout::Constraint::Percentage(55), ratatui::layout::Constraint::Percentage(30)])
             .split(area);
 
         // Clamp scroll so selected line is visible
