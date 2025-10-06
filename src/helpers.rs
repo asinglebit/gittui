@@ -80,13 +80,14 @@ impl ColorPicker {
     }
 }
 
-pub fn get_commits(repo: &Repository) -> (Vec<Line<'static>>, Vec<Line<'static>>, Vec<Line<'static>>, Vec<Line<'static>>) {
+pub fn get_commits(repo: &Repository) -> (Vec<Oid>, Vec<Line<'static>>, Vec<Line<'static>>, Vec<Line<'static>>, Vec<Line<'static>>) {
     
     let mut color = ColorPicker::default();
     let mut graph = Vec::new();
     let mut branches = Vec::new();
     let mut messages = Vec::new();
     let mut buffer = Vec::new();
+    let mut shas = Vec::new();
     
     let mut _buffer_prev: Vec<CommitMetadata> = Vec::new();
     let mut _buffer: Vec<CommitMetadata> = Vec::new();
@@ -356,14 +357,15 @@ pub fn get_commits(repo: &Repository) -> (Vec<Line<'static>>, Vec<Line<'static>>
 
         _buffer_prev = _buffer.clone();
 
-        // Serialize        
+        // Serialize
+        serialize_shas(&sha, &mut shas);
         serialize_graph(&sha, &mut graph, spans_graph);
         serialize_branches(&sha, &mut branches, &_tips, &_tip_colors, &_branches, &commit);
         serialize_messages(&commit, &mut messages);
         serialize_buffer(&sha, &_buffer, &_timestamps, &mut buffer);
     }
 
-    (graph, branches, messages, buffer)
+    (shas, graph, branches, messages, buffer)
 }
 
 fn update_buffer(buffer: &mut Vec<CommitMetadata>, _not_found_mergers: &mut Vec<Oid>, metadata: CommitMetadata) {
@@ -510,6 +512,10 @@ fn serialize_messages(commit: &Commit<'_>, messages: &mut Vec<Line<>>) {
     let span_message = Span::styled(commit.summary().unwrap_or("<no message>").to_string(), Style::default().fg(COLOR_TEXT));
     spans.push(span_message);
     messages.push(Line::from(spans));
+}
+
+fn serialize_shas(sha: &Oid, shas: &mut Vec<Oid<>>) {
+    shas.push(sha.clone());
 }
 
 fn serialize_buffer(_sha: &Oid, _buffer: &Vec<CommitMetadata>, _timestamps: &HashMap<Oid, (Time, Time, Time)>, buffer: &mut Vec<Line<>>) {
