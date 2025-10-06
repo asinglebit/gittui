@@ -233,7 +233,7 @@ impl Widget for &App {
             rows,
             [
                 ratatui::layout::Constraint::Length(25),
-                ratatui::layout::Constraint::Percentage(30),
+                ratatui::layout::Constraint::Percentage(100),
             ],
         )
         // .header(header)
