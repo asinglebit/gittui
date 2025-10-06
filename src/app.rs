@@ -7,6 +7,7 @@ use ratatui::{
 use ratatui::style::{Style, Color};
 
 use crate::helpers::get_commits;
+use crate::colors::*;
 
 pub struct App {
     // General
@@ -64,8 +65,36 @@ impl App {
             KeyCode::Char('r') => self.reload(),
             KeyCode::Char('q') => self.exit(),
             KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => self.exit(),         
-            KeyCode::Char('j') | KeyCode::Down => { if self.selected + 1 < self.branches.len() { self.selected += 1; } }
-            KeyCode::Char('k') | KeyCode::Up => { if self.selected > 0 { self.selected -= 1; } }
+            KeyCode::Char('j') | KeyCode::Down => {
+                if self.selected + 1 < self.branches.len() { self.selected += 1; }
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                if self.selected > 0 { self.selected -= 1; }
+            }
+            KeyCode::Home => {
+                self.selected = 0;
+            }
+            KeyCode::End => {
+                if !self.branches.is_empty() {
+                    self.selected = self.branches.len() - 1;
+                }
+            }
+            KeyCode::PageUp => {
+                let page = 20;
+                if self.selected >= page {
+                    self.selected -= page;
+                } else {
+                    self.selected = 0;
+                }
+            }
+            KeyCode::PageDown => {
+                let page = 20;
+                if self.selected + page < self.branches.len() {
+                    self.selected += page;
+                } else {
+                    self.selected = self.branches.len() - 1;
+                }
+            }
             _ => {}
         }
     }
@@ -117,8 +146,8 @@ impl Widget for &App {
             .split(chunks_vertical[0]);
         let chunks_horizontal = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Horizontal)
-            // .constraints([ratatui::layout::Constraint::Percentage(15), ratatui::layout::Constraint::Percentage(55), ratatui::layout::Constraint::Percentage(30)])
-            .constraints([ratatui::layout::Constraint::Length(15), ratatui::layout::Constraint::Percentage(100), ratatui::layout::Constraint::Length(1)])
+            .constraints([ratatui::layout::Constraint::Percentage(20), ratatui::layout::Constraint::Percentage(0), ratatui::layout::Constraint::Percentage(80)])
+            // .constraints([ratatui::layout::Constraint::Length(15), ratatui::layout::Constraint::Percentage(100), ratatui::layout::Constraint::Length(1)])
             .split(chunks_vertical[1]);
 
         // Clamp scroll so selected line is visible
@@ -139,7 +168,7 @@ impl Widget for &App {
                     let content = line.to_string();
                     let mut line_content = content.clone();
                     line_content.push_str(&" ".repeat(width));
-                    Line::from(Span::styled(line_content, Style::default().bg(Color::Blue).fg(Color::Gray)))
+                    Line::from(Span::styled(line_content, Style::default().bg(COLOR_SELECTION).fg(COLOR_TEXT_SELECTED)))
                 } else {
                     line.clone()
                 }
@@ -157,7 +186,7 @@ impl Widget for &App {
                     let content = line.to_string();
                     let mut line_content = content.clone();
                     line_content.push_str(&" ".repeat(width));
-                    Line::from(Span::styled(line_content, Style::default().bg(Color::Blue).fg(Color::Gray)))
+                    Line::from(Span::styled(line_content, Style::default().bg(COLOR_SELECTION).fg(COLOR_TEXT_SELECTED)))
                 } else {
                     line.clone()
                 }
@@ -175,7 +204,7 @@ impl Widget for &App {
                     let content = line.to_string();
                     let mut line_content = content.clone();
                     line_content.push_str(&" ".repeat(width));
-                    Line::from(Span::styled(line_content, Style::default().bg(Color::Blue).fg(Color::Gray)))
+                    Line::from(Span::styled(line_content, Style::default().bg(COLOR_SELECTION).fg(COLOR_TEXT_SELECTED)))
                 } else {
                     line.clone()
                 }
@@ -184,17 +213,17 @@ impl Widget for &App {
         let messages_text = Text::from(messages_lines);
 
         // Title
-        ratatui::widgets::Paragraph::new(Text::from(Line::from(Span::styled(format!(" 🖿 {}", self.path), Style::default().fg(Color::Rgb(160, 160, 160))))))
+        ratatui::widgets::Paragraph::new(Text::from(Line::from(Span::styled(format!(" 🖿 {}", self.path), Style::default().fg(COLOR_TITLE)))))
             .left_aligned()
             .block(ratatui::widgets::Block::default())
             .render(chunks_title_bar[0], buf);
-        ratatui::widgets::Paragraph::new(Text::from(Line::from(Span::styled(format!("{}/{} ", self.selected + 1, self.messages.len()), Style::default().fg(Color::Rgb(160, 160, 160))))))
+        ratatui::widgets::Paragraph::new(Text::from(Line::from(Span::styled(format!("{}/{} ", self.selected + 1, self.messages.len()), Style::default().fg(COLOR_TITLE)))))
             .right_aligned()
             .block(ratatui::widgets::Block::default())
             .render(chunks_title_bar[2], buf);
 
         // Status bar
-        ratatui::widgets::Paragraph::new(Text::from(Line::from(Span::styled(format!("⟨r⟩ reload ⟨j|k⟩ scroll ⟨q⟩ quit"), Style::default().fg(Color::DarkGray)))))
+        ratatui::widgets::Paragraph::new(Text::from(Line::from(Span::styled(format!("⟨r⟩ reload ⟨j|k⟩ scroll ⟨q⟩ quit"), Style::default().fg(COLOR_TEXT)))))
             .centered()
             .block(ratatui::widgets::Block::default())
             .render(chunks_vertical[2], buf);
@@ -205,7 +234,7 @@ impl Widget for &App {
             .scroll((self.scroll.get(), 0))
             .block(ratatui::widgets::Block::default()
                 .borders(Borders::LEFT | Borders::TOP | Borders::BOTTOM)
-                .border_style(Style::default().fg(Color::Rgb(60, 60, 60)))
+                .border_style(Style::default().fg(COLOR_BORDER))
                 .border_type(ratatui::widgets::BorderType::Rounded))
             .render(chunks_horizontal[0], buf);
         ratatui::widgets::Paragraph::new(branches_text)
@@ -213,7 +242,7 @@ impl Widget for &App {
             .scroll((self.scroll.get(), 0))
             .block(ratatui::widgets::Block::default()
                 .borders(Borders::TOP | Borders::BOTTOM)
-                .border_style(Style::default().fg(Color::Rgb(60, 60, 60)))
+                .border_style(Style::default().fg(COLOR_BORDER))
                 .border_type(ratatui::widgets::BorderType::Rounded))
             .render(chunks_horizontal[1], buf);
         ratatui::widgets::Paragraph::new(messages_text)
@@ -221,7 +250,7 @@ impl Widget for &App {
             .scroll((self.scroll.get(), 0))
             .block(ratatui::widgets::Block::default()
                 .borders(Borders::RIGHT | Borders::TOP | Borders::BOTTOM)
-                .border_style(Style::default().fg(Color::Rgb(60, 60, 60)))
+                .border_style(Style::default().fg(COLOR_BORDER))
                 .border_type(ratatui::widgets::BorderType::Rounded))
             .render(chunks_horizontal[2], buf);
     }

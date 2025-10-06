@@ -4,6 +4,7 @@ use ratatui::{
     style::{Color, Style},
     text::{Line, Span},
 };
+use crate::colors::*;
 
 #[derive(Clone)]
 struct CommitMetadata {
@@ -42,24 +43,24 @@ impl Default for ColorPicker {
         ColorPicker {
             lanes: HashMap::new(),
             palette_a: [
-                Color::Rgb(239, 83, 80),    // Red                
-                Color::Rgb(171, 71, 188),   // Purple                
-                Color::Rgb(92, 107, 192),   // Indigo                
-                Color::Rgb(38, 198, 218),   // Cyan                
-                Color::Rgb(102, 187, 106),  // Green                
-                Color::Rgb(212, 225, 87),   // Lime                
-                Color::Rgb(255, 202, 40),   // Amber                
-                Color::Rgb(255, 112, 67),   // Grapefruit                
+                COLOR_RED,
+                COLOR_PURPLE,
+                COLOR_INDIGO,
+                COLOR_CYAN,
+                COLOR_GREEN,
+                COLOR_LIME,
+                COLOR_AMBER,
+                COLOR_GRAPEFRUIT,
             ],
             palette_b: [
-                Color::Rgb(236, 64, 122),   // Pink
-                Color::Rgb(126, 87, 194),   // Durple
-                Color::Rgb(66, 165, 245),   // Blue
-                Color::Rgb(38, 166, 154),   // Teal
-                Color::Rgb(156, 204, 101),  // Grass
-                Color::Rgb(255, 238, 88),   // Yellow
-                Color::Rgb(255, 167, 38),   // Orange
-                Color::Rgb(141, 110, 99),   // Brown
+                COLOR_PINK,
+                COLOR_DURPLE,
+                COLOR_BLUE,
+                COLOR_TEAL,
+                COLOR_GRASS,
+                COLOR_YELLOW,
+                COLOR_ORANGE,
+                COLOR_BROWN,
             ]
         }
     }
@@ -350,7 +351,7 @@ fn update_buffer(buffer: &mut Vec<CommitMetadata>, _offsets: &mut Vec<Oid>, meta
         buffer[offset_idx].parents.remove(1);
 
         // Insert it right after the found index
-        buffer.insert(offset_idx + 1, clone);
+        buffer.push(clone);
     }
     
     // Replace or append buffer metadata    
@@ -434,7 +435,7 @@ fn get_timestamps(repo: &Repository, _branches: &HashMap<Oid, Vec<String>>) -> H
 }
 
 fn serialize_graph(sha: &Oid, graph: &mut Vec<Line<>>, spans_graph: Vec<Span<'static>>) {
-    let span_sha = Span::styled(sha.to_string()[..2].to_string(), Style::default().fg(Color::DarkGray));
+    let span_sha = Span::styled(sha.to_string()[..2].to_string(), Style::default().fg(COLOR_TEXT));
     let mut spans = Vec::new();
     spans.push(span_sha);
     spans.push(Span::raw(" ".to_string()));
@@ -454,7 +455,7 @@ fn serialize_branches(sha: &Oid, branches: &mut Vec<Line<>>, _tips: &HashMap<Oid
     }).unwrap_or_default();
     spans.extend(span_tips);
     
-    let span_message = Span::styled(commit.summary().unwrap_or("<no message>").to_string(), Style::default().fg(Color::DarkGray));
+    let span_message = Span::styled(commit.summary().unwrap_or("<no message>").to_string(), Style::default().fg(COLOR_TEXT));
     spans.push(span_message);
     // let span_branches = Span::styled(_branches.get(&sha).unwrap().join(","), Style::default().fg(Color::Yellow));
     // spans.push(span_branches);
@@ -463,7 +464,7 @@ fn serialize_branches(sha: &Oid, branches: &mut Vec<Line<>>, _tips: &HashMap<Oid
 
 fn serialize_messages(commit: &Commit<'_>, messages: &mut Vec<Line<>>) {
     let mut spans = Vec::new();
-    let span_message = Span::styled(commit.summary().unwrap_or("<no message>").to_string(), Style::default().fg(Color::DarkGray));
+    let span_message = Span::styled(commit.summary().unwrap_or("<no message>").to_string(), Style::default().fg(COLOR_TEXT));
     spans.push(span_message);
     messages.push(Line::from(spans));
 }
@@ -496,7 +497,7 @@ fn serialize_buffer(_sha: &Oid, _buffer: &Vec<CommitMetadata>, _timestamps: &Has
                 } else {"--,--".to_string()},
             )
         }).collect::<Vec<String>>().join(" ");
-    let span_buffer = Span::styled(formatted_buffer, Style::default().fg(Color::DarkGray));
+    let span_buffer = Span::styled(formatted_buffer, Style::default().fg(COLOR_TEXT));
     spans.push(span_buffer);
 
     buffer.push(Line::from(spans));
