@@ -172,7 +172,7 @@ pub fn get_commits(repo: &Repository) -> (Vec<Line<'static>>, Vec<Line<'static>>
                         let mut is_merger_found = false;
                         let mut merger_idx: usize = 0;
                         for mtdt in &_buffer {
-                            if mtdt.parents.len() == 1 && metadata.parents.contains(&mtdt.parents.first().unwrap()) {
+                            if mtdt.parents.len() == 1 && metadata.parents.last().unwrap() == mtdt.parents.first().unwrap() {
                                 is_merger_found = true;
                                 break;
                             }
@@ -224,7 +224,7 @@ pub fn get_commits(repo: &Repository) -> (Vec<Line<'static>>, Vec<Line<'static>>
                                     // layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx);
                                 } else {
                                     if mtdt.parents.len() == 1 && metadata.parents.contains(&mtdt.parents.first().unwrap()) {
-                                        color.alternate(merger_idx);
+                                        // color.alternate(merger_idx);
                                         layer(&color, Layers::Merges, symbol_merge_left_from.to_string(), merger_idx);
                                         layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx);
                                         is_drawing = false;
@@ -261,7 +261,14 @@ pub fn get_commits(repo: &Repository) -> (Vec<Line<'static>>, Vec<Line<'static>>
                                 layer(&color, Layers::Merges, symbol_branch_down.to_string(), idx + 1);
                                 layer(&color, Layers::Merges, symbol_empty.to_string(), idx + 1);
                             } else if trailing_dummies > 0 {
-                                color.alternate(idx + 1);
+                                // color.alternate(idx + 1);
+                                
+                                // Calculate how many lanes before we reach the branch character
+                                for _ in lane_idx..idx {
+                                    layer(&color, Layers::Merges, symbol_horizontal.to_string(), idx + 1);
+                                    layer(&color, Layers::Merges, symbol_horizontal.to_string(), idx + 1);
+                                }
+                                
                                 layer(&color, Layers::Merges, symbol_merge_left_from.to_string(), idx + 1);
                                 layer(&color, Layers::Merges, symbol_empty.to_string(), idx + 1);
                             } else {
@@ -357,7 +364,7 @@ fn update_buffer(buffer: &mut Vec<CommitMetadata>, _not_found_mergers: &mut Vec<
         buffer.pop();
     }
 
-    // If we have a merge from the same lane
+    // If we have a planned merge later on
     if let Some(merger_idx) = buffer.iter().position(|inner| {
         _not_found_mergers.iter().any(|sha| sha == &inner.sha)
     }) {
@@ -389,7 +396,11 @@ fn update_buffer(buffer: &mut Vec<CommitMetadata>, _not_found_mergers: &mut Vec<
         // Place dummies in case of branching
         for inner in buffer.iter_mut() {
             if inner.parents.contains(&old_sha) && inner.parents.as_ptr() != keep_ptr {
-                *inner = CommitMetadata::dummy();
+                if inner.parents.len() > 1 {
+                     inner.parents.retain(|sha| *sha != old_sha);
+                } else {
+                    *inner = CommitMetadata::dummy();
+                }
             }
         }
 
