@@ -146,7 +146,7 @@ impl Widget for &App {
             .split(chunks_vertical[0]);
         let chunks_horizontal = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Horizontal)
-            .constraints([ratatui::layout::Constraint::Percentage(20), ratatui::layout::Constraint::Percentage(0), ratatui::layout::Constraint::Percentage(80)])
+            .constraints([ratatui::layout::Constraint::Percentage(30), ratatui::layout::Constraint::Percentage(70), ratatui::layout::Constraint::Percentage(0)])
             // .constraints([ratatui::layout::Constraint::Length(15), ratatui::layout::Constraint::Percentage(100), ratatui::layout::Constraint::Length(1)])
             .split(chunks_vertical[1]);
 
