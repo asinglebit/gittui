@@ -4,7 +4,7 @@ use git2::Repository;
 use ratatui::{
     buffer::Buffer, layout::Rect, text::{Line, Span, Text}, widgets::{Borders, Widget}, DefaultTerminal, Frame
 };
-use ratatui::style::{Style, Color};
+use ratatui::style::{Style};
 
 use crate::helpers::get_commits;
 use crate::colors::*;
