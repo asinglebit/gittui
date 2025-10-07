@@ -243,38 +243,43 @@ impl App {
          * Inspector
          ***************************************************************************************************/
 
-        let commit = self.repo.find_commit(*self.shas.get(self.selected).unwrap()).unwrap();
-        let author = commit.author();
-        let committer = commit.committer();
-        let summary = commit.summary();
-        let body = commit.body();
+        let mut commit_lines: Vec<Line<'_>> = Vec::new();
+        let sha: Oid = *self.shas.get(self.selected).unwrap();
+        if sha != Oid::zero() {
+            let commit = self.repo.find_commit(sha).unwrap();
+            let author = commit.author();
+            let committer = commit.committer();
+            let summary = commit.summary().unwrap_or("<no summary>").to_string();
+            let body = commit.body().unwrap_or("<no body>").to_string();
 
-        let mut commit_lines = vec![
-            Line::from(vec![Span::styled("Commit sha:", Style::default().fg(COLOR_GREY_400))]),
-            Line::from(vec![Span::styled(format!("{}", self.shas.get(self.selected).unwrap()), Style::default().fg(COLOR_TEXT))]),
-            Line::from(vec![Span::styled("Parent shas:", Style::default().fg(COLOR_GREY_400))]),
-        ];
+            commit_lines = vec![
+                Line::from(vec![Span::styled("Commit sha:", Style::default().fg(COLOR_GREY_400))]),
+                Line::from(vec![Span::styled(format!("{}", self.shas.get(self.selected).unwrap()), Style::default().fg(COLOR_TEXT))]),
+                Line::from(vec![Span::styled("Parent shas:", Style::default().fg(COLOR_GREY_400))]),
+            ];
 
-        for parent_id in commit.parent_ids() {
-            commit_lines.push(Line::from(vec![Span::styled(format!("{}", parent_id), Style::default().fg(COLOR_TEXT))]));
+            for parent_id in commit.parent_ids() {
+                commit_lines.push(Line::from(vec![Span::styled(format!("{}", parent_id), Style::default().fg(COLOR_TEXT))]));
+            }
+
+            commit_lines.extend(vec![
+                Line::from(vec![Span::styled(format!("Authored by: {}", author.name().unwrap_or("-")), Style::default().fg(COLOR_GREY_400))]),
+                Line::from(vec![Span::styled(format!("{}", author.email().unwrap_or("")), Style::default().fg(COLOR_TEXT))]),
+                Line::from(vec![Span::styled(format!("{}", timestamp_to_utc(author.when())), Style::default().fg(COLOR_TEXT))]),
+                Line::from(vec![Span::styled(format!("Commited by: {}", committer.name().unwrap_or("-")), Style::default().fg(COLOR_GREY_400))]),
+                Line::from(vec![Span::styled(format!("{}", committer.email().unwrap_or("")), Style::default().fg(COLOR_TEXT))]),
+                Line::from(vec![Span::styled(format!("{}", timestamp_to_utc(committer.when())), Style::default().fg(COLOR_TEXT))]),
+                Line::from(vec![
+                    Span::styled("Message summary: ", Style::default().fg(COLOR_GREY_400)),
+                    Span::styled(summary, Style::default().fg(COLOR_TEXT))
+                ]),
+                Line::from(vec![
+                    Span::styled("Message body: ", Style::default().fg(COLOR_GREY_400)),
+                    Span::styled(body, Style::default().fg(COLOR_TEXT))
+                ]),
+            ]);
         }
-
-        commit_lines.extend(vec![
-            Line::from(vec![Span::styled(format!("Authored by: {}", author.name().unwrap_or("-")), Style::default().fg(COLOR_GREY_400))]),
-            Line::from(vec![Span::styled(format!("{}", author.email().unwrap_or("")), Style::default().fg(COLOR_TEXT))]),
-            Line::from(vec![Span::styled(format!("{}", timestamp_to_utc(author.when())), Style::default().fg(COLOR_TEXT))]),
-            Line::from(vec![Span::styled(format!("Commited by: {}", committer.name().unwrap_or("-")), Style::default().fg(COLOR_GREY_400))]),
-            Line::from(vec![Span::styled(format!("{}", committer.email().unwrap_or("")), Style::default().fg(COLOR_TEXT))]),
-            Line::from(vec![Span::styled(format!("{}", timestamp_to_utc(committer.when())), Style::default().fg(COLOR_TEXT))]),
-            Line::from(vec![
-                Span::styled("Message summary: ", Style::default().fg(COLOR_GREY_400)),
-                Span::styled(summary.unwrap_or("<no summary>"), Style::default().fg(COLOR_TEXT))
-            ]),
-            Line::from(vec![
-                Span::styled("Message body: ", Style::default().fg(COLOR_GREY_400)),
-                Span::styled(body.unwrap_or("<no body>"), Style::default().fg(COLOR_TEXT))
-            ]),
-        ]);
+        
 
         let visible_height = chunks_inspector[0].height as usize; 
         let total_inspector_lines = commit_lines.iter()
@@ -325,7 +330,11 @@ impl App {
          * Files
          ***************************************************************************************************/
 
-        let files_text = get_changed_filenames_text(&self.repo, *self.shas.get(self.selected).unwrap());
+        let mut files_text: Text = Text::from("-");
+        let sha: Oid = *self.shas.get(self.selected).unwrap();
+        if sha != Oid::zero() {
+            files_text = get_changed_filenames_text(&self.repo, sha);
+        }
         let total_file_lines = files_text.lines.len();
         let visible_height = chunks_inspector[1].height as usize;
         let files_paragraph = ratatui::widgets::Paragraph::new(files_text)
