@@ -1,8 +1,14 @@
 use std::{collections::HashMap};
-use git2::{BranchType, Commit, Oid, Repository, Time};
+use chrono::{
+    DateTime,
+    FixedOffset,
+    TimeZone,
+    Utc
+};
+use git2::{BranchType, Commit, Delta, Oid, Repository, Status, StatusOptions, Time};
 use ratatui::{
     style::{Color, Style},
-    text::{Line, Span},
+    text::{Line, Span, Text},
 };
 use crate::colors::*;
 
@@ -550,4 +556,99 @@ fn serialize_buffer(_sha: &Oid, _buffer: &Vec<CommitMetadata>, _timestamps: &Has
     // spans.push(span_buffer);
 
     buffer.push(Line::from(_spans));
+}
+
+pub fn get_uncommitted_changes(repo: &Repository) -> Vec<String> {
+    let mut options = StatusOptions::new();
+    options.include_untracked(true); // include untracked files
+    options.include_ignored(false);  // ignore ignored files
+    options.recurse_untracked_dirs(true);
+
+    let statuses = repo.statuses(Some(&mut options)).unwrap();
+
+    let mut changed_files = Vec::new();
+
+    for entry in statuses.iter() {
+        let s = entry.status();
+        let path = entry.path().unwrap_or("<unknown>").to_string();
+
+        if s.contains(Status::WT_NEW) || s.contains(Status::WT_MODIFIED) || s.contains(Status::WT_DELETED) {
+            changed_files.push(path);
+        }
+
+        // staged changes
+        // if s.contains(Status::INDEX_NEW) || s.contains(Status::INDEX_MODIFIED) || s.contains(Status::INDEX_DELETED) {
+        //     changed_files.push(path);
+        // }
+    }
+
+    changed_files
+}
+
+pub fn get_changed_filenames_text(repo: &Repository, oid: Oid) -> Text<'_> {
+    let commit = repo.find_commit(oid).unwrap();
+    let tree = commit.tree().unwrap();
+
+    let mut lines = Vec::new();
+
+    if commit.parent_count() == 0 {
+        // Initial commit — list all files
+        tree.walk(git2::TreeWalkMode::PreOrder, |_, entry| {
+            if let Some(name) = entry.name() {
+                lines.push(Line::from(Span::styled(
+                    name.to_string(),
+                    Style::default().fg(COLOR_GREY_400),
+                )));
+            }
+            git2::TreeWalkResult::Ok
+        }).unwrap();
+    } else {
+        // Normal commits — diff against first parent
+        let parent = commit.parent(0).unwrap();
+        let parent_tree = parent.tree().unwrap();
+        let diff = repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), None).unwrap();
+
+        diff.foreach(
+            &mut |delta, _| {
+                if let Some(path) = delta.new_file().path() {
+                    lines.push(Line::from(Span::styled(
+                        path.display().to_string(),
+                        Style::default().fg(
+                            match delta.status() {
+                                Delta::Added => COLOR_GREEN,
+                                Delta::Deleted => COLOR_RED,
+                                Delta::Modified => COLOR_TEXT,
+                                Delta::Renamed => COLOR_TEXT,
+                                Delta::Copied => COLOR_TEXT,
+                                Delta::Untracked => COLOR_TEXT,
+                                _ => COLOR_TEXT,
+                            }
+                        ),
+                    )));
+                }
+                true
+            },
+            None,
+            None,
+            None,
+        ).unwrap();
+    }
+
+    Text::from(lines)
+}
+
+pub fn timestamp_to_utc(time: Time) -> String {
+    // Create a DateTime with the given offset
+    let offset = FixedOffset::east_opt(time.offset_minutes() * 60).unwrap();
+    
+    // Create UTC datetime from timestamp
+    let utc_datetime = DateTime::from_timestamp(time.seconds(), 0)
+        .expect("Invalid timestamp");
+    
+    // Convert to local time with offset, then back to UTC
+    let local_datetime = offset.from_utc_datetime(&utc_datetime.naive_utc());
+    let final_utc: DateTime<Utc> = local_datetime.with_timezone(&Utc);
+    
+    // Format as string
+    final_utc.to_rfc2822()
 }

@@ -1,15 +1,54 @@
-use std::{cell::Cell, env, io, path::PathBuf};
-
-use chrono::{DateTime, FixedOffset, TimeZone, Utc};
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use git2::{Oid, Repository, Time};
-use ratatui::{
-    buffer::Buffer, layout::{Rect}, text::{Line, Span, Text}, widgets::{Block, Borders, Cell as WidgetCell, Padding, Row, Table, Widget, Wrap}, DefaultTerminal, Frame
+use std::{
+    cell::Cell,
+    env,
+    io,
+    path::PathBuf
 };
-use ratatui::style::{Style};
 
-use crate::helpers::get_commits;
-use crate::colors::*;
+use crossterm::event::{
+    self,
+    Event,
+    KeyCode,
+    KeyEvent,
+    KeyEventKind,
+    KeyModifiers
+};
+use git2::{
+    Oid,
+    Repository,
+};
+use ratatui::{
+    DefaultTerminal,
+    Frame,
+    text::{
+        Line,
+        Span,
+        Text
+    },
+    style::{
+        Style
+    },
+    widgets::{
+        Block,
+        Borders,
+        Cell as WidgetCell,
+        Row,
+        Scrollbar,
+        ScrollbarOrientation,
+        ScrollbarState,
+        Table,
+        Wrap
+    }
+};
+use crate::{
+    colors::*,
+    helpers::{
+        get_changed_filenames_text,
+        get_commits,
+        get_uncommitted_changes,
+        timestamp_to_utc
+    }
+};
 
 pub struct App {
     // General
@@ -25,6 +64,7 @@ pub struct App {
     
     // Interface
     scroll: Cell<usize>,
+    files_scroll: Cell<usize>,
     selected: usize,
     exit: bool
 }
@@ -50,8 +90,277 @@ impl App {
         self.buffers = buffer;
     }
 
-    fn draw(&self, frame: &mut Frame) {
-        frame.render_widget(self, frame.area());
+    pub fn draw(&mut self, frame: &mut Frame) {
+
+        let changes = get_uncommitted_changes(&self.repo);
+
+        /***************************************************************************************************
+         * Layout
+         ***************************************************************************************************/
+
+        let chunks_vertical = ratatui::layout::Layout::default()
+            .direction(ratatui::layout::Direction::Vertical)
+            .constraints([
+                ratatui::layout::Constraint::Length(1),
+                ratatui::layout::Constraint::Percentage(100),
+                ratatui::layout::Constraint::Length(1),
+            ])
+            .split(frame.area());
+
+        let chunks_title_bar = ratatui::layout::Layout::default()
+            .direction(ratatui::layout::Direction::Horizontal)
+            .constraints([ratatui::layout::Constraint::Percentage(80), ratatui::layout::Constraint::Percentage(20)])
+            .split(chunks_vertical[0]);
+
+        let chunks_horizontal = ratatui::layout::Layout::default()
+            .direction(ratatui::layout::Direction::Horizontal)
+            .constraints([ratatui::layout::Constraint::Percentage(70), ratatui::layout::Constraint::Percentage(30)])
+            .split(chunks_vertical[1]);
+
+        let chunks_inspector = ratatui::layout::Layout::default()
+            .direction(ratatui::layout::Direction::Vertical)
+            .constraints([ratatui::layout::Constraint::Percentage(40), ratatui::layout::Constraint::Percentage(60)])
+            .split(chunks_horizontal[1]);
+
+        let chunks_status_bar = ratatui::layout::Layout::default()
+            .direction(ratatui::layout::Direction::Horizontal)
+            .constraints([ratatui::layout::Constraint::Percentage(80), ratatui::layout::Constraint::Percentage(20)])
+            .split(chunks_vertical[2]);
+
+        let padding = ratatui::widgets::Padding { left: 1, right: 1, top: 0, bottom: 0 };
+
+        /***************************************************************************************************
+         * Title bar
+         ***************************************************************************************************/
+
+        let title_paragraph = ratatui::widgets::Paragraph::new(Text::from(
+            Line::from(vec![
+                Span::styled(" GitTui |", Style::default().fg(COLOR_TITLE)),
+                Span::styled(format!(" 🖿  {}", self.path), Style::default().fg(COLOR_TEXT)),
+            ])
+        ))
+        .left_aligned()
+        .block(Block::default());
+
+        frame.render_widget(title_paragraph, chunks_title_bar[0]);
+
+        /***************************************************************************************************
+         * Status bar
+         ***************************************************************************************************/
+
+        let sha_paragraph = ratatui::widgets::Paragraph::new(Text::from(Line::from(
+            Span::styled(format!(" SHA: {}", self.shas.get(self.selected).unwrap()), Style::default().fg(COLOR_TEXT))
+        )))
+        .left_aligned()
+        .block(Block::default());
+
+        frame.render_widget(sha_paragraph, chunks_status_bar[0]);
+
+        let selection_paragraph = ratatui::widgets::Paragraph::new(Text::from(Line::from(
+            Span::styled(format!("{}/{}", self.selected + 1, self.messages.len()), Style::default().fg(COLOR_TITLE))
+        )))
+        .right_aligned()
+        .block(Block::default());
+
+        frame.render_widget(selection_paragraph, chunks_status_bar[1]);
+
+        /***************************************************************************************************
+         * Graph table
+         ***************************************************************************************************/
+
+        let table_height = chunks_horizontal[0].height as usize - 2;
+        let total_rows = self.graph.len();
+
+        // Make sure selected row is visible
+        if self.selected < self.scroll.get() {
+            self.scroll.set(self.selected);
+        } else if self.selected >= self.scroll.get() + table_height {
+            self.scroll.set(self.selected.saturating_sub(table_height - 1));
+        }
+
+        let start = self.scroll.get();
+        let end = (self.scroll.get() + table_height).min(total_rows);
+
+        // Start with fake commit row
+        let mut rows = Vec::with_capacity(end - start + 1); // preallocate for efficiency
+
+        // Add the rest of the commits
+        for (i, ((graph, branch), buffer)) in self.graph[start..end]
+            .iter()
+            .zip(&self.branches[start..end])
+            .zip(&self.buffers[start..end])
+            .enumerate()
+        {
+            let actual_index = start + i;
+            let mut row = Row::new(vec![
+                WidgetCell::from(graph.clone()),
+                WidgetCell::from(branch.clone()),
+                WidgetCell::from(buffer.clone()),
+            ]);
+
+            if actual_index == self.selected {
+                row = row.style(
+                    Style::default()
+                        .bg(COLOR_GREY_800)
+                        .fg(COLOR_GREY_600),
+                );
+            }
+            rows.push(row);
+        }
+
+        let table = Table::new(rows, [
+            ratatui::layout::Constraint::Length(25),
+            ratatui::layout::Constraint::Percentage(100),
+        ]).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(COLOR_BORDER))
+            .border_type(ratatui::widgets::BorderType::Rounded),
+        ).row_highlight_style(
+            Style::default()
+                .bg(COLOR_SELECTION)
+                .fg(COLOR_TEXT_SELECTED),
+        ).column_spacing(2);
+
+        frame.render_widget(table, chunks_horizontal[0]);
+
+        // Render the scrollbar
+        let total_lines = self.shas.len();
+        let visible_height = chunks_inspector[0].height as usize;
+        if total_lines > visible_height {
+            let mut scrollbar_state = ScrollbarState::new(total_lines).position(self.scroll.get());
+            let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .begin_symbol(Some("─"))
+                .end_symbol(Some("─"))
+                .track_symbol(Some("│"))
+                .thumb_symbol("▌")
+                .thumb_style(Style::default().fg(COLOR_GREY_600));
+
+            frame.render_stateful_widget(scrollbar, chunks_horizontal[0], &mut scrollbar_state);
+        }
+
+        /***************************************************************************************************
+         * Inspector
+         ***************************************************************************************************/
+
+        let commit = self.repo.find_commit(*self.shas.get(self.selected).unwrap()).unwrap();
+        let author = commit.author();
+        let committer = commit.committer();
+        let summary = commit.summary();
+        let body = commit.body();
+
+        let mut commit_lines = vec![
+            Line::from(vec![Span::styled("Commit sha:", Style::default().fg(COLOR_GREY_400))]),
+            Line::from(vec![Span::styled(format!("{}", self.shas.get(self.selected).unwrap()), Style::default().fg(COLOR_TEXT))]),
+            Line::from(vec![Span::styled("Parent shas:", Style::default().fg(COLOR_GREY_400))]),
+        ];
+
+        for parent_id in commit.parent_ids() {
+            commit_lines.push(Line::from(vec![Span::styled(format!("{}", parent_id), Style::default().fg(COLOR_TEXT))]));
+        }
+
+        commit_lines.extend(vec![
+            Line::from(vec![Span::styled(format!("Authored by: {}", author.name().unwrap_or("-")), Style::default().fg(COLOR_GREY_400))]),
+            Line::from(vec![Span::styled(format!("{}", author.email().unwrap_or("")), Style::default().fg(COLOR_TEXT))]),
+            Line::from(vec![Span::styled(format!("{}", timestamp_to_utc(author.when())), Style::default().fg(COLOR_TEXT))]),
+            Line::from(vec![Span::styled(format!("Commited by: {}", committer.name().unwrap_or("-")), Style::default().fg(COLOR_GREY_400))]),
+            Line::from(vec![Span::styled(format!("{}", committer.email().unwrap_or("")), Style::default().fg(COLOR_TEXT))]),
+            Line::from(vec![Span::styled(format!("{}", timestamp_to_utc(committer.when())), Style::default().fg(COLOR_TEXT))]),
+            Line::from(vec![
+                Span::styled("Message summary: ", Style::default().fg(COLOR_GREY_400)),
+                Span::styled(summary.unwrap_or("<no summary>"), Style::default().fg(COLOR_TEXT))
+            ]),
+            Line::from(vec![
+                Span::styled("Message body: ", Style::default().fg(COLOR_GREY_400)),
+                Span::styled(body.unwrap_or("<no body>"), Style::default().fg(COLOR_TEXT))
+            ]),
+        ]);
+
+        let visible_height = chunks_inspector[0].height as usize; 
+        let total_inspector_lines = commit_lines.iter()
+            .map(|line| {
+                let line_str: String = line.spans.iter().map(|span| span.content.trim()).collect::<Vec<_>>().join("");
+                let visual_width = line_str.len(); // approximate: counts chars, may differ for wide unicode
+                // How many wrapped lines this line takes
+                let wrapped_lines = (visual_width + chunks_inspector[0].width as usize) / chunks_inspector[0].width  as usize;
+                wrapped_lines.max(1) // at least 1 line
+            })
+            .sum::<usize>();
+
+        let commit_paragraph = ratatui::widgets::Paragraph::new(Text::from(commit_lines))
+            .left_aligned()
+            .wrap(Wrap { trim: true })
+            .block(
+                Block::default()
+                    .title(vec![
+                        Span::styled("─", Style::default().fg(COLOR_BORDER)),
+                        Span::styled("[ Inspector ]", Style::default().fg(COLOR_GREY_400)),
+                        Span::styled("─", Style::default().fg(COLOR_BORDER)),
+                    ])
+                    .title_alignment(ratatui::layout::Alignment::Right)
+                    .title_style(Style::default().fg(COLOR_GREY_400))
+                    .borders(Borders::RIGHT | Borders::TOP)
+                    .border_style(Style::default().fg(COLOR_BORDER))
+                    .padding(padding)
+                    .border_type(ratatui::widgets::BorderType::Rounded),
+            );
+
+        frame.render_widget(commit_paragraph, chunks_inspector[0]);
+
+
+        // Render the scrollbar
+        if total_inspector_lines > visible_height {
+            let mut scrollbar_state = ScrollbarState::new(total_inspector_lines).position(self.files_scroll.get());
+            let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .begin_symbol(Some("│"))
+                .end_symbol(Some("╯"))
+                .track_symbol(Some("│"))
+                .thumb_symbol("▌")
+                .thumb_style(Style::default().fg(COLOR_GREY_600));
+            
+            frame.render_stateful_widget(scrollbar, chunks_inspector[0], &mut scrollbar_state);
+        }
+
+        /***************************************************************************************************
+         * Files
+         ***************************************************************************************************/
+
+        let files_text = get_changed_filenames_text(&self.repo, *self.shas.get(self.selected).unwrap());
+        let total_file_lines = files_text.lines.len();
+        let visible_height = chunks_inspector[1].height as usize;
+        let files_paragraph = ratatui::widgets::Paragraph::new(files_text)
+            .left_aligned()
+            .wrap(Wrap { trim: false })
+            .scroll((self.files_scroll.get() as u16, 0))
+            .block(
+                Block::default()
+                    .title(vec![
+                        Span::styled("─", Style::default().fg(COLOR_BORDER)),
+                        Span::styled("[ Files ]", Style::default().fg(COLOR_GREY_400)),
+                        Span::styled("─", Style::default().fg(COLOR_BORDER)),
+                    ])
+                    .title_alignment(ratatui::layout::Alignment::Right)
+                    .title_style(Style::default().fg(COLOR_GREY_400))
+                    .borders(Borders::BOTTOM | Borders::RIGHT | Borders::TOP)
+                    .border_style(Style::default().fg(COLOR_BORDER))
+                    .padding(padding)
+                    // .border_type(ratatui::widgets::BorderType::Rounded),
+            );
+
+        frame.render_widget(files_paragraph, chunks_inspector[1]);
+
+        // Render the scrollbar
+        if total_file_lines > visible_height {
+            let mut scrollbar_state = ScrollbarState::new(total_file_lines).position(self.files_scroll.get());
+            let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .begin_symbol(Some("│"))
+                .end_symbol(Some("╯"))
+                .track_symbol(Some("│"))
+                .thumb_symbol("▌")
+                .thumb_style(Style::default().fg(COLOR_GREY_600));
+            
+            frame.render_stateful_widget(scrollbar, chunks_inspector[1], &mut scrollbar_state);
+        }
     }
 
     fn handle_events(&mut self) -> io::Result<()> {
@@ -131,284 +440,9 @@ impl Default for App {
             
             // Interface
             scroll: 0.into(),
+            files_scroll: 0.into(),
             selected: 0,
             exit: false
         }
     }
-}
-
-impl Widget for &App {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-
-        // Layout
-        let chunks_vertical = ratatui::layout::Layout::default()
-            .direction(ratatui::layout::Direction::Vertical)
-            .constraints([ratatui::layout::Constraint::Length(1), ratatui::layout::Constraint::Percentage(100), ratatui::layout::Constraint::Length(1)])
-            .split(area);
-        let chunks_title_bar = ratatui::layout::Layout::default()
-            .direction(ratatui::layout::Direction::Horizontal)
-            .constraints([ratatui::layout::Constraint::Percentage(80), ratatui::layout::Constraint::Percentage(20)])
-            .split(chunks_vertical[0]);
-        let chunks_horizontal = ratatui::layout::Layout::default()
-            .direction(ratatui::layout::Direction::Horizontal)
-            .constraints([ratatui::layout::Constraint::Percentage(70), ratatui::layout::Constraint::Percentage(30)])
-            .split(chunks_vertical[1]);
-        let chunks_inspector = ratatui::layout::Layout::default()
-            .direction(ratatui::layout::Direction::Vertical)
-            .constraints([ratatui::layout::Constraint::Percentage(40), ratatui::layout::Constraint::Percentage(60)])
-            .split(chunks_horizontal[1]);
-        let chunks_status_bar = ratatui::layout::Layout::default()
-            .direction(ratatui::layout::Direction::Horizontal)
-            .constraints([ratatui::layout::Constraint::Percentage(80), ratatui::layout::Constraint::Percentage(20)])
-            .split(chunks_vertical[2]);
-
-        // Title
-        ratatui::widgets::Paragraph::new(Text::from(
-            Line::from(vec![
-                Span::styled(format!(" GitTui |"), Style::default().fg(COLOR_TITLE)),
-                Span::styled(format!(" 🖿 {}", self.path), Style::default().fg(COLOR_TEXT))
-            ])
-        ))
-            .left_aligned()
-            .block(ratatui::widgets::Block::default())
-            .render(chunks_title_bar[0], buf);
-
-        // Status bar
-        ratatui::widgets::Paragraph::new(Text::from(Line::from(Span::styled(format!(" SHA: {}", self.shas.get(self.selected).unwrap()), Style::default().fg(COLOR_TEXT)))))
-            .left_aligned()
-            .block(ratatui::widgets::Block::default())
-            .render(chunks_status_bar[0], buf);
-        ratatui::widgets::Paragraph::new(Text::from(Line::from(Span::styled(format!("{}/{} ", self.selected + 1, self.messages.len()), Style::default().fg(COLOR_TITLE)))))
-            .right_aligned()
-            .block(ratatui::widgets::Block::default())
-            .render(chunks_status_bar[1], buf);
-
-        let table_height = chunks_horizontal[0].height as usize - 3; // visible rows
-        let total_rows = self.graph.len(); // assume all columns have same length
-
-        // Make sure selected row is visible
-        if self.selected < self.scroll.get() {
-            self.scroll.set(self.selected);
-        } else if self.selected >= self.scroll.get() + table_height {
-            self.scroll.set(self.selected.saturating_sub(table_height - 1));
-        }
-
-        // Compute visible slice
-        let start = self.scroll.get();
-        let end = (self.scroll.get() + table_height).min(total_rows);
-        
-        // Build table rows
-        let rows: Vec<Row> = self.graph[start..end]
-            .iter()
-            .zip(&self.branches[start..end])
-            .zip(&self.buffers[start..end])
-            .enumerate()
-            .map(|(i, ((graph, branch), buffer))| {
-                let actual_index = start + i; // absolute row index
-                let mut row = Row::new(vec![
-                    WidgetCell::from(graph.clone()),
-                    WidgetCell::from(branch.clone()),
-                    WidgetCell::from(buffer.clone()),
-                ]);
-
-                if actual_index == self.selected {
-                    row = row.style(
-                        Style::default()
-                            .bg(COLOR_GREY_800)
-                            .fg(COLOR_GREY_400),
-                    );
-                }
-
-                row
-            })
-            .collect();
-
-        // Build table with headers
-        // let header = Row::new(vec![
-        //     WidgetCell::from("History").style(Style::default().fg(COLOR_TITLE)),
-        //     WidgetCell::from("Messages").style(Style::default().fg(COLOR_TITLE)),
-        // ]);
-
-        let table = Table::new(
-            rows,
-            [
-                ratatui::layout::Constraint::Length(25),
-                ratatui::layout::Constraint::Percentage(100),
-            ],
-        )
-        // .header(header)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(COLOR_BORDER))
-                .border_type(ratatui::widgets::BorderType::Rounded),
-        )
-        .row_highlight_style(
-            Style::default()
-                .bg(COLOR_SELECTION)
-                .fg(COLOR_TEXT_SELECTED),
-        )
-        .column_spacing(2);
-
-        // Render table in middle chunk
-        buf.set_style(chunks_horizontal[0], Style::default()); // clear area
-        table.render(chunks_horizontal[0], buf);
-
-        // Commit info
-        let commit = self.repo.find_commit(*self.shas.get(self.selected).unwrap()).unwrap();
-        let author = commit.author();
-        let committer = commit.committer();
-        let message = commit.message();
-
-        // Build parent lines
-        let mut parent_lines = Vec::new();
-        for parent_id in commit.parent_ids() {
-            parent_lines.push(
-                Line::from(vec![
-                    Span::styled(format!("{}", parent_id), Style::default().fg(COLOR_TEXT))
-                ])
-            );
-        }
-
-        // Build commit info text
-        let mut commit_lines = vec![
-            Line::from(vec![
-                Span::styled("Commit sha:", Style::default().fg(COLOR_GREY_400))
-            ]),
-            Line::from(vec![
-                Span::styled(format!("{}", self.shas.get(self.selected).unwrap()), Style::default().fg(COLOR_TEXT))
-            ]),
-            Line::from(vec![
-                Span::styled("Parents:", Style::default().fg(COLOR_GREY_400))
-            ])
-        ];
-
-        // Insert parent lines
-        commit_lines.extend(parent_lines);
-
-        // Add the rest of the commit info
-        commit_lines.extend(vec![
-            Line::from(vec![
-                Span::styled("Authored by: ", Style::default().fg(COLOR_GREY_400)),
-            ]),
-            Line::from(vec![
-                Span::styled(format!("{} {}", author.name().unwrap_or(""), author.email().unwrap_or("")), Style::default().fg(COLOR_TEXT)),
-            ]),
-            Line::from(vec![
-                Span::styled(format!("{}", timestamp_to_utc(author.when())), Style::default().fg(COLOR_TEXT)),
-            ]),
-            Line::from(vec![
-                Span::styled("Commited by: ", Style::default().fg(COLOR_GREY_400)),
-            ]),
-            Line::from(vec![
-                Span::styled(format!("{} {}", committer.name().unwrap_or(""), committer.email().unwrap_or("")), Style::default().fg(COLOR_TEXT)),
-            ]),
-            Line::from(vec![
-                Span::styled(format!("{}", timestamp_to_utc(committer.when())), Style::default().fg(COLOR_TEXT)),
-            ]),
-            Line::from(vec![
-                Span::styled("Message: ", Style::default().fg(COLOR_GREY_400)),
-            ]),
-            Line::from(vec![
-                Span::styled(format!("{}", message.unwrap_or("")), Style::default().fg(COLOR_TEXT)),
-            ]),
-        ]);
-
-        let commit_info = Text::from(commit_lines);
-        let padding = Padding { left: 1, right: 1, top: 0, bottom: 0 };
-
-        ratatui::widgets::Paragraph::new(commit_info)
-            .left_aligned()
-            .wrap(Wrap { trim: false })
-            .block(ratatui::widgets::Block::default()
-                .title(vec![
-                    Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                    Span::styled("[ Inspector ]", Style::default().fg(COLOR_GREY_400)),
-                    Span::styled("─", Style::default().fg(COLOR_BORDER))
-                ])
-                .title_alignment(ratatui::layout::Alignment::Right)
-                .title_style(Style::default().fg(COLOR_GREY_400))
-                .borders(Borders::LEFT | Borders::RIGHT | Borders::TOP | Borders::BOTTOM)
-                .border_style(Style::default().fg(COLOR_BORDER))
-                .padding(padding)
-                .border_type(ratatui::widgets::BorderType::Rounded))
-            .render(chunks_inspector[0], buf);
-
-
-        ratatui::widgets::Paragraph::new(get_changed_filenames_text(&self.repo, *self.shas.get(self.selected).unwrap()))
-            .left_aligned()
-            .wrap(Wrap { trim: false })
-            .block(ratatui::widgets::Block::default()
-                .title(vec![
-                    Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                    Span::styled("[ Files ]", Style::default().fg(COLOR_GREY_400)),
-                    Span::styled("─", Style::default().fg(COLOR_BORDER))
-                ])
-                .title_alignment(ratatui::layout::Alignment::Right)
-                .title_style(Style::default().fg(COLOR_GREY_400))
-                .borders(Borders::LEFT | Borders::RIGHT | Borders::TOP | Borders::BOTTOM)
-                .border_style(Style::default().fg(COLOR_BORDER))
-                .padding(padding)
-                .border_type(ratatui::widgets::BorderType::Rounded))
-            .render(chunks_inspector[1], buf);
-    }
-}
-
-
-fn timestamp_to_utc(time: Time) -> String {
-    // Create a DateTime with the given offset
-    let offset = FixedOffset::east_opt(time.offset_minutes() * 60).unwrap();
-    
-    // Create UTC datetime from timestamp
-    let utc_datetime = DateTime::from_timestamp(time.seconds(), 0)
-        .expect("Invalid timestamp");
-    
-    // Convert to local time with offset, then back to UTC
-    let local_datetime = offset.from_utc_datetime(&utc_datetime.naive_utc());
-    let final_utc: DateTime<Utc> = local_datetime.with_timezone(&Utc);
-    
-    // Format as string
-    final_utc.to_rfc2822()
-}
-
-fn get_changed_filenames_text(repo: &Repository, oid: Oid) -> Text<'_> {
-    let commit = repo.find_commit(oid).unwrap();
-    let tree = commit.tree().unwrap();
-
-    let mut lines = Vec::new();
-
-    if commit.parent_count() == 0 {
-        // Initial commit — list all files
-        tree.walk(git2::TreeWalkMode::PreOrder, |_, entry| {
-            if let Some(name) = entry.name() {
-                lines.push(Line::from(Span::styled(
-                    name.to_string(),
-                    Style::default().fg(COLOR_GREY_400),
-                )));
-            }
-            git2::TreeWalkResult::Ok
-        }).unwrap();
-    } else {
-        // Normal commits — diff against first parent
-        let parent = commit.parent(0).unwrap();
-        let parent_tree = parent.tree().unwrap();
-        let diff = repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), None).unwrap();
-
-        diff.foreach(
-            &mut |delta, _| {
-                if let Some(path) = delta.new_file().path() {
-                    lines.push(Line::from(Span::styled(
-                        path.display().to_string(),
-                        Style::default().fg(COLOR_GREY_400),
-                    )));
-                }
-                true
-            },
-            None,
-            None,
-            None,
-        ).unwrap();
-    }
-
-    Text::from(lines)
 }
