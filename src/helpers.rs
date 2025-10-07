@@ -108,9 +108,9 @@ pub fn get_commits(repo: &Repository) -> (Vec<Oid>, Vec<Line<'static>>, Vec<Line
     let uncommitted_changes = get_uncommitted_changes(repo);
     let head = repo.head().unwrap();
     let head_sha = head.target().unwrap(); // Oid (SHA1)
-    if uncommitted_changes.len() > 0 {        
+    {        
         shas.push(Oid::zero());
-        branches.push(Line::from(Span::styled("Uncommitted changes (1)", Style::default().fg(COLOR_GREY_400))));
+        branches.push(Line::from(Span::styled(if uncommitted_changes.len() > 0 {format!("Uncommitted changes ({})", uncommitted_changes.len()) } else { "No uncommitted changes".to_string()}, Style::default().fg(COLOR_GREY_400))));
         buffer.push(Line::from(Span::styled("--", Style::default().fg(COLOR_GREY_400))));
         graph.push(Line::from(vec![
             Span::styled("🞄🞄🞄🞄🞄🞄🞄 ", Style::default().fg(COLOR_TEXT)),
@@ -145,7 +145,7 @@ pub fn get_commits(repo: &Repository) -> (Vec<Oid>, Vec<Line<'static>>, Vec<Line
         let symbol_commit_branch = "●";
         let symbol_commit = "○";
         let symbol_vertical = "│";
-        let symbol_vertical_dotted = "⌇";
+        let symbol_vertical_dotted = "┊";
         let symbol_horizontal = "─";
         let symbol_empty = " ";
         let symbol_merge_left_from = "⎨";
