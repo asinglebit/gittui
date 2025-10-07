@@ -106,11 +106,25 @@ pub fn get_commits(repo: &Repository) -> (Vec<Oid>, Vec<Line<'static>>, Vec<Line
 
     // Make a fake commit for unstaged changes
     let uncommitted_changes = get_uncommitted_changes(repo);
+    let head = repo.head().unwrap();
+    let head_sha = head.target().unwrap(); // Oid (SHA1)
     if uncommitted_changes.len() > 0 {        
         shas.push(Oid::zero());
-        branches.push(Line::from(Span::styled("--", Style::default().fg(COLOR_AMBER))));
-        buffer.push(Line::from(Span::styled("--", Style::default().fg(COLOR_AMBER))));
-        graph.push(Line::from(Span::styled("------- X", Style::default().fg(COLOR_AMBER))));
+        branches.push(Line::from(Span::styled("Uncommitted changes (1)", Style::default().fg(COLOR_GREY_400))));
+        buffer.push(Line::from(Span::styled("--", Style::default().fg(COLOR_GREY_400))));
+        graph.push(Line::from(vec![
+            Span::styled("🞄🞄🞄🞄🞄🞄🞄 ", Style::default().fg(COLOR_TEXT)),
+            Span::styled("◌", Style::default().fg(COLOR_GREY_400))
+        ]));
+        // _buffer.push(value);
+        let parents: Vec<Oid> = vec![head_sha];
+        let metadata = CommitMetadata {
+            sha: Oid::from_str("0000000000000000000000000000000000000001").unwrap(),
+            parents,
+        };
+        
+        // Update
+        update_buffer(&mut _buffer, &mut _not_found_mergers, metadata);
     }
 
     // Go through the commits, inferring the graph
@@ -131,6 +145,7 @@ pub fn get_commits(repo: &Repository) -> (Vec<Oid>, Vec<Line<'static>>, Vec<Line
         let symbol_commit_branch = "●";
         let symbol_commit = "○";
         let symbol_vertical = "│";
+        let symbol_vertical_dotted = "⌇";
         let symbol_horizontal = "─";
         let symbol_empty = " ";
         let symbol_merge_left_from = "⎨";
@@ -141,8 +156,8 @@ pub fn get_commits(repo: &Repository) -> (Vec<Oid>, Vec<Line<'static>>, Vec<Line
 
         // Layers
         let mut layers: HashMap<Layers, Vec<(String, Color)>> = HashMap::new();
-        let mut layer = |color: &ColorPicker, layer: Layers, symbol: String, lane: usize| {
-            layers.entry(layer).or_default().push((symbol, color.get(lane)));
+        let mut layer = |color: &ColorPicker, layer: Layers, symbol: String, lane: usize, custom: Option<Color>| {
+            layers.entry(layer).or_default().push((symbol, custom.unwrap_or(color.get(lane))));
         };
 
         {
@@ -154,34 +169,34 @@ pub fn get_commits(repo: &Repository) -> (Vec<Oid>, Vec<Line<'static>>, Vec<Line
                 if metadata.sha == Oid::zero() {
                    if let Some(prev) = _buffer_prev.get(lane_idx) {
                         if prev.parents.len() == 1 {
-                            layer(&color, Layers::Commits, symbol_empty.to_string(), lane_idx);
-                            layer(&color, Layers::Commits, symbol_empty.to_string(), lane_idx);
-                            layer(&color, Layers::Pipes, symbol_branch_up.to_string(), lane_idx);
-                            layer(&color, Layers::Pipes, symbol_empty.to_string(), lane_idx);
+                            layer(&color, Layers::Commits, symbol_empty.to_string(), lane_idx, None);
+                            layer(&color, Layers::Commits, symbol_empty.to_string(), lane_idx, None);
+                            layer(&color, Layers::Pipes, symbol_branch_up.to_string(), lane_idx, None);
+                            layer(&color, Layers::Pipes, symbol_empty.to_string(), lane_idx, None);
                         } else {
-                            layer(&color, Layers::Commits, symbol_empty.to_string(), lane_idx);
-                            layer(&color, Layers::Commits, symbol_empty.to_string(), lane_idx);
-                            layer(&color, Layers::Pipes, symbol_empty.to_string(), lane_idx);
-                            layer(&color, Layers::Pipes, symbol_empty.to_string(), lane_idx);
+                            layer(&color, Layers::Commits, symbol_empty.to_string(), lane_idx, None);
+                            layer(&color, Layers::Commits, symbol_empty.to_string(), lane_idx, None);
+                            layer(&color, Layers::Pipes, symbol_empty.to_string(), lane_idx, None);
+                            layer(&color, Layers::Pipes, symbol_empty.to_string(), lane_idx, None);
                         }
                     }
                 } else if sha == metadata.sha {
                     is_commit_found = true;
 
                     if metadata.parents.len() > 1 && !_tips.contains_key(&sha) {
-                        layer(&color, Layers::Commits, symbol_merge.to_string(), lane_idx);
+                        layer(&color, Layers::Commits, symbol_merge.to_string(), lane_idx, None);
                     } else {
                         if _tips.contains_key(&sha) {
                             color.alternate(lane_idx);
                             _tip_colors.insert(sha, color.get(lane_idx));
-                            layer(&color, Layers::Commits, symbol_commit_branch.to_string(), lane_idx);
+                            layer(&color, Layers::Commits, symbol_commit_branch.to_string(), lane_idx, None);
                         } else {
-                            layer(&color, Layers::Commits, symbol_commit.to_string(), lane_idx);
+                            layer(&color, Layers::Commits, symbol_commit.to_string(), lane_idx, None);
                         };
                     }
-                    layer(&color, Layers::Commits, symbol_empty.to_string(), lane_idx);
-                    layer(&color, Layers::Pipes, symbol_empty.to_string(), lane_idx);
-                    layer(&color, Layers::Pipes, symbol_empty.to_string(), lane_idx);
+                    layer(&color, Layers::Commits, symbol_empty.to_string(), lane_idx, None);
+                    layer(&color, Layers::Pipes, symbol_empty.to_string(), lane_idx, None);
+                    layer(&color, Layers::Pipes, symbol_empty.to_string(), lane_idx, None);
 
                     // Check if commit is being merged into
                     let mut is_mergee_found = false;
@@ -211,34 +226,34 @@ pub fn get_commits(repo: &Repository) -> (Vec<Oid>, Vec<Line<'static>>, Vec<Line
                                     is_mergee_found = true;
                                     if is_merger_found { is_drawing = !is_drawing; }
                                     if !is_drawing { is_merged_before = true;}
-                                    layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx);
-                                    layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx);
+                                    layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx, None);
+                                    layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx, None);
                                 } else {
                                     // Before the commit
                                     if !is_merger_found {
-                                        layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx);
-                                        layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx);
+                                        layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx, None);
+                                        layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx, None);
                                     } else {
                                         if mtdt.parents.len() == 1 && metadata.parents.contains(&mtdt.parents.first().unwrap()) {
-                                            layer(&color, Layers::Merges, symbol_merge_right_from.to_string(), merger_idx);
+                                            layer(&color, Layers::Merges, symbol_merge_right_from.to_string(), merger_idx, None);
                                             if mtdt_idx + 1 == mergee_idx {
-                                                layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx);    
+                                                layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx, None);
                                             } else {
-                                                layer(&color, Layers::Merges, symbol_horizontal.to_string(), merger_idx);
+                                                layer(&color, Layers::Merges, symbol_horizontal.to_string(), merger_idx, None);
                                             }
                                             is_drawing = true;
                                         } else {
                                             if is_drawing {
                                                 if mtdt_idx + 1 == mergee_idx {
-                                                    layer(&color, Layers::Merges, symbol_horizontal.to_string(), merger_idx);    
-                                                    layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx);    
+                                                    layer(&color, Layers::Merges, symbol_horizontal.to_string(), merger_idx, None);
+                                                    layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx, None);
                                                 } else {
-                                                    layer(&color, Layers::Merges, symbol_horizontal.to_string(), merger_idx);
-                                                    layer(&color, Layers::Merges, symbol_horizontal.to_string(), merger_idx);
+                                                    layer(&color, Layers::Merges, symbol_horizontal.to_string(), merger_idx, None);
+                                                    layer(&color, Layers::Merges, symbol_horizontal.to_string(), merger_idx, None);
                                                 }
                                             } else {
-                                                layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx);
-                                                layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx);
+                                                layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx, None);
+                                                layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx, None);
                                             }
                                         }
                                     }
@@ -248,17 +263,17 @@ pub fn get_commits(repo: &Repository) -> (Vec<Oid>, Vec<Line<'static>>, Vec<Line
                                 if is_merger_found && !is_merged_before {
                                     if mtdt.parents.len() == 1 && metadata.parents.contains(&mtdt.parents.first().unwrap()) {
                                         // color.alternate(merger_idx);
-                                        layer(&color, Layers::Merges, symbol_merge_left_from.to_string(), merger_idx);
-                                        layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx);
+                                        layer(&color, Layers::Merges, symbol_merge_left_from.to_string(), merger_idx, None);
+                                        layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx, None);
                                         is_drawing = false;
                                     } else {
                                         if is_drawing {
-                                            layer(&color, Layers::Merges, symbol_horizontal.to_string(), merger_idx);
-                                            layer(&color, Layers::Merges, symbol_horizontal.to_string(), merger_idx);
+                                            layer(&color, Layers::Merges, symbol_horizontal.to_string(), merger_idx, None);
+                                            layer(&color, Layers::Merges, symbol_horizontal.to_string(), merger_idx, None);
                                         }
                                         else {
-                                            layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx);
-                                            layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx);
+                                            layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx, None);
+                                            layer(&color, Layers::Merges, symbol_empty.to_string(), merger_idx, None);
                                         }
                                     }
                                 }
@@ -283,39 +298,39 @@ pub fn get_commits(repo: &Repository) -> (Vec<Oid>, Vec<Line<'static>>, Vec<Line
 
                             if trailing_dummies > 0 && _buffer_prev.len() > idx && _buffer_prev[idx + 1].is_dummy() {
                                 color.alternate(idx + 1);
-                                layer(&color, Layers::Merges, symbol_branch_down.to_string(), idx + 1);
-                                layer(&color, Layers::Merges, symbol_empty.to_string(), idx + 1);
+                                layer(&color, Layers::Merges, symbol_branch_down.to_string(), idx + 1, None);
+                                layer(&color, Layers::Merges, symbol_empty.to_string(), idx + 1, None);
                             } else if trailing_dummies > 0 {
                                 // color.alternate(idx + 1);
                                 
                                 // Calculate how many lanes before we reach the branch character
                                 for _ in lane_idx..idx {
-                                    layer(&color, Layers::Merges, symbol_horizontal.to_string(), idx + 1);
-                                    layer(&color, Layers::Merges, symbol_horizontal.to_string(), idx + 1);
+                                    layer(&color, Layers::Merges, symbol_horizontal.to_string(), idx + 1, None);
+                                    layer(&color, Layers::Merges, symbol_horizontal.to_string(), idx + 1, None);
                                 }
                                 
-                                layer(&color, Layers::Merges, symbol_merge_left_from.to_string(), idx + 1);
-                                layer(&color, Layers::Merges, symbol_empty.to_string(), idx + 1);
+                                layer(&color, Layers::Merges, symbol_merge_left_from.to_string(), idx + 1, None);
+                                layer(&color, Layers::Merges, symbol_empty.to_string(), idx + 1, None);
                             } else {
                                 color.alternate(idx + 1);
                                 
                                 // Calculate how many lanes before we reach the branch character
                                 for _ in lane_idx..idx {
-                                    layer(&color, Layers::Merges, symbol_horizontal.to_string(), idx + 1);
-                                    layer(&color, Layers::Merges, symbol_horizontal.to_string(), idx + 1);
+                                    layer(&color, Layers::Merges, symbol_horizontal.to_string(), idx + 1, None);
+                                    layer(&color, Layers::Merges, symbol_horizontal.to_string(), idx + 1, None);
                                 }
 
-                                layer(&color, Layers::Merges, symbol_branch_down.to_string(), idx + 1);
-                                layer(&color, Layers::Merges, symbol_empty.to_string(), idx + 1);
+                                layer(&color, Layers::Merges, symbol_branch_down.to_string(), idx + 1, None);
+                                layer(&color, Layers::Merges, symbol_empty.to_string(), idx + 1, None);
                             }
                             _not_found_mergers.push(metadata.sha.clone());
                         }
                     }
                 } else {
-                    layer(&color, Layers::Commits, symbol_empty.to_string(), lane_idx);
-                    layer(&color, Layers::Commits, symbol_empty.to_string(), lane_idx);
-                    layer(&color, Layers::Pipes, symbol_vertical.to_string(), lane_idx);
-                    layer(&color, Layers::Pipes, symbol_empty.to_string(), lane_idx);
+                    layer(&color, Layers::Commits, symbol_empty.to_string(), lane_idx, None);
+                    layer(&color, Layers::Commits, symbol_empty.to_string(), lane_idx, None);
+                    layer(&color, Layers::Pipes, if metadata.parents.contains(&head_sha) { symbol_vertical_dotted.to_string() } else { symbol_vertical.to_string() }, lane_idx, if metadata.parents.contains(&head_sha) { Some(COLOR_GREY_500) } else { None });
+                    layer(&color, Layers::Pipes, symbol_empty.to_string(), lane_idx, None);
                 }
 
                 lane_idx += 1;
@@ -325,14 +340,14 @@ pub fn get_commits(repo: &Repository) -> (Vec<Oid>, Vec<Line<'static>>, Vec<Line
                 if _tips.contains_key(&sha) {
                     color.alternate(lane_idx);
                     _tip_colors.insert(sha, color.get(lane_idx));
-                    layer(&color, Layers::Commits, symbol_commit_branch.to_string(), lane_idx);
+                    layer(&color, Layers::Commits, symbol_commit_branch.to_string(), lane_idx, None);
                 } else {
-                    layer(&color, Layers::Commits, symbol_commit.to_string(), lane_idx);
+                    layer(&color, Layers::Commits, symbol_commit.to_string(), lane_idx, None);
                 };
                 
-                layer(&color, Layers::Commits, symbol_empty.to_string(), lane_idx);
-                layer(&color, Layers::Pipes, symbol_empty.to_string(), lane_idx);
-                layer(&color, Layers::Pipes, symbol_empty.to_string(), lane_idx);
+                layer(&color, Layers::Commits, symbol_empty.to_string(), lane_idx, None);
+                layer(&color, Layers::Pipes, symbol_empty.to_string(), lane_idx, None);
+                layer(&color, Layers::Pipes, symbol_empty.to_string(), lane_idx, None);
             }
         }
 
