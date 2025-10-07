@@ -135,7 +135,7 @@ impl App {
 
         let title_paragraph = ratatui::widgets::Paragraph::new(Text::from(
             Line::from(vec![
-                Span::styled(" GitTui |", Style::default().fg(COLOR_TITLE)),
+                Span::styled(" Guitar |", Style::default().fg(COLOR_TITLE)),
                 Span::styled(format!(" 🖿  {}", self.path), Style::default().fg(COLOR_TEXT)),
             ])
         ))
