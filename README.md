@@ -2,8 +2,7 @@
 
 Terminal based git client
 
-![Guitar](https://github.com/user-attachments/assets/9474bf12-f537-4e93-b41b-542fb5fd067d)
-
+![Guitar](https://github.com/user-attachments/assets/cef0b26e-1061-4f6b-856f-d5d8bb157d5b)
  
 TODO:
 
