@@ -101,10 +101,19 @@ pub fn get_commits(repo: &Repository) -> (Vec<Oid>, Vec<Line<'static>>, Vec<Line
     let mut _tip_colors: HashMap<Oid, Color> = HashMap::new();
     let _branches: HashMap<Oid, Vec<String>> = get_branches(&repo, &_tips);
     let _timestamps: HashMap<Oid, (Time, Time, Time)> = get_timestamps(&repo, &_branches);
-    let _sorted: Vec<Oid> = get_sorted_commits(&repo);
-
+    let mut _sorted: Vec<Oid> = get_sorted_commits(&repo);
     let mut _not_found_mergers: Vec<Oid> = Vec::new();
-    
+
+    // Make a fake commit for unstaged changes
+    let uncommitted_changes = get_uncommitted_changes(repo);
+    if uncommitted_changes.len() > 0 {        
+        shas.push(Oid::zero());
+        branches.push(Line::from(Span::styled("--", Style::default().fg(COLOR_AMBER))));
+        buffer.push(Line::from(Span::styled("--", Style::default().fg(COLOR_AMBER))));
+        graph.push(Line::from(Span::styled("------- X", Style::default().fg(COLOR_AMBER))));
+    }
+
+    // Go through the commits, inferring the graph
     for sha in _sorted {
         let commit = repo.find_commit(sha).unwrap();
         let parents: Vec<Oid> = commit.parent_ids().collect();
