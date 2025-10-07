@@ -1,8 +1,8 @@
-# Gittui (WIP)
+# Guitar (WIP)
 
 Terminal based git client
 
-![GitTui](https://github.com/user-attachments/assets/9474bf12-f537-4e93-b41b-542fb5fd067d)
+![Guitar](https://github.com/user-attachments/assets/9474bf12-f537-4e93-b41b-542fb5fd067d)
 
  
 TODO:
