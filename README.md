@@ -2,7 +2,7 @@
 
 Terminal based git client
 
-<img width="2323" height="1117" alt="Gittui" src="https://github.com/user-attachments/assets/f3efe322-ed14-4442-8e01-81aed703cf96" />
+![GitTui](https://github.com/user-attachments/assets/9474bf12-f537-4e93-b41b-542fb5fd067d)
 
  
 TODO:
