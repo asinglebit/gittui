@@ -501,8 +501,18 @@ impl App {
                 }
             }
             KeyCode::Enter => {
-                checkout_sha(&self.repo, *self.shas.get(self.selected).unwrap());
-                self.reload();
+                let branches = self._tips.entry(*self.shas.get(self.selected).unwrap()).or_insert_with(Vec::new);
+                if branches.len() > 1 {
+                    self.modal = true;
+                } else {
+                    checkout_sha(&self.repo, *self.shas.get(self.selected).unwrap());
+                    self.reload();
+                }                
+            }
+            KeyCode::Esc => {
+                if self.modal == true {
+                    self.modal = false;
+                }                
             }
             _ => {}
         }
