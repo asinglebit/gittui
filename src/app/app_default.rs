@@ -2,7 +2,7 @@ use std::{collections::HashMap, env, path::PathBuf};
 
 use git2::Repository;
 
-use crate::app::app::App;
+use crate::app::app::{App, Layout};
 
 impl Default for App {
     fn default() -> Self {
@@ -30,6 +30,7 @@ impl Default for App {
             lines_buffers: Vec::new(),
 
             // Interface
+            layout: Layout::default(),
             scroll: 0.into(),
             files_scroll: 0.into(),
             selected: 0,

@@ -5,12 +5,13 @@ mod app {
     pub mod app;
     pub mod app_default;
     pub mod app_input;
-    pub mod app_draw;
-    pub mod layout {
-        pub mod layout;
-        pub mod title;
-        pub mod status;
-    }
+    pub mod app_layout;
+    pub mod app_draw_title;
+    pub mod app_draw_graph;
+    pub mod app_draw_inspector;
+    pub mod app_draw_files;
+    pub mod app_draw_status;
+    pub mod app_draw_modal;
 }
 mod core {
     pub mod buffer;

@@ -13,6 +13,8 @@ use git2::{
 #[rustfmt::skip]
 use ratatui::{
     DefaultTerminal,
+    Frame,
+    layout::Rect,
     text::{
         Line,
     },
@@ -21,6 +23,17 @@ use ratatui::{
 use crate::{
     core::walker::walk,
 };
+
+#[derive(Default)]
+pub struct Layout {
+    pub title_left: Rect,
+    pub title_right: Rect,
+    pub graph: Rect,
+    pub inspector: Rect,
+    pub files: Rect,
+    pub status_left: Rect,
+    pub status_right: Rect
+}
 
 pub struct App {
     // General
@@ -38,6 +51,7 @@ pub struct App {
     pub lines_buffers: Vec<Line<'static>>,
 
     // Interface
+    pub layout: Layout,
     pub scroll: Cell<usize>,
     pub files_scroll: Cell<usize>,
     pub selected: usize,
@@ -56,6 +70,16 @@ impl App {
         }
 
         Ok(())
+    }
+    
+    pub fn draw(&mut self, frame: &mut Frame) {
+        self.layout(frame);
+        self.draw_title(frame);
+        self.draw_graph(frame);
+        self.draw_files(frame);
+        self.draw_inspector(frame);
+        self.draw_status(frame);
+        self.draw_modal(frame);
     }
 
     pub fn reload(&mut self) {
