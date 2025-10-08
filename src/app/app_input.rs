@@ -104,7 +104,7 @@ impl App {
                     .or_default();
 
                 if !self.is_modal {
-                    if branches.len() == 0 {
+                    if branches.is_empty() {
                         checkout_head(&self.repo, *self.oids.get(self.selected).unwrap());
                         self.reload();
                     } else if branches.len() == 1 {

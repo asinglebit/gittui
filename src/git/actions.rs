@@ -24,19 +24,19 @@ pub fn checkout_head(repo: &Repository, oid: Oid) {
 //     // Try local branch first
 //     if let Ok(branch) = repo.find_branch(branch_name, BranchType::Local) {
 //         repo.set_head(branch.get().name().unwrap())?;
-//     } 
+//     }
 //     // Try remote branch (with or without 'origin/' prefix)
 //     else {
 //         let remote_branch_name = &branch_name;
 
 //         let local_branch_name = branch_name.strip_prefix("origin/").unwrap_or(branch_name);
-        
+
 //         let remote_branch = repo.find_branch(remote_branch_name, BranchType::Remote)?;
 //         let commit = remote_branch.get().peel_to_commit()?;
-        
+
 //         let mut local_branch = repo.branch(local_branch_name, &commit, false)?;
 //         local_branch.set_upstream(Some(remote_branch_name))?;
-        
+
 //         repo.set_head(local_branch.get().name().unwrap())?;
 //     }
 
@@ -68,18 +68,16 @@ pub fn checkout_branch(repo: &Repository, branch_name: &str) -> Result<(), git2:
 
             let remote_branch = repo.find_branch(remote_branch_name, BranchType::Remote)?;
             let commit = remote_branch.get().peel_to_commit()?;
-            
+
             let mut local_branch = repo.branch(local_branch_name, &commit, false)?;
             local_branch.set_upstream(Some(remote_branch_name))?;
-            
+
             repo.set_head(local_branch.get().name().unwrap())?;
         }
     }
 
     repo.checkout_head(Some(
-        CheckoutBuilder::default()
-            .allow_conflicts(true)
-            .force(),
+        CheckoutBuilder::default().allow_conflicts(true).force(),
     ))?;
 
     Ok(())
