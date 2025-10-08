@@ -1,77 +1,42 @@
-use std::{
-    cell::Cell,
-    env,
-    io,
-    path::PathBuf
-};
+use std::{cell::Cell, env, io, path::PathBuf};
 
-use crossterm::event::{
-    self,
-    Event,
-    KeyCode,
-    KeyEvent,
-    KeyEventKind,
-    KeyModifiers
-};
-use git2::{
-    Oid,
-    Repository,
-};
-use ratatui::{
-    DefaultTerminal,
-    Frame,
-    text::{
-        Line,
-        Span,
-        Text
-    },
-    style::{
-        Style
-    },
-    widgets::{
-        Block,
-        Borders,
-        Cell as WidgetCell,
-        Row,
-        Scrollbar,
-        ScrollbarOrientation,
-        ScrollbarState,
-        Table,
-        Wrap
-    }
-};
 use crate::{
     colors::*,
-    helpers::{
-        get_changed_filenames_text,
-        get_commits,
-        get_uncommitted_changes,
-        timestamp_to_utc
-    }
+    helpers::{get_changed_filenames_text, get_commits, get_uncommitted_changes, timestamp_to_utc},
+};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use git2::{Oid, Repository};
+use ratatui::{
+    DefaultTerminal, Frame,
+    style::Style,
+    text::{Line, Span, Text},
+    widgets::{
+        Block, Borders, Cell as WidgetCell, Row, Scrollbar, ScrollbarOrientation, ScrollbarState,
+        Table, Wrap,
+    },
 };
 
 pub struct App {
     // General
     path: String,
     repo: Repository,
-    
+
     // Data
     shas: Vec<Oid>,
     graph: Vec<Line<'static>>,
     branches: Vec<Line<'static>>,
     messages: Vec<Line<'static>>,
     buffers: Vec<Line<'static>>,
-    
+
     // Interface
     scroll: Cell<usize>,
     files_scroll: Cell<usize>,
     selected: usize,
-    exit: bool
+    exit: bool,
 }
 
 impl App {
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
-
         self.reload();
 
         while !self.exit {
@@ -91,7 +56,6 @@ impl App {
     }
 
     pub fn draw(&mut self, frame: &mut Frame) {
-
         let changes = get_uncommitted_changes(&self.repo);
 
         /***************************************************************************************************
@@ -109,36 +73,54 @@ impl App {
 
         let chunks_title_bar = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Horizontal)
-            .constraints([ratatui::layout::Constraint::Percentage(80), ratatui::layout::Constraint::Percentage(20)])
+            .constraints([
+                ratatui::layout::Constraint::Percentage(80),
+                ratatui::layout::Constraint::Percentage(20),
+            ])
             .split(chunks_vertical[0]);
 
         let chunks_horizontal = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Horizontal)
-            .constraints([ratatui::layout::Constraint::Percentage(70), ratatui::layout::Constraint::Percentage(30)])
+            .constraints([
+                ratatui::layout::Constraint::Percentage(70),
+                ratatui::layout::Constraint::Percentage(30),
+            ])
             .split(chunks_vertical[1]);
 
         let chunks_inspector = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
-            .constraints([ratatui::layout::Constraint::Percentage(40), ratatui::layout::Constraint::Percentage(60)])
+            .constraints([
+                ratatui::layout::Constraint::Percentage(40),
+                ratatui::layout::Constraint::Percentage(60),
+            ])
             .split(chunks_horizontal[1]);
 
         let chunks_status_bar = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Horizontal)
-            .constraints([ratatui::layout::Constraint::Percentage(80), ratatui::layout::Constraint::Percentage(20)])
+            .constraints([
+                ratatui::layout::Constraint::Percentage(80),
+                ratatui::layout::Constraint::Percentage(20),
+            ])
             .split(chunks_vertical[2]);
 
-        let padding = ratatui::widgets::Padding { left: 1, right: 1, top: 0, bottom: 0 };
+        let padding = ratatui::widgets::Padding {
+            left: 1,
+            right: 1,
+            top: 0,
+            bottom: 0,
+        };
 
         /***************************************************************************************************
          * Title bar
          ***************************************************************************************************/
 
-        let title_paragraph = ratatui::widgets::Paragraph::new(Text::from(
-            Line::from(vec![
-                Span::styled(" Guitar |", Style::default().fg(COLOR_TITLE)),
-                Span::styled(format!(" 🖿  {}", self.path), Style::default().fg(COLOR_TEXT)),
-            ])
-        ))
+        let title_paragraph = ratatui::widgets::Paragraph::new(Text::from(Line::from(vec![
+            Span::styled(" Guitar |", Style::default().fg(COLOR_TITLE)),
+            Span::styled(
+                format!(" 🖿  {}", self.path),
+                Style::default().fg(COLOR_TEXT),
+            ),
+        ])))
         .left_aligned()
         .block(Block::default());
 
@@ -148,19 +130,22 @@ impl App {
          * Status bar
          ***************************************************************************************************/
 
-        let sha_paragraph = ratatui::widgets::Paragraph::new(Text::from(Line::from(
-            Span::styled(format!(" SHA: {}", self.shas.get(self.selected).unwrap()), Style::default().fg(COLOR_TEXT))
-        )))
+        let sha_paragraph = ratatui::widgets::Paragraph::new(Text::from(Line::from(Span::styled(
+            format!(" SHA: {}", self.shas.get(self.selected).unwrap()),
+            Style::default().fg(COLOR_TEXT),
+        ))))
         .left_aligned()
         .block(Block::default());
 
         frame.render_widget(sha_paragraph, chunks_status_bar[0]);
 
-        let selection_paragraph = ratatui::widgets::Paragraph::new(Text::from(Line::from(
-            Span::styled(format!("{}/{}", self.selected + 1, self.messages.len()), Style::default().fg(COLOR_TITLE))
-        )))
-        .right_aligned()
-        .block(Block::default());
+        let selection_paragraph =
+            ratatui::widgets::Paragraph::new(Text::from(Line::from(Span::styled(
+                format!("{}/{}", self.selected + 1, self.messages.len()),
+                Style::default().fg(COLOR_TITLE),
+            ))))
+            .right_aligned()
+            .block(Block::default());
 
         frame.render_widget(selection_paragraph, chunks_status_bar[1]);
 
@@ -175,7 +160,8 @@ impl App {
         if self.selected < self.scroll.get() {
             self.scroll.set(self.selected);
         } else if self.selected >= self.scroll.get() + table_height {
-            self.scroll.set(self.selected.saturating_sub(table_height - 1));
+            self.scroll
+                .set(self.selected.saturating_sub(table_height - 1));
         }
 
         let start = self.scroll.get();
@@ -199,28 +185,26 @@ impl App {
             ]);
 
             if actual_index == self.selected {
-                row = row.style(
-                    Style::default()
-                        .bg(COLOR_GREY_800)
-                        .fg(COLOR_GREY_600),
-                );
+                row = row.style(Style::default().bg(COLOR_GREY_800).fg(COLOR_GREY_600));
             }
             rows.push(row);
         }
 
-        let table = Table::new(rows, [
-            ratatui::layout::Constraint::Length(25),
-            ratatui::layout::Constraint::Percentage(100),
-        ]).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(COLOR_BORDER))
-            .border_type(ratatui::widgets::BorderType::Rounded),
-        ).row_highlight_style(
-            Style::default()
-                .bg(COLOR_SELECTION)
-                .fg(COLOR_TEXT_SELECTED),
-        ).column_spacing(2);
+        let table = Table::new(
+            rows,
+            [
+                ratatui::layout::Constraint::Length(25),
+                ratatui::layout::Constraint::Percentage(100),
+            ],
+        )
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(COLOR_BORDER))
+                .border_type(ratatui::widgets::BorderType::Rounded),
+        )
+        .row_highlight_style(Style::default().bg(COLOR_SELECTION).fg(COLOR_TEXT_SELECTED))
+        .column_spacing(2);
 
         frame.render_widget(table, chunks_horizontal[0]);
 
@@ -253,41 +237,77 @@ impl App {
             let body = commit.body().unwrap_or("<no body>").to_string();
 
             commit_lines = vec![
-                Line::from(vec![Span::styled("Commit sha:", Style::default().fg(COLOR_GREY_400))]),
-                Line::from(vec![Span::styled(format!("{}", self.shas.get(self.selected).unwrap()), Style::default().fg(COLOR_TEXT))]),
-                Line::from(vec![Span::styled("Parent shas:", Style::default().fg(COLOR_GREY_400))]),
+                Line::from(vec![Span::styled(
+                    "Commit sha:",
+                    Style::default().fg(COLOR_GREY_400),
+                )]),
+                Line::from(vec![Span::styled(
+                    format!("{}", self.shas.get(self.selected).unwrap()),
+                    Style::default().fg(COLOR_TEXT),
+                )]),
+                Line::from(vec![Span::styled(
+                    "Parent shas:",
+                    Style::default().fg(COLOR_GREY_400),
+                )]),
             ];
 
             for parent_id in commit.parent_ids() {
-                commit_lines.push(Line::from(vec![Span::styled(format!("{}", parent_id), Style::default().fg(COLOR_TEXT))]));
+                commit_lines.push(Line::from(vec![Span::styled(
+                    format!("{}", parent_id),
+                    Style::default().fg(COLOR_TEXT),
+                )]));
             }
 
             commit_lines.extend(vec![
-                Line::from(vec![Span::styled(format!("Authored by: {}", author.name().unwrap_or("-")), Style::default().fg(COLOR_GREY_400))]),
-                Line::from(vec![Span::styled(format!("{}", author.email().unwrap_or("")), Style::default().fg(COLOR_TEXT))]),
-                Line::from(vec![Span::styled(format!("{}", timestamp_to_utc(author.when())), Style::default().fg(COLOR_TEXT))]),
-                Line::from(vec![Span::styled(format!("Commited by: {}", committer.name().unwrap_or("-")), Style::default().fg(COLOR_GREY_400))]),
-                Line::from(vec![Span::styled(format!("{}", committer.email().unwrap_or("")), Style::default().fg(COLOR_TEXT))]),
-                Line::from(vec![Span::styled(format!("{}", timestamp_to_utc(committer.when())), Style::default().fg(COLOR_TEXT))]),
+                Line::from(vec![Span::styled(
+                    format!("Authored by: {}", author.name().unwrap_or("-")),
+                    Style::default().fg(COLOR_GREY_400),
+                )]),
+                Line::from(vec![Span::styled(
+                    format!("{}", author.email().unwrap_or("")),
+                    Style::default().fg(COLOR_TEXT),
+                )]),
+                Line::from(vec![Span::styled(
+                    format!("{}", timestamp_to_utc(author.when())),
+                    Style::default().fg(COLOR_TEXT),
+                )]),
+                Line::from(vec![Span::styled(
+                    format!("Commited by: {}", committer.name().unwrap_or("-")),
+                    Style::default().fg(COLOR_GREY_400),
+                )]),
+                Line::from(vec![Span::styled(
+                    format!("{}", committer.email().unwrap_or("")),
+                    Style::default().fg(COLOR_TEXT),
+                )]),
+                Line::from(vec![Span::styled(
+                    format!("{}", timestamp_to_utc(committer.when())),
+                    Style::default().fg(COLOR_TEXT),
+                )]),
                 Line::from(vec![
                     Span::styled("Message summary: ", Style::default().fg(COLOR_GREY_400)),
-                    Span::styled(summary, Style::default().fg(COLOR_TEXT))
+                    Span::styled(summary, Style::default().fg(COLOR_TEXT)),
                 ]),
                 Line::from(vec![
                     Span::styled("Message body: ", Style::default().fg(COLOR_GREY_400)),
-                    Span::styled(body, Style::default().fg(COLOR_TEXT))
+                    Span::styled(body, Style::default().fg(COLOR_TEXT)),
                 ]),
             ]);
         }
-        
 
-        let visible_height = chunks_inspector[0].height as usize; 
-        let total_inspector_lines = commit_lines.iter()
+        let visible_height = chunks_inspector[0].height as usize;
+        let total_inspector_lines = commit_lines
+            .iter()
             .map(|line| {
-                let line_str: String = line.spans.iter().map(|span| span.content.trim()).collect::<Vec<_>>().join("");
+                let line_str: String = line
+                    .spans
+                    .iter()
+                    .map(|span| span.content.trim())
+                    .collect::<Vec<_>>()
+                    .join("");
                 let visual_width = line_str.len(); // approximate: counts chars, may differ for wide unicode
                 // How many wrapped lines this line takes
-                let wrapped_lines = (visual_width + chunks_inspector[0].width as usize) / chunks_inspector[0].width  as usize;
+                let wrapped_lines = (visual_width + chunks_inspector[0].width as usize)
+                    / chunks_inspector[0].width as usize;
                 wrapped_lines.max(1) // at least 1 line
             })
             .sum::<usize>();
@@ -312,17 +332,17 @@ impl App {
 
         frame.render_widget(commit_paragraph, chunks_inspector[0]);
 
-
         // Render the scrollbar
         if total_inspector_lines > visible_height {
-            let mut scrollbar_state = ScrollbarState::new(total_inspector_lines).position(self.files_scroll.get());
+            let mut scrollbar_state =
+                ScrollbarState::new(total_inspector_lines).position(self.files_scroll.get());
             let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
                 .begin_symbol(Some("│"))
                 .end_symbol(Some("╯"))
                 .track_symbol(Some("│"))
                 .thumb_symbol("▌")
                 .thumb_style(Style::default().fg(COLOR_GREY_600));
-            
+
             frame.render_stateful_widget(scrollbar, chunks_inspector[0], &mut scrollbar_state);
         }
 
@@ -352,22 +372,22 @@ impl App {
                     .title_style(Style::default().fg(COLOR_GREY_400))
                     .borders(Borders::BOTTOM | Borders::RIGHT | Borders::TOP)
                     .border_style(Style::default().fg(COLOR_BORDER))
-                    .padding(padding)
-                    // .border_type(ratatui::widgets::BorderType::Rounded),
+                    .padding(padding), // .border_type(ratatui::widgets::BorderType::Rounded),
             );
 
         frame.render_widget(files_paragraph, chunks_inspector[1]);
 
         // Render the scrollbar
         if total_file_lines > visible_height {
-            let mut scrollbar_state = ScrollbarState::new(total_file_lines).position(self.files_scroll.get());
+            let mut scrollbar_state =
+                ScrollbarState::new(total_file_lines).position(self.files_scroll.get());
             let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
                 .begin_symbol(Some("│"))
                 .end_symbol(Some("╯"))
                 .track_symbol(Some("│"))
                 .thumb_symbol("▌")
                 .thumb_style(Style::default().fg(COLOR_GREY_600));
-            
+
             frame.render_stateful_widget(scrollbar, chunks_inspector[1], &mut scrollbar_state);
         }
     }
@@ -386,12 +406,18 @@ impl App {
         match key_event.code {
             KeyCode::Char('r') => self.reload(),
             KeyCode::Char('q') => self.exit(),
-            KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => self.exit(),         
+            KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.exit()
+            }
             KeyCode::Char('j') | KeyCode::Down => {
-                if self.selected + 1 < self.branches.len() { self.selected += 1; }
+                if self.selected + 1 < self.branches.len() {
+                    self.selected += 1;
+                }
             }
             KeyCode::Char('k') | KeyCode::Up => {
-                if self.selected > 0 { self.selected -= 1; }
+                if self.selected > 0 {
+                    self.selected -= 1;
+                }
             }
             KeyCode::Home => {
                 self.selected = 0;
@@ -428,30 +454,34 @@ impl App {
 
 impl Default for App {
     fn default() -> Self {
-
         let args: Vec<String> = env::args().collect();
-        let path = if args.len() > 1 { &args[1] } else { &".".to_string() };
-        let absolute_path: PathBuf = std::fs::canonicalize(&path).unwrap_or_else(|_| PathBuf::from(path));
+        let path = if args.len() > 1 {
+            &args[1]
+        } else {
+            &".".to_string()
+        };
+        let absolute_path: PathBuf =
+            std::fs::canonicalize(&path).unwrap_or_else(|_| PathBuf::from(path));
         // let path_buf = PathBuf::from(&path);
         let repo = Repository::open(absolute_path.clone()).expect("Could not open repo");
-        
+
         App {
             // General
             path: absolute_path.display().to_string(),
             repo,
-            
+
             // Data
             shas: Vec::new(),
             graph: Vec::new(),
             branches: Vec::new(),
             messages: Vec::new(),
             buffers: Vec::new(),
-            
+
             // Interface
             scroll: 0.into(),
             files_scroll: 0.into(),
             selected: 0,
-            exit: false
+            exit: false,
         }
     }
 }

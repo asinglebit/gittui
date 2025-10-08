@@ -1,6 +1,6 @@
 mod app;
-mod helpers;
 mod colors;
+mod helpers;
 
 use std::io;
 

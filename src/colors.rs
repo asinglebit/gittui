@@ -1,6 +1,5 @@
 use ratatui::style::Color;
 
-
 pub const COLOR_RED: Color = Color::Rgb(239, 83, 80);
 pub const COLOR_PINK: Color = Color::Rgb(236, 64, 122);
 pub const COLOR_PURPLE: Color = Color::Rgb(171, 71, 188);
