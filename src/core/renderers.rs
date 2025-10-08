@@ -23,8 +23,53 @@ use ratatui::{
 #[rustfmt::skip]
 use crate::{
     core::buffer::Buffer,
-    utils::colors::COLOR_TEXT
+    utils::{
+        colors::{
+            COLOR_TEXT,
+            COLOR_GREY_400
+        },
+        symbols::SYM_UNCOMMITED
+    }
 };
+
+pub fn render_uncommitted(
+    head_oid: Oid,
+    (new_count, modified_count, deleted_count): &(usize, usize, usize),
+    lines_graph: &mut Vec<Line>,
+    lines_branches: &mut Vec<Line>,
+    lines_messages: &mut Vec<Line>,
+    lines_buffer: &mut Vec<Line>,
+) {
+    let mut uncommited_line_spans = vec![Span::styled(
+        format!("{} ", SYM_UNCOMMITED),
+        Style::default().fg(COLOR_GREY_400),
+    )];
+    if *modified_count > 0 {
+        uncommited_line_spans.push(Span::styled(
+            format!("~{} ", modified_count),
+            Style::default().fg(COLOR_GREY_400),
+        ));
+    }
+    if *new_count > 0 {
+        uncommited_line_spans.push(Span::styled(
+            format!("+{} ", new_count),
+            Style::default().fg(COLOR_GREY_400),
+        ));
+    }
+    if *new_count > 0 {
+        uncommited_line_spans.push(Span::styled(
+            format!("-{} ", deleted_count),
+            Style::default().fg(COLOR_GREY_400),
+        ));
+    }
+    lines_branches.push(Line::from(uncommited_line_spans));
+    lines_messages.push(Line::from(""));
+    lines_buffer.push(Line::from(format!("UU({:.2},--)", head_oid)));
+    lines_graph.push(Line::from(vec![
+        Span::styled("······ ", Style::default().fg(COLOR_TEXT)),
+        Span::styled(SYM_UNCOMMITED, Style::default().fg(COLOR_GREY_400)),
+    ]));
+}
 
 pub fn render_graph(oid: &Oid, graph: &mut Vec<Line>, spans_graph: Vec<Span<'static>>) {
     let span_oid = Span::styled(oid.to_string()[..6].to_string(), COLOR_TEXT);

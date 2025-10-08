@@ -13,13 +13,12 @@ use git2::{
 use ratatui::{
     style::{
         Color,
-        Style
     },
     text::{
         Line,
-        Span
     },
 };
+use crate::core::renderers::render_uncommitted;
 #[rustfmt::skip]
 use crate::{
     core::{
@@ -71,7 +70,7 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
     // Git state descriptors
 
     // Topologically sorted list of oids including the uncommited, for the sake of order
-    let mut oids = Vec::new();
+    let mut oids = vec![Oid::zero()];
     // Mapping of tip oids of the branches to the branch names
     let tips: HashMap<Oid, Vec<String>> = get_tips(repo);
     // Mapping of tip oids of the branches to the colors
@@ -82,47 +81,23 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
     // let timestamps: HashMap<Oid, (Time, Time, Time)> = get_timestamps(repo, &branches);
     // Topologically sorted list of oids including the uncommited
     let sorted: Vec<Oid> = get_sorted_commits(repo);
+    // Get uncomitted changes info
+    let uncommitted = get_uncommitted_changes_count(repo);
+    // Get current head oid
+    let head_oid = repo.head().unwrap().target().unwrap();
 
     // Make a fake commit for unstaged changes
-    let (new_count, modified_count, deleted_count) = get_uncommitted_changes_count(repo);
-    let head = repo.head().unwrap();
-    let head_oid = head.target().unwrap();
-    {
-        oids.push(Oid::zero());
-        let mut uncommited_line_spans = vec![Span::styled(
-            format!("{} ", SYM_UNCOMMITED),
-            Style::default().fg(COLOR_GREY_400),
-        )];
-        if modified_count > 0 {
-            uncommited_line_spans.push(Span::styled(
-                format!("~{} ", modified_count),
-                Style::default().fg(COLOR_GREY_400),
-            ));
-        }
-        if new_count > 0 {
-            uncommited_line_spans.push(Span::styled(
-                format!("+{} ", new_count),
-                Style::default().fg(COLOR_GREY_400),
-            ));
-        }
-        if new_count > 0 {
-            uncommited_line_spans.push(Span::styled(
-                format!("-{} ", deleted_count),
-                Style::default().fg(COLOR_GREY_400),
-            ));
-        }
-
-        let metadata = Chunk::uncommitted(vec![head_oid]);
-        lines_branches.push(Line::from(uncommited_line_spans));
-        lines_buffer.push(Line::from(format!("UU({:.2},--)", head_oid)));
-        lines_graph.push(Line::from(vec![
-            Span::styled("······ ", Style::default().fg(COLOR_TEXT)),
-            Span::styled(SYM_UNCOMMITED, Style::default().fg(COLOR_GREY_400)),
-        ]));
-
-        // Update
-        buffer.borrow_mut().update(metadata);
-    }
+    render_uncommitted(
+        head_oid,
+        &uncommitted,
+        &mut lines_graph,
+        &mut lines_branches,
+        &mut lines_messages,
+        &mut lines_buffer,
+    );
+    buffer
+        .borrow_mut()
+        .update(Chunk::uncommitted(vec![head_oid]));
 
     // Go through the commits, inferring the graph
     for oid in sorted {
@@ -131,20 +106,20 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
         layers.clear();
         let commit = repo.find_commit(oid).unwrap();
         let parents: Vec<Oid> = commit.parent_ids().collect();
-        let metadata = Chunk::commit(oid, parents);
+        let chunk = Chunk::commit(oid, parents);
 
         let mut spans_graph = Vec::new();
 
         // Update
-        buffer.borrow_mut().update(metadata);
+        buffer.borrow_mut().update(chunk);
 
         {
             // Otherwise (meaning we reached a tip, merge or a non-branching commit)
             let mut is_commit_found = false;
             let mut is_merged_before = false;
             let mut lane_idx = 0;
-            for metadata in &buffer.borrow().curr {
-                if metadata.is_dummy() {
+            for chunk in &buffer.borrow().curr {
+                if chunk.is_dummy() {
                     if let Some(prev) = buffer.borrow().prev.get(lane_idx) {
                         if prev.parents.len() == 1 {
                             layers.commit(SYM_EMPTY, lane_idx);
@@ -158,10 +133,10 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
                             layers.pipe(SYM_EMPTY, lane_idx);
                         }
                     }
-                } else if oid == metadata.oid {
+                } else if oid == chunk.oid {
                     is_commit_found = true;
 
-                    if metadata.parents.len() > 1 && !tips.contains_key(&oid) {
+                    if chunk.parents.len() > 1 && !tips.contains_key(&oid) {
                         layers.commit(SYM_MERGE, lane_idx);
                     } else if tips.contains_key(&oid) {
                         color.borrow_mut().alternate(lane_idx);
@@ -177,12 +152,12 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
                     // Check if commit is being merged into
                     let mut is_mergee_found = false;
                     let mut is_drawing = false;
-                    if metadata.parents.len() > 1 {
+                    if chunk.parents.len() > 1 {
                         let mut is_merger_found = false;
                         let mut merger_idx: usize = 0;
-                        for mtdt in &buffer.borrow().curr {
-                            if mtdt.parents.len() == 1
-                                && metadata.parents.last().unwrap() == mtdt.parents.first().unwrap()
+                        for chunk_nested in &buffer.borrow().curr {
+                            if chunk_nested.parents.len() == 1
+                                && chunk.parents.last().unwrap() == chunk_nested.parents.first().unwrap()
                             {
                                 is_merger_found = true;
                                 break;
@@ -191,16 +166,16 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
                         }
 
                         let mut mergee_idx: usize = 0;
-                        for mtdt in &buffer.borrow().curr {
-                            if oid == mtdt.oid {
+                        for chunk_nested in &buffer.borrow().curr {
+                            if oid == chunk_nested.oid {
                                 break;
                             }
                             mergee_idx += 1;
                         }
 
-                        for (mtdt_idx, mtdt) in buffer.borrow().curr.iter().enumerate() {
+                        for (chunk_nested_idx, chunk_nested) in buffer.borrow().curr.iter().enumerate() {
                             if !is_mergee_found {
-                                if oid == mtdt.oid {
+                                if oid == chunk_nested.oid {
                                     is_mergee_found = true;
                                     if is_merger_found {
                                         is_drawing = !is_drawing;
@@ -215,18 +190,18 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
                                     if !is_merger_found {
                                         layers.merge(SYM_EMPTY, merger_idx);
                                         layers.merge(SYM_EMPTY, merger_idx);
-                                    } else if mtdt.parents.len() == 1
-                                        && metadata.parents.contains(mtdt.parents.first().unwrap())
+                                    } else if chunk_nested.parents.len() == 1
+                                        && chunk.parents.contains(chunk_nested.parents.first().unwrap())
                                     {
                                         layers.merge(SYM_MERGE_RIGHT_FROM, merger_idx);
-                                        if mtdt_idx + 1 == mergee_idx {
+                                        if chunk_nested_idx + 1 == mergee_idx {
                                             layers.merge(SYM_EMPTY, merger_idx);
                                         } else {
                                             layers.merge(SYM_HORIZONTAL, merger_idx);
                                         }
                                         is_drawing = true;
                                     } else if is_drawing {
-                                        if mtdt_idx + 1 == mergee_idx {
+                                        if chunk_nested_idx + 1 == mergee_idx {
                                             layers.merge(SYM_HORIZONTAL, merger_idx);
                                             layers.merge(SYM_EMPTY, merger_idx);
                                         } else {
@@ -241,8 +216,8 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
                             } else {
                                 // After the commit
                                 if is_merger_found && !is_merged_before {
-                                    if mtdt.parents.len() == 1
-                                        && metadata.parents.contains(mtdt.parents.first().unwrap())
+                                    if chunk_nested.parents.len() == 1
+                                        && chunk.parents.contains(chunk_nested.parents.first().unwrap())
                                     {
                                         layers.merge(SYM_MERGE_LEFT_FROM, merger_idx);
                                         layers.merge(SYM_EMPTY, merger_idx);
@@ -301,13 +276,13 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
                                 layers.merge(SYM_BRANCH_DOWN, idx + 1);
                                 layers.merge(SYM_EMPTY, idx + 1);
                             }
-                            merger_oid = Some(metadata.oid);
+                            merger_oid = Some(chunk.oid);
                         }
                     }
                 } else {
                     layers.commit(SYM_EMPTY, lane_idx);
                     layers.commit(SYM_EMPTY, lane_idx);
-                    if metadata.parents.contains(&head_oid) && lane_idx == 0 {
+                    if chunk.parents.contains(&head_oid) && lane_idx == 0 {
                         layers.pipe_custom(SYM_VERTICAL_DOTTED, lane_idx, COLOR_GREY_500);
                     } else {
                         layers.pipe(SYM_VERTICAL, lane_idx);

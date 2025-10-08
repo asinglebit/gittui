@@ -72,11 +72,13 @@ pub struct App {
 
     // Data
     oids: Vec<Oid>,
-    graph: Vec<Line<'static>>,
-    branches: Vec<Line<'static>>,
-    messages: Vec<Line<'static>>,
-    buffers: Vec<Line<'static>>,
-    _tips: HashMap<Oid, Vec<String>>,
+    tips: HashMap<Oid, Vec<String>>,
+
+    // Lines
+    lines_graph: Vec<Line<'static>>,
+    lines_branches: Vec<Line<'static>>,
+    lines_messages: Vec<Line<'static>>,
+    lines_buffers: Vec<Line<'static>>,
 
     // Interface
     scroll: Cell<usize>,
@@ -101,11 +103,11 @@ impl App {
     fn reload(&mut self) {
         let walked = walk(&self.repo);
         self.oids = walked.oids;
-        self._tips = walked.tips;
-        self.graph = walked.lines_graph;
-        self.branches = walked.lines_branches;
-        self.messages = walked.lines_messages;
-        self.buffers = walked.lines_buffer;
+        self.tips = walked.tips;
+        self.lines_graph = walked.lines_graph;
+        self.lines_branches = walked.lines_branches;
+        self.lines_messages = walked.lines_messages;
+        self.lines_buffers = walked.lines_buffer;
     }
 
     pub fn draw(&mut self, frame: &mut Frame) {
@@ -194,7 +196,7 @@ impl App {
 
         let title_paragraph =
             ratatui::widgets::Paragraph::new(Text::from(Line::from(Span::styled(
-                format!("{}/{}", self.selected + 1, self.messages.len()),
+                format!("{}/{}", self.selected + 1, self.lines_messages.len()),
                 Style::default().fg(COLOR_TEXT),
             ))))
             .right_aligned()
@@ -391,7 +393,7 @@ impl App {
          ***************************************************************************************************/
 
         let table_height = chunks_horizontal[0].height as usize - 2;
-        let total_rows = self.graph.len();
+        let total_rows = self.lines_graph.len();
 
         // Make sure selected row is visible
         if self.selected < self.scroll.get() {
@@ -408,10 +410,10 @@ impl App {
         let mut rows = Vec::with_capacity(end - start + 1); // preallocate for efficiency
 
         // Add the rest of the commits
-        for (i, ((graph, branch), buffer)) in self.graph[start..end]
+        for (i, ((graph, branch), buffer)) in self.lines_graph[start..end]
             .iter()
-            .zip(&self.branches[start..end])
-            .zip(&self.buffers[start..end])
+            .zip(&self.lines_branches[start..end])
+            .zip(&self.lines_buffers[start..end])
             .enumerate()
         {
             let actual_index = start + i;
@@ -469,7 +471,7 @@ impl App {
         if self.modal {
             let mut length = 0;
             let branches = self
-                ._tips
+                .tips
                 .entry(*self.oids.get(self.selected).unwrap())
                 .or_default();
             let spans: Vec<Line> = branches
@@ -540,7 +542,7 @@ impl App {
                 self.exit()
             }
             KeyCode::Char('j') | KeyCode::Down => {
-                if self.selected + 1 < self.branches.len() && !self.modal {
+                if self.selected + 1 < self.lines_branches.len() && !self.modal {
                     self.selected += 1;
                 }
             }
@@ -558,8 +560,8 @@ impl App {
                 }
             }
             KeyCode::End => {
-                if !self.branches.is_empty() && !self.modal {
-                    self.selected = self.branches.len() - 1;
+                if !self.lines_branches.is_empty() && !self.modal {
+                    self.selected = self.lines_branches.len() - 1;
                 }
             }
             KeyCode::PageUp => {
@@ -575,17 +577,17 @@ impl App {
             KeyCode::PageDown => {
                 if !self.modal {
                     let page = 20;
-                    if self.selected + page < self.branches.len() {
+                    if self.selected + page < self.lines_branches.len() {
                         self.selected += page;
                     } else {
-                        self.selected = self.branches.len() - 1;
+                        self.selected = self.lines_branches.len() - 1;
                     }
                 }
             }
             KeyCode::Enter => {
                 if !self.modal {
                     let branches = self
-                        ._tips
+                        .tips
                         .entry(*self.oids.get(self.selected).unwrap())
                         .or_default();
                     if branches.len() > 1 {
@@ -618,9 +620,8 @@ impl Default for App {
         } else {
             &".".to_string()
         };
-        let absolute_path: PathBuf =
-            std::fs::canonicalize(path).unwrap_or_else(|_| PathBuf::from(path));
-        // let path_buf = PathBuf::from(&path);
+        let absolute_path: PathBuf = std::fs::canonicalize(path)
+            .unwrap_or_else(|_| PathBuf::from(path));
         let repo = Repository::open(absolute_path.clone()).expect("Could not open repo");
 
         App {
@@ -630,11 +631,11 @@ impl Default for App {
 
             // Data
             oids: Vec::new(),
-            graph: Vec::new(),
-            branches: Vec::new(),
-            messages: Vec::new(),
-            buffers: Vec::new(),
-            _tips: HashMap::new(),
+            tips: HashMap::new(),
+            lines_graph: Vec::new(),
+            lines_branches: Vec::new(),
+            lines_messages: Vec::new(),
+            lines_buffers: Vec::new(),
 
             // Interface
             scroll: 0.into(),
