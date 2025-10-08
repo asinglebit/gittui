@@ -1,5 +1,5 @@
 use crate::{
-    core::{chunk::Chunk, layers::LayersCtx},
+    core::{buffer::Buffer, chunk::Chunk, layers::LayersCtx},
     git::queries::{
         get_branches, get_sorted_commits, get_timestamps, get_tips, get_uncommitted_changes_count,
     },
@@ -31,20 +31,19 @@ pub fn get_commits(
     HashMap<Oid, Vec<String>>,
 ) {
     let color = RefCell::new(ColorPicker::default());
+    let _buffer = RefCell::new(Buffer::default());
+
     let mut graph = Vec::new();
     let mut branches = Vec::new();
     let mut messages = Vec::new();
     let mut buffer = Vec::new();
     let mut shas = Vec::new();
 
-    let mut _buffer_prev: Vec<Chunk> = Vec::new();
-    let mut _buffer: Vec<Chunk> = Vec::new();
     let _tips: HashMap<Oid, Vec<String>> = get_tips(&repo);
     let mut _tip_colors: HashMap<Oid, Color> = HashMap::new();
     let _branches: HashMap<Oid, Vec<String>> = get_branches(&repo, &_tips);
     let _timestamps: HashMap<Oid, (Time, Time, Time)> = get_timestamps(&repo, &_branches);
     let mut _sorted: Vec<Oid> = get_sorted_commits(&repo);
-    let mut _not_found_mergers: Vec<Oid> = Vec::new();
     let mut layers: LayersCtx = layers!(&color);
 
     // Make a fake commit for unstaged changes
@@ -93,11 +92,13 @@ pub fn get_commits(
         };
 
         // Update
-        update_buffer(&mut _buffer, &mut _not_found_mergers, metadata);
+        _buffer.borrow_mut().update(metadata);
     }
 
     // Go through the commits, inferring the graph
     for sha in _sorted {
+        let mut merger_sha = None;
+
         layers.clear();
         let commit = repo.find_commit(sha).unwrap();
         let parents: Vec<Oid> = commit.parent_ids().collect();
@@ -106,16 +107,16 @@ pub fn get_commits(
         let mut spans_graph = Vec::new();
 
         // Update
-        update_buffer(&mut _buffer, &mut _not_found_mergers, metadata);
+        _buffer.borrow_mut().update(metadata);
 
         {
             // Otherwise (meaning we reached a tip, merge or a non-branching commit)
             let mut is_commit_found = false;
             let mut is_merged_before = false;
             let mut lane_idx = 0;
-            for metadata in &_buffer {
+            for metadata in &_buffer.borrow().curr {
                 if metadata.sha == Oid::zero() {
-                    if let Some(prev) = _buffer_prev.get(lane_idx) {
+                    if let Some(prev) = _buffer.borrow().prev.get(lane_idx) {
                         if prev.parents.len() == 1 {
                             layers.commit(SYM_EMPTY, lane_idx);
                             layers.commit(SYM_EMPTY, lane_idx);
@@ -152,7 +153,7 @@ pub fn get_commits(
                     if metadata.parents.len() > 1 {
                         let mut is_merger_found = false;
                         let mut merger_idx: usize = 0;
-                        for mtdt in &_buffer {
+                        for mtdt in &_buffer.borrow().curr {
                             if mtdt.parents.len() == 1
                                 && metadata.parents.last().unwrap() == mtdt.parents.first().unwrap()
                             {
@@ -163,7 +164,7 @@ pub fn get_commits(
                         }
 
                         let mut mergee_idx: usize = 0;
-                        for mtdt in &_buffer {
+                        for mtdt in &_buffer.borrow().curr {
                             if sha == mtdt.sha {
                                 break;
                             }
@@ -171,7 +172,7 @@ pub fn get_commits(
                         }
 
                         let mut mtdt_idx = 0;
-                        for mtdt in &_buffer {
+                        for mtdt in &_buffer.borrow().curr {
                             if !is_mergee_found {
                                 if sha == mtdt.sha {
                                     is_mergee_found = true;
@@ -243,9 +244,9 @@ pub fn get_commits(
 
                         if !is_merger_found {
                             // Count how many dummies in the end to get the real last element, append there
-                            let mut idx = _buffer.len() - 1;
+                            let mut idx = _buffer.borrow().curr.len() - 1;
                             let mut trailing_dummies = 0;
-                            for (i, c) in _buffer.iter().enumerate().rev() {
+                            for (i, c) in _buffer.borrow().curr.iter().enumerate().rev() {
                                 if !c.is_dummy() {
                                     idx = i;
                                     break;
@@ -255,8 +256,8 @@ pub fn get_commits(
                             }
 
                             if trailing_dummies > 0
-                                && _buffer_prev.len() > idx
-                                && _buffer_prev[idx + 1].is_dummy()
+                                && _buffer.borrow().prev.len() > idx
+                                && _buffer.borrow().prev[idx + 1].is_dummy()
                             {
                                 color.borrow_mut().alternate(idx + 1);
                                 layers.merge(SYM_BRANCH_DOWN, idx + 1);
@@ -284,7 +285,7 @@ pub fn get_commits(
                                 layers.merge(SYM_BRANCH_DOWN, idx + 1);
                                 layers.merge(SYM_EMPTY, idx + 1);
                             }
-                            _not_found_mergers.push(metadata.sha);
+                            merger_sha = Some(metadata.sha);
                         }
                     }
                 } else {
@@ -317,7 +318,11 @@ pub fn get_commits(
         // Blend layers into the graph
         layers.bake(&mut spans_graph);
 
-        _buffer_prev = _buffer.clone();
+        // Now we can borrow mutably
+        if let Some(sha) = merger_sha {
+            _buffer.borrow_mut().merger(sha);
+        }
+        _buffer.borrow_mut().backup();
 
         // Serialize
         serialize_shas(&sha, &mut shas);
@@ -335,62 +340,6 @@ pub fn get_commits(
     }
 
     (shas, graph, branches, messages, buffer, _tips)
-}
-
-fn update_buffer(buffer: &mut Vec<Chunk>, _not_found_mergers: &mut Vec<Oid>, metadata: Chunk) {
-    // Erase trailing dummy metadata
-    while buffer.last().is_some_and(|c| c.is_dummy()) {
-        buffer.pop();
-    }
-
-    // If we have a planned merge later on
-    if let Some(merger_idx) = buffer
-        .iter()
-        .position(|inner| _not_found_mergers.iter().any(|sha| sha == &inner.sha))
-    {
-        // Find the index in `_not_found_mergers` of the matching SHA
-        if let Some(merger_pos) = _not_found_mergers
-            .iter()
-            .position(|sha| sha == &buffer[merger_idx].sha)
-        {
-            _not_found_mergers.remove(merger_pos);
-        }
-
-        // Clone the element at merger_idx
-        let mut clone = buffer[merger_idx].clone();
-        clone.parents.remove(0);
-
-        // Remove second parent from the original
-        buffer[merger_idx].parents.remove(1);
-
-        // Insert it right after the found index
-        buffer.push(clone);
-    }
-
-    // Replace or append buffer metadata
-    if let Some(first_idx) = buffer
-        .iter()
-        .position(|inner| inner.parents.contains(&metadata.sha))
-    {
-        let old_sha = metadata.sha;
-
-        // Replace metadata
-        buffer[first_idx] = metadata;
-        let keep_ptr = buffer[first_idx].parents.as_ptr();
-
-        // Place dummies in case of branching
-        for inner in buffer.iter_mut() {
-            if inner.parents.contains(&old_sha) && inner.parents.as_ptr() != keep_ptr {
-                if inner.parents.len() > 1 {
-                    inner.parents.retain(|sha| *sha != old_sha);
-                } else {
-                    *inner = Chunk::dummy();
-                }
-            }
-        }
-    } else {
-        buffer.push(metadata);
-    }
 }
 
 fn serialize_graph(sha: &Oid, graph: &mut Vec<Line>, spans_graph: Vec<Span<'static>>) {
@@ -453,7 +402,7 @@ fn serialize_shas(sha: &Oid, shas: &mut Vec<Oid>) {
 
 fn serialize_buffer(
     _sha: &Oid,
-    _buffer: &Vec<Chunk>,
+    _buffer: &RefCell<Buffer>,
     _timestamps: &HashMap<Oid, (Time, Time, Time)>,
     buffer: &mut Vec<Line>,
 ) {
@@ -466,9 +415,9 @@ fn serialize_buffer(
     // let author_time = _timestamps.get(_sha).unwrap().1.seconds();
     // let o_author_time = _timestamps.get(_sha).unwrap().1.offset_minutes();
     // let span_timestamp = Span::styled(format!("{}:{:.3}:{}:{:.3}:{}:{:.3} ", time, o_time, committer_time, o_committer_time, author_time, o_author_time), Style::default().fg(Color::DarkGray));
-    // spans.push(span_timestamp);
+    // _spans.push(span_timestamp);
 
-    // let formatted_buffer: String = _buffer.iter().map(|metadata| {
+    // let formatted_buffer: String = _buffer.curr.iter().map(|metadata| {
     //         format!(
     //             "{:.2}({:<5})",
     //             metadata.sha,
@@ -485,7 +434,7 @@ fn serialize_buffer(
     //         )
     //     }).collect::<Vec<String>>().join(" ");
     // let span_buffer = Span::styled(formatted_buffer, Style::default().fg(COLOR_TEXT));
-    // spans.push(span_buffer);
+    // _spans.push(span_buffer);
 
     buffer.push(Line::from(_spans));
 }

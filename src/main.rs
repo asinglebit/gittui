@@ -1,6 +1,7 @@
 mod app;
 mod helpers;
 mod core {
+    pub mod buffer;
     pub mod chunk;
     pub mod layers;
 }
