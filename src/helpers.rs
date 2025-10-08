@@ -1,18 +1,22 @@
 use crate::{
-    colors::*,
-    graph::{
-        chunk::Chunk,
-        layers::{LayerTypes, LayersCtx},
+    core::{chunk::Chunk, layers::LayersCtx},
+    git::queries::{
+        get_branches, get_sorted_commits, get_timestamps, get_tips, get_uncommitted_changes_count,
     },
     layers,
+    utils::{
+        colors::*,
+        symbols::{
+            SYM_BRANCH_DOWN, SYM_BRANCH_UP, SYM_COMMIT, SYM_COMMIT_BRANCH, SYM_EMPTY,
+            SYM_HORIZONTAL, SYM_MERGE, SYM_MERGE_LEFT_FROM, SYM_MERGE_RIGHT_FROM, SYM_UNCOMMITED,
+            SYM_VERTICAL, SYM_VERTICAL_DOTTED,
+        },
+    },
 };
-use chrono::{DateTime, FixedOffset, TimeZone, Utc};
-use git2::{
-    BranchType, Commit, Delta, Oid, Repository, Status, StatusOptions, Time, build::CheckoutBuilder,
-};
+use git2::{Commit, Oid, Repository, Time};
 use ratatui::{
     style::{Color, Style},
-    text::{Line, Span, Text},
+    text::{Line, Span},
 };
 use std::{cell::RefCell, collections::HashMap};
 
@@ -44,13 +48,13 @@ pub fn get_commits(
     let mut layers: LayersCtx = layers!(&color);
 
     // Make a fake commit for unstaged changes
-    let (new_count, modified_count, deleted_count) = get_uncommitted_changes_counts(repo);
+    let (new_count, modified_count, deleted_count) = get_uncommitted_changes_count(repo);
     let head = repo.head().unwrap();
     let head_sha = head.target().unwrap();
     {
         shas.push(Oid::zero());
         let mut uncommited_line_spans = vec![Span::styled(
-            format!("◌ "),
+            format!("{} ", SYM_UNCOMMITED),
             Style::default().fg(COLOR_GREY_400),
         )];
         if modified_count > 0 {
@@ -79,7 +83,7 @@ pub fn get_commits(
         )));
         graph.push(Line::from(vec![
             Span::styled("•••••• ", Style::default().fg(COLOR_TEXT)),
-            Span::styled("◌", Style::default().fg(COLOR_GREY_400)),
+            Span::styled(SYM_UNCOMMITED, Style::default().fg(COLOR_GREY_400)),
         ]));
         // _buffer.push(value);
         let parents: Vec<Oid> = vec![head_sha];
@@ -104,19 +108,6 @@ pub fn get_commits(
         // Update
         update_buffer(&mut _buffer, &mut _not_found_mergers, metadata);
 
-        // Symbols
-        let symbol_commit_branch = "●";
-        let symbol_commit = "○";
-        let symbol_vertical = "│";
-        let symbol_vertical_dotted = "┊";
-        let symbol_horizontal = "─";
-        let symbol_empty = " ";
-        let symbol_merge_left_from = "⎨";
-        let symbol_merge_right_from = "╭";
-        let symbol_branch_up = "╯";
-        let symbol_branch_down = "╮";
-        let symbol_merge = "•";
-
         {
             // Otherwise (meaning we reached a tip, merge or a non-branching commit)
             let mut is_commit_found = false;
@@ -126,34 +117,34 @@ pub fn get_commits(
                 if metadata.sha == Oid::zero() {
                     if let Some(prev) = _buffer_prev.get(lane_idx) {
                         if prev.parents.len() == 1 {
-                            layers.commit(symbol_empty, lane_idx);
-                            layers.commit(symbol_empty, lane_idx);
-                            layers.pipe(symbol_branch_up, lane_idx);
-                            layers.pipe(symbol_empty, lane_idx);
+                            layers.commit(SYM_EMPTY, lane_idx);
+                            layers.commit(SYM_EMPTY, lane_idx);
+                            layers.pipe(SYM_BRANCH_UP, lane_idx);
+                            layers.pipe(SYM_EMPTY, lane_idx);
                         } else {
-                            layers.commit(symbol_empty, lane_idx);
-                            layers.commit(symbol_empty, lane_idx);
-                            layers.pipe(symbol_empty, lane_idx);
-                            layers.pipe(symbol_empty, lane_idx);
+                            layers.commit(SYM_EMPTY, lane_idx);
+                            layers.commit(SYM_EMPTY, lane_idx);
+                            layers.pipe(SYM_EMPTY, lane_idx);
+                            layers.pipe(SYM_EMPTY, lane_idx);
                         }
                     }
                 } else if sha == metadata.sha {
                     is_commit_found = true;
 
                     if metadata.parents.len() > 1 && !_tips.contains_key(&sha) {
-                        layers.commit(symbol_merge, lane_idx);
+                        layers.commit(SYM_MERGE, lane_idx);
                     } else {
                         if _tips.contains_key(&sha) {
                             color.borrow_mut().alternate(lane_idx);
                             _tip_colors.insert(sha, color.borrow().get(lane_idx));
-                            layers.commit(symbol_commit_branch, lane_idx);
+                            layers.commit(SYM_COMMIT_BRANCH, lane_idx);
                         } else {
-                            layers.commit(symbol_commit, lane_idx);
+                            layers.commit(SYM_COMMIT, lane_idx);
                         };
                     }
-                    layers.commit(symbol_empty, lane_idx);
-                    layers.pipe(symbol_empty, lane_idx);
-                    layers.pipe(symbol_empty, lane_idx);
+                    layers.commit(SYM_EMPTY, lane_idx);
+                    layers.pipe(SYM_EMPTY, lane_idx);
+                    layers.pipe(SYM_EMPTY, lane_idx);
 
                     // Check if commit is being merged into
                     let mut is_mergee_found = false;
@@ -190,38 +181,38 @@ pub fn get_commits(
                                     if !is_drawing {
                                         is_merged_before = true;
                                     }
-                                    layers.merge(symbol_empty, merger_idx);
-                                    layers.merge(symbol_empty, merger_idx);
+                                    layers.merge(SYM_EMPTY, merger_idx);
+                                    layers.merge(SYM_EMPTY, merger_idx);
                                 } else {
                                     // Before the commit
                                     if !is_merger_found {
-                                        layers.merge(symbol_empty, merger_idx);
-                                        layers.merge(symbol_empty, merger_idx);
+                                        layers.merge(SYM_EMPTY, merger_idx);
+                                        layers.merge(SYM_EMPTY, merger_idx);
                                     } else {
                                         if mtdt.parents.len() == 1
                                             && metadata
                                                 .parents
                                                 .contains(&mtdt.parents.first().unwrap())
                                         {
-                                            layers.merge(symbol_merge_right_from, merger_idx);
+                                            layers.merge(SYM_MERGE_RIGHT_FROM, merger_idx);
                                             if mtdt_idx + 1 == mergee_idx {
-                                                layers.merge(symbol_empty, merger_idx);
+                                                layers.merge(SYM_EMPTY, merger_idx);
                                             } else {
-                                                layers.merge(symbol_horizontal, merger_idx);
+                                                layers.merge(SYM_HORIZONTAL, merger_idx);
                                             }
                                             is_drawing = true;
                                         } else {
                                             if is_drawing {
                                                 if mtdt_idx + 1 == mergee_idx {
-                                                    layers.merge(symbol_horizontal, merger_idx);
-                                                    layers.merge(symbol_empty, merger_idx);
+                                                    layers.merge(SYM_HORIZONTAL, merger_idx);
+                                                    layers.merge(SYM_EMPTY, merger_idx);
                                                 } else {
-                                                    layers.merge(symbol_horizontal, merger_idx);
-                                                    layers.merge(symbol_horizontal, merger_idx);
+                                                    layers.merge(SYM_HORIZONTAL, merger_idx);
+                                                    layers.merge(SYM_HORIZONTAL, merger_idx);
                                                 }
                                             } else {
-                                                layers.merge(symbol_empty, merger_idx);
-                                                layers.merge(symbol_empty, merger_idx);
+                                                layers.merge(SYM_EMPTY, merger_idx);
+                                                layers.merge(SYM_EMPTY, merger_idx);
                                             }
                                         }
                                     }
@@ -232,16 +223,16 @@ pub fn get_commits(
                                     if mtdt.parents.len() == 1
                                         && metadata.parents.contains(mtdt.parents.first().unwrap())
                                     {
-                                        layers.merge(symbol_merge_left_from, merger_idx);
-                                        layers.merge(symbol_empty, merger_idx);
+                                        layers.merge(SYM_MERGE_LEFT_FROM, merger_idx);
+                                        layers.merge(SYM_EMPTY, merger_idx);
                                         is_drawing = false;
                                     } else {
                                         if is_drawing {
-                                            layers.merge(symbol_horizontal, merger_idx);
-                                            layers.merge(symbol_horizontal, merger_idx);
+                                            layers.merge(SYM_HORIZONTAL, merger_idx);
+                                            layers.merge(SYM_HORIZONTAL, merger_idx);
                                         } else {
-                                            layers.merge(symbol_empty, merger_idx);
-                                            layers.merge(symbol_empty, merger_idx);
+                                            layers.merge(SYM_EMPTY, merger_idx);
+                                            layers.merge(SYM_EMPTY, merger_idx);
                                         }
                                     }
                                 }
@@ -268,43 +259,43 @@ pub fn get_commits(
                                 && _buffer_prev[idx + 1].is_dummy()
                             {
                                 color.borrow_mut().alternate(idx + 1);
-                                layers.merge(symbol_branch_down, idx + 1);
-                                layers.merge(symbol_empty, idx + 1);
+                                layers.merge(SYM_BRANCH_DOWN, idx + 1);
+                                layers.merge(SYM_EMPTY, idx + 1);
                             } else if trailing_dummies > 0 {
                                 // color.alternate(idx + 1);
 
                                 // Calculate how many lanes before we reach the branch character
                                 for _ in lane_idx..idx {
-                                    layers.merge(symbol_horizontal, idx + 1);
-                                    layers.merge(symbol_horizontal, idx + 1);
+                                    layers.merge(SYM_HORIZONTAL, idx + 1);
+                                    layers.merge(SYM_HORIZONTAL, idx + 1);
                                 }
 
-                                layers.merge(symbol_merge_left_from, idx + 1);
-                                layers.merge(symbol_empty, idx + 1);
+                                layers.merge(SYM_MERGE_LEFT_FROM, idx + 1);
+                                layers.merge(SYM_EMPTY, idx + 1);
                             } else {
                                 color.borrow_mut().alternate(idx + 1);
 
                                 // Calculate how many lanes before we reach the branch character
                                 for _ in lane_idx..idx {
-                                    layers.merge(symbol_horizontal, idx + 1);
-                                    layers.merge(symbol_horizontal, idx + 1);
+                                    layers.merge(SYM_HORIZONTAL, idx + 1);
+                                    layers.merge(SYM_HORIZONTAL, idx + 1);
                                 }
 
-                                layers.merge(symbol_branch_down, idx + 1);
-                                layers.merge(symbol_empty, idx + 1);
+                                layers.merge(SYM_BRANCH_DOWN, idx + 1);
+                                layers.merge(SYM_EMPTY, idx + 1);
                             }
                             _not_found_mergers.push(metadata.sha);
                         }
                     }
                 } else {
-                    layers.commit(symbol_empty, lane_idx);
-                    layers.commit(symbol_empty, lane_idx);
+                    layers.commit(SYM_EMPTY, lane_idx);
+                    layers.commit(SYM_EMPTY, lane_idx);
                     if metadata.parents.contains(&head_sha) && lane_idx == 0 {
-                        layers.pipe_custom(symbol_vertical_dotted, lane_idx, COLOR_GREY_500);
+                        layers.pipe_custom(SYM_VERTICAL_DOTTED, lane_idx, COLOR_GREY_500);
                     } else {
-                        layers.pipe(symbol_vertical, lane_idx);
+                        layers.pipe(SYM_VERTICAL, lane_idx);
                     }
-                    layers.pipe(symbol_empty, lane_idx);
+                    layers.pipe(SYM_EMPTY, lane_idx);
                 }
 
                 lane_idx += 1;
@@ -313,13 +304,13 @@ pub fn get_commits(
                 if _tips.contains_key(&sha) {
                     color.borrow_mut().alternate(lane_idx);
                     _tip_colors.insert(sha, color.borrow().get(lane_idx));
-                    layers.commit(symbol_commit_branch, lane_idx);
+                    layers.commit(SYM_COMMIT_BRANCH, lane_idx);
                 } else {
-                    layers.commit(symbol_commit, lane_idx);
+                    layers.commit(SYM_COMMIT, lane_idx);
                 };
-                layers.commit(symbol_empty, lane_idx);
-                layers.pipe(symbol_empty, lane_idx);
-                layers.pipe(symbol_empty, lane_idx);
+                layers.commit(SYM_EMPTY, lane_idx);
+                layers.pipe(SYM_EMPTY, lane_idx);
+                layers.pipe(SYM_EMPTY, lane_idx);
             }
         }
 
@@ -400,79 +391,6 @@ fn update_buffer(buffer: &mut Vec<Chunk>, _not_found_mergers: &mut Vec<Oid>, met
     } else {
         buffer.push(metadata);
     }
-}
-
-fn get_sorted_commits(repo: &Repository) -> Vec<Oid> {
-    let mut revwalk = repo.revwalk().unwrap();
-
-    // Push all branch tips
-    for branch in repo.branches(None).unwrap() {
-        let (branch, _) = branch.unwrap();
-        if let Some(oid) = branch.get().target() {
-            revwalk.push(oid).unwrap();
-        }
-    }
-
-    // Topological + chronological order
-    revwalk
-        .set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME)
-        .unwrap();
-
-    revwalk.filter_map(Result::ok).collect()
-}
-
-fn get_tips(repo: &Repository) -> HashMap<Oid, Vec<String>> {
-    let mut tips: HashMap<Oid, Vec<String>> = HashMap::new();
-    for branch_type in [BranchType::Local, BranchType::Remote] {
-        for branch in repo.branches(Some(branch_type)).unwrap() {
-            let (branch, _) = branch.unwrap();
-            if let Some(target) = branch.get().target() {
-                let name = branch.name().unwrap().unwrap_or("unknown").to_string();
-                tips.entry(target).or_default().push(name);
-            }
-        }
-    }
-    tips
-}
-
-fn get_branches(repo: &Repository, tips: &HashMap<Oid, Vec<String>>) -> HashMap<Oid, Vec<String>> {
-    let mut map: HashMap<Oid, Vec<String>> = HashMap::new();
-    for (sha_tip, names) in tips {
-        let mut revwalk = repo.revwalk().unwrap();
-        revwalk.push(*sha_tip).unwrap();
-        for sha_step in revwalk {
-            let sha = sha_step.unwrap();
-            for name in names {
-                map.entry(sha).or_default().push(name.clone());
-            }
-        }
-    }
-    map
-}
-
-pub fn get_current_branch(repo: &Repository) -> Option<String> {
-    let head = repo.head().unwrap();
-    if head.is_branch() {
-        head.shorthand().map(|s| s.to_string())
-    } else {
-        None
-    }
-}
-
-fn get_timestamps(
-    repo: &Repository,
-    _branches: &HashMap<Oid, Vec<String>>,
-) -> HashMap<Oid, (Time, Time, Time)> {
-    _branches
-        .keys()
-        .map(|&sha| {
-            let commit = repo.find_commit(sha).unwrap();
-            let author_time = commit.author().when();
-            let committer_time = commit.committer().when();
-            let time = commit.time();
-            (sha, (time, committer_time, author_time))
-        })
-        .collect()
 }
 
 fn serialize_graph(sha: &Oid, graph: &mut Vec<Line>, spans_graph: Vec<Span<'static>>) {
@@ -570,115 +488,4 @@ fn serialize_buffer(
     // spans.push(span_buffer);
 
     buffer.push(Line::from(_spans));
-}
-
-pub fn get_uncommitted_changes_counts(repo: &Repository) -> (usize, usize, usize) {
-    let mut options = StatusOptions::new();
-    options.include_untracked(true); // include untracked files
-    options.include_ignored(false); // skip ignored files
-    options.recurse_untracked_dirs(true);
-
-    let statuses = repo.statuses(Some(&mut options)).unwrap();
-
-    let mut new_count = 0;
-    let mut modified_count = 0;
-    let mut deleted_count = 0;
-
-    for entry in statuses.iter() {
-        let status = entry.status();
-        if status.contains(Status::WT_NEW) || status.contains(Status::INDEX_NEW) {
-            new_count += 1;
-        }
-        if status.contains(Status::WT_MODIFIED) || status.contains(Status::INDEX_MODIFIED) {
-            modified_count += 1;
-        }
-        if status.contains(Status::WT_DELETED) || status.contains(Status::INDEX_DELETED) {
-            deleted_count += 1;
-        }
-    }
-
-    (new_count, modified_count, deleted_count)
-}
-
-pub fn get_changed_filenames_text(repo: &Repository, oid: Oid) -> Text<'_> {
-    let commit = repo.find_commit(oid).unwrap();
-    let tree = commit.tree().unwrap();
-
-    let mut lines = Vec::new();
-
-    if commit.parent_count() == 0 {
-        // Initial commit — list all files
-        tree.walk(git2::TreeWalkMode::PreOrder, |_, entry| {
-            if let Some(name) = entry.name() {
-                lines.push(Line::from(Span::styled(
-                    name.to_string(),
-                    Style::default().fg(COLOR_GREY_400),
-                )));
-            }
-            git2::TreeWalkResult::Ok
-        })
-        .unwrap();
-    } else {
-        // Normal commits — diff against first parent
-        let parent = commit.parent(0).unwrap();
-        let parent_tree = parent.tree().unwrap();
-        let diff = repo
-            .diff_tree_to_tree(Some(&parent_tree), Some(&tree), None)
-            .unwrap();
-
-        diff.foreach(
-            &mut |delta, _| {
-                if let Some(path) = delta.new_file().path() {
-                    lines.push(Line::from(Span::styled(
-                        path.display().to_string(),
-                        Style::default().fg(match delta.status() {
-                            Delta::Added => COLOR_GREEN,
-                            Delta::Deleted => COLOR_RED,
-                            Delta::Modified => COLOR_TEXT,
-                            Delta::Renamed => COLOR_TEXT,
-                            Delta::Copied => COLOR_TEXT,
-                            Delta::Untracked => COLOR_TEXT,
-                            _ => COLOR_TEXT,
-                        }),
-                    )));
-                }
-                true
-            },
-            None,
-            None,
-            None,
-        )
-        .unwrap();
-    }
-
-    Text::from(lines)
-}
-
-pub fn timestamp_to_utc(time: Time) -> String {
-    // Create a DateTime with the given offset
-    let offset = FixedOffset::east_opt(time.offset_minutes() * 60).unwrap();
-
-    // Create UTC datetime from timestamp
-    let utc_datetime = DateTime::from_timestamp(time.seconds(), 0).expect("Invalid timestamp");
-
-    // Convert to local time with offset, then back to UTC
-    let local_datetime = offset.from_utc_datetime(&utc_datetime.naive_utc());
-    let final_utc: DateTime<Utc> = local_datetime.with_timezone(&Utc);
-
-    // Format as string
-    final_utc.to_rfc2822()
-}
-
-pub fn checkout_sha(repo: &Repository, sha: Oid) {
-    // Find the commit object
-    let commit = repo.find_commit(sha).unwrap();
-
-    // Set HEAD to the commit (detached)
-    repo.set_head_detached(commit.id()).unwrap();
-
-    // Checkout the commit
-    repo.checkout_head(Some(
-        CheckoutBuilder::default().allow_conflicts(true).force(), // optional: force overwrite local changes
-    ))
-    .expect("Error checking out");
 }

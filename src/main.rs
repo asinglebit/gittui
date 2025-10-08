@@ -1,9 +1,17 @@
 mod app;
-mod colors;
 mod helpers;
-mod graph {
+mod core {
     pub mod chunk;
     pub mod layers;
+}
+pub mod git {
+    pub mod actions;
+    pub mod queries;
+}
+pub mod utils {
+    pub mod colors;
+    pub mod symbols;
+    pub mod time;
 }
 
 use std::io;

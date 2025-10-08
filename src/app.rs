@@ -1,10 +1,12 @@
 use std::{cell::Cell, collections::HashMap, env, io, path::PathBuf};
 
 use crate::{
-    colors::*,
-    helpers::{
-        checkout_sha, get_changed_filenames_text, get_commits, get_current_branch, timestamp_to_utc,
+    git::{
+        actions::checkout,
+        queries::{get_changed_filenames_as_text, get_current_branch},
     },
+    helpers::get_commits,
+    utils::{colors::*, time::timestamp_to_utc},
 };
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use git2::{Oid, Repository};
@@ -296,7 +298,7 @@ impl App {
         let mut files_text: Text = Text::from("-");
         let sha: Oid = *self.shas.get(self.selected).unwrap();
         if sha != Oid::zero() {
-            files_text = get_changed_filenames_text(&self.repo, sha);
+            files_text = get_changed_filenames_as_text(&self.repo, sha);
         }
         let total_file_lines = files_text.lines.len();
         let visible_height = chunks_inspector[1].height as usize;
@@ -546,7 +548,7 @@ impl App {
                     if branches.len() > 1 {
                         self.modal = true;
                     } else {
-                        checkout_sha(&self.repo, *self.shas.get(self.selected).unwrap());
+                        checkout(&self.repo, *self.shas.get(self.selected).unwrap());
                         self.reload();
                     }
                 }

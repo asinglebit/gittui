@@ -5,7 +5,7 @@ use ratatui::{
     text::Span,
 };
 
-use crate::colors::ColorPicker;
+use crate::utils::colors::ColorPicker;
 
 #[derive(Eq, Hash, PartialEq)]
 pub enum LayerTypes {
@@ -104,8 +104,8 @@ impl<'a> LayersCtx<'a> {
 #[macro_export]
 macro_rules! layers {
     ($color:expr) => {{
-        let builder = $crate::graph::layers::LayerBuilder::new($color);
-        let ctx = $crate::graph::layers::LayersCtx { builder };
+        let builder = $crate::core::layers::LayerBuilder::new($color);
+        let ctx = $crate::core::layers::LayersCtx { builder };
         ctx
     }};
 }
