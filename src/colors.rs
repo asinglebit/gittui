@@ -19,16 +19,16 @@ pub const COLOR_ORANGE: Color = Color::Rgb(255, 167, 38);
 pub const COLOR_GRAPEFRUIT: Color = Color::Rgb(255, 112, 67);
 pub const COLOR_BROWN: Color = Color::Rgb(141, 110, 99);
 
-pub const COLOR_GREY_50: Color = Color::Rgb(250, 250, 250);
-pub const COLOR_GREY_100: Color = Color::Rgb(245, 245, 245);
-pub const COLOR_GREY_200: Color = Color::Rgb(238, 238, 238);
+// pub const COLOR_GREY_50: Color = Color::Rgb(250, 250, 250);
+// pub const COLOR_GREY_100: Color = Color::Rgb(245, 245, 245);
+// pub const COLOR_GREY_200: Color = Color::Rgb(238, 238, 238);
 pub const COLOR_GREY_300: Color = Color::Rgb(224, 224, 224);
 pub const COLOR_GREY_400: Color = Color::Rgb(189, 189, 189);
 pub const COLOR_GREY_500: Color = Color::Rgb(158, 158, 158);
 pub const COLOR_GREY_600: Color = Color::Rgb(117, 117, 117);
 pub const COLOR_GREY_700: Color = Color::Rgb(97, 97, 97);
 pub const COLOR_GREY_800: Color = Color::Rgb(66, 66, 66);
-pub const COLOR_GREY_900: Color = Color::Rgb(33, 33, 33);
+// pub const COLOR_GREY_900: Color = Color::Rgb(33, 33, 33);
 
 pub const COLOR_STEEL_700: Color = Color::Rgb(69, 90, 100);
 

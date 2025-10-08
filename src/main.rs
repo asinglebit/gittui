@@ -3,6 +3,7 @@ mod colors;
 mod helpers;
 mod graph {
     pub mod chunk;
+    pub mod layers;
 }
 
 use std::io;

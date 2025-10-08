@@ -1,6 +1,5 @@
 use git2::Oid;
 
-
 #[derive(Clone)]
 pub struct Chunk {
     pub sha: Oid,
