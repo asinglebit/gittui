@@ -1,5 +1,6 @@
+#[rustfmt::skip]
 use git2::Oid;
-
+#[rustfmt::skip]
 use crate::core::chunk::Chunk;
 
 #[derive(Default)]
@@ -24,13 +25,13 @@ impl Buffer {
         if let Some(merger_idx) = self
             .curr
             .iter()
-            .position(|inner| self.mergers.iter().any(|sha| sha == &inner.sha))
+            .position(|inner| self.mergers.iter().any(|oid| oid == &inner.oid))
         {
             // Find the index in `self.mergers` of the matching SHA
             if let Some(merger_pos) = self
                 .mergers
                 .iter()
-                .position(|sha| sha == &self.curr[merger_idx].sha)
+                .position(|oid| oid == &self.curr[merger_idx].oid)
             {
                 self.mergers.remove(merger_pos);
             }
@@ -50,9 +51,9 @@ impl Buffer {
         if let Some(first_idx) = self
             .curr
             .iter()
-            .position(|inner| inner.parents.contains(&metadata.sha))
+            .position(|inner| inner.parents.contains(&metadata.oid))
         {
-            let old_sha = metadata.sha;
+            let old_oid = metadata.oid;
 
             // Replace metadata
             self.curr[first_idx] = metadata;
@@ -60,9 +61,9 @@ impl Buffer {
 
             // Place dummies in case of branching
             for inner in self.curr.iter_mut() {
-                if inner.parents.contains(&old_sha) && inner.parents.as_ptr() != keep_ptr {
+                if inner.parents.contains(&old_oid) && inner.parents.as_ptr() != keep_ptr {
                     if inner.parents.len() > 1 {
-                        inner.parents.retain(|sha| *sha != old_sha);
+                        inner.parents.retain(|oid| *oid != old_oid);
                     } else {
                         *inner = Chunk::dummy();
                     }

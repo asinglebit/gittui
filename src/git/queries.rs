@@ -1,12 +1,31 @@
+#[rustfmt::skip]
 use std::collections::HashMap;
-
-use git2::{BranchType, Delta, Oid, Repository, Status, StatusOptions, Time};
+#[rustfmt::skip]
+use git2::{
+    BranchType,
+    Delta,
+    Oid,
+    Repository,
+    Status,
+    StatusOptions,
+    Time
+};
+#[rustfmt::skip]
 use ratatui::{
     style::Style,
-    text::{Line, Span, Text},
+    text::{
+        Line,
+        Span,
+        Text
+    },
 };
-
-use crate::utils::colors::{COLOR_GREEN, COLOR_GREY_400, COLOR_RED, COLOR_TEXT};
+#[rustfmt::skip]
+use crate::utils::colors::{
+    COLOR_GREEN,
+    COLOR_GREY_400,
+    COLOR_RED,
+    COLOR_TEXT
+};
 
 pub fn get_uncommitted_changes_count(repo: &Repository) -> (usize, usize, usize) {
     let mut options = StatusOptions::new();

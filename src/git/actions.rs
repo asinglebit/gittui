@@ -1,4 +1,9 @@
-use git2::{Oid, Repository, build::CheckoutBuilder};
+#[rustfmt::skip]
+use git2::{
+    Oid,
+    Repository,
+    build::CheckoutBuilder
+};
 
 pub fn checkout(repo: &Repository, oid: Oid) {
     // Find the commit object

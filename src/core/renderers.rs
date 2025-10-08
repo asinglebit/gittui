@@ -1,40 +1,57 @@
-use std::{cell::RefCell, collections::HashMap};
-
-use git2::{Commit, Oid, Time};
+#[rustfmt::skip]
+use std::{
+    cell::RefCell,
+    collections::HashMap
+};
+#[rustfmt::skip]
+use git2::{
+    Commit,
+    Oid,
+    Time
+};
+#[rustfmt::skip]
 use ratatui::{
-    style::{Color, Style},
-    text::{Line, Span},
+    style::{
+        Color,
+        Style
+    },
+    text::{
+        Line,
+        Span
+    },
+};
+#[rustfmt::skip]
+use crate::{
+    core::buffer::Buffer,
+    utils::colors::COLOR_TEXT
 };
 
-use crate::{core::buffer::Buffer, utils::colors::COLOR_TEXT};
-
-pub fn render_graph(sha: &Oid, graph: &mut Vec<Line>, spans_graph: Vec<Span<'static>>) {
-    let span_sha = Span::styled(sha.to_string()[..6].to_string(), COLOR_TEXT);
+pub fn render_graph(oid: &Oid, graph: &mut Vec<Line>, spans_graph: Vec<Span<'static>>) {
+    let span_oid = Span::styled(oid.to_string()[..6].to_string(), COLOR_TEXT);
     let mut spans = Vec::new();
-    spans.push(span_sha);
+    spans.push(span_oid);
     spans.push(Span::raw(" ".to_string()));
     spans.extend(spans_graph);
     graph.push(Line::from(spans));
 }
 
 pub fn render_branches(
-    sha: &Oid,
-    branches: &mut Vec<Line>,
-    _tips: &HashMap<Oid, Vec<String>>,
-    _tip_colors: &HashMap<Oid, Color>,
-    _branches: &HashMap<Oid, Vec<String>>,
+    oid: &Oid,
+    lines_branches: &mut Vec<Line>,
+    tips: &HashMap<Oid, Vec<String>>,
+    tip_colors: &HashMap<Oid, Color>,
     commit: &Commit<'_>,
 ) {
     let mut spans = Vec::new();
-    let span_tips: Vec<Span<'_>> = _tips
-        .get(sha)
+    let span_tips: Vec<Span<'_>> = tips
+        .get(oid)
         .map(|branches| {
             branches
                 .iter()
                 .flat_map(|branch| {
                     vec![Span::styled(
                         format!("● {} ", branch),
-                        Style::default().fg(*_tip_colors.get(sha).unwrap_or(&Color::White)),
+                        Style::default().fg(*tip_colors.get(oid).unwrap_or(&Color::White)),
                     )]
                 })
                 .collect()
@@ -47,42 +64,59 @@ pub fn render_branches(
         Style::default().fg(COLOR_TEXT),
     );
     spans.push(span_message);
-    branches.push(Line::from(spans));
+    lines_branches.push(Line::from(spans));
 }
 
-pub fn render_messages(commit: &Commit<'_>, messages: &mut Vec<Line>) {
+pub fn render_messages(commit: &Commit<'_>, lines_messages: &mut Vec<Line>) {
     let mut spans = Vec::new();
     let span_message = Span::styled(
         commit.summary().unwrap_or("<no message>").to_string(),
         Style::default().fg(COLOR_TEXT),
     );
     spans.push(span_message);
-    messages.push(Line::from(spans));
+    lines_messages.push(Line::from(spans));
 }
 
-pub fn render_buffer(
-    _sha: &Oid,
-    _buffer: &RefCell<Buffer>,
-    _timestamps: &HashMap<Oid, (Time, Time, Time)>,
-    buffer: &mut Vec<Line>,
+#[allow(dead_code)]
+pub fn render_timestamps(
+    oid: &Oid,
+    timestamps: &HashMap<Oid, (Time, Time, Time)>,
+    lines_timestamps: &mut Vec<Line>,
 ) {
-    let mut _spans = Vec::new();
+    let mut spans = Vec::new();
+    let time = timestamps.get(oid).unwrap().0.seconds();
+    let o_time = timestamps.get(oid).unwrap().0.offset_minutes();
+    let committer_time = timestamps.get(oid).unwrap().1.seconds();
+    let o_committer_time = timestamps.get(oid).unwrap().1.offset_minutes();
+    let author_time = timestamps.get(oid).unwrap().1.seconds();
+    let o_author_time = timestamps.get(oid).unwrap().1.offset_minutes();
+    let span_timestamp = Span::styled(
+        format!(
+            "{}:{:.3}:{}:{:.3}:{}:{:.3} ",
+            time, o_time, committer_time, o_committer_time, author_time, o_author_time
+        ),
+        Style::default().fg(Color::DarkGray),
+    );
+    spans.push(span_timestamp);
+    lines_timestamps.push(Line::from(spans));
+}
 
-    // let time = _timestamps.get(_sha).unwrap().0.seconds();
-    // let o_time = _timestamps.get(_sha).unwrap().0.offset_minutes();
-    // let committer_time = _timestamps.get(_sha).unwrap().1.seconds();
-    // let o_committer_time = _timestamps.get(_sha).unwrap().1.offset_minutes();
-    // let author_time = _timestamps.get(_sha).unwrap().1.seconds();
-    // let o_author_time = _timestamps.get(_sha).unwrap().1.offset_minutes();
-    // let span_timestamp = Span::styled(format!("{}:{:.3}:{}:{:.3}:{}:{:.3} ", time, o_time, committer_time, o_committer_time, author_time, o_author_time), Style::default().fg(Color::DarkGray));
-    // _spans.push(span_timestamp);
-
-    let formatted_buffer: String = _buffer.borrow().curr.iter().map(|metadata| {
+pub fn render_buffer(buffer: &RefCell<Buffer>, lines_buffer: &mut Vec<Line>) {
+    let mut spans = Vec::new();
+    let formatted_buffer: String = buffer
+        .borrow()
+        .curr
+        .iter()
+        .map(|metadata| {
             format!(
                 "{:.2}({:<5})",
-                metadata.sha,
-                if metadata.parents.len() > 0 {
-                    let a = metadata.parents.iter().map(|oid| {format!("{:.2}", oid)}).collect::<Vec<String>>();
+                metadata.oid,
+                if !metadata.parents.is_empty() {
+                    let a = metadata
+                        .parents
+                        .iter()
+                        .map(|oid| format!("{:.2}", oid))
+                        .collect::<Vec<String>>();
                     let mut s = a.join(",");
                     if a.len() == 1 {
                         s.push(',');
@@ -90,11 +124,14 @@ pub fn render_buffer(
                         s.push('-');
                     }
                     s
-                } else {"--,--".to_string()},
+                } else {
+                    "--,--".to_string()
+                },
             )
-        }).collect::<Vec<String>>().join(" ");
+        })
+        .collect::<Vec<String>>()
+        .join(" ");
     let span_buffer = Span::styled(formatted_buffer, Style::default().fg(COLOR_TEXT));
-    _spans.push(span_buffer);
-
-    buffer.push(Line::from(_spans));
+    spans.push(span_buffer);
+    lines_buffer.push(Line::from(spans));
 }

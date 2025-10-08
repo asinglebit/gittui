@@ -1,23 +1,67 @@
-use std::{cell::Cell, collections::HashMap, env, io, path::PathBuf};
-
+#[rustfmt::skip]
+use std::{
+    cell::Cell,
+    collections::HashMap,
+    env,
+    io,
+    path::PathBuf
+};
+#[rustfmt::skip]
+use crossterm::event::{
+    self,
+    Event,
+    KeyCode,
+    KeyEvent,
+    KeyEventKind,
+    KeyModifiers
+};
+#[rustfmt::skip]
+use git2::{
+    Oid,
+    Repository
+};
+#[rustfmt::skip]
+use ratatui::{
+    DefaultTerminal,
+    Frame,
+    style::Style,
+    layout::{
+        Alignment,
+        Rect
+    },
+    text::{
+        Line,
+        Span,
+        Text
+    },
+    widgets::{
+        Block,
+        Borders,
+        Cell as WidgetCell,
+        Clear,
+        Paragraph,
+        Row,
+        Scrollbar,
+        ScrollbarOrientation,
+        ScrollbarState,
+        Table,
+        Widget,
+        Wrap,
+    },
+};
+#[rustfmt::skip]
 use crate::{
     core::walker::walk,
     git::{
         actions::checkout,
-        queries::{get_changed_filenames_as_text, get_current_branch},
+        queries::{
+            get_changed_filenames_as_text,
+            get_current_branch
+        },
     },
-    utils::{colors::*, time::timestamp_to_utc},
-};
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use git2::{Oid, Repository};
-use ratatui::{
-    DefaultTerminal, Frame,
-    layout::{Alignment, Rect},
-    style::Style,
-    text::{Line, Span, Text},
-    widgets::{
-        Block, Borders, Cell as WidgetCell, Clear, Paragraph, Row, Scrollbar, ScrollbarOrientation,
-        ScrollbarState, Table, Widget, Wrap,
+    utils::{
+        colors::*,
+        time::timestamp_to_utc
     },
 };
 
@@ -27,7 +71,7 @@ pub struct App {
     repo: Repository,
 
     // Data
-    shas: Vec<Oid>,
+    oids: Vec<Oid>,
     graph: Vec<Line<'static>>,
     branches: Vec<Line<'static>>,
     messages: Vec<Line<'static>>,
@@ -55,13 +99,13 @@ impl App {
     }
 
     fn reload(&mut self) {
-        let (shas, graph, branches, messages, buffer, _tips) = walk(&self.repo);
-        self.shas = shas;
-        self.graph = graph;
-        self.branches = branches;
-        self.messages = messages;
-        self.buffers = buffer;
-        self._tips = _tips;
+        let walked = walk(&self.repo);
+        self.oids = walked.oids;
+        self._tips = walked.tips;
+        self.graph = walked.lines_graph;
+        self.branches = walked.lines_branches;
+        self.messages = walked.lines_messages;
+        self.buffers = walked.lines_buffer;
     }
 
     pub fn draw(&mut self, frame: &mut Frame) {
@@ -164,7 +208,7 @@ impl App {
          ***************************************************************************************************/
 
         let mut commit_lines: Vec<Line<'_>> = Vec::new();
-        let sha: Oid = *self.shas.get(self.selected).unwrap();
+        let sha: Oid = *self.oids.get(self.selected).unwrap();
         if sha != Oid::zero() {
             let commit = self.repo.find_commit(sha).unwrap();
             let author = commit.author();
@@ -178,7 +222,7 @@ impl App {
                     Style::default().fg(COLOR_GREY_400),
                 )]),
                 Line::from(vec![Span::styled(
-                    format!("{}", self.shas.get(self.selected).unwrap()),
+                    format!("{}", self.oids.get(self.selected).unwrap()),
                     Style::default().fg(COLOR_TEXT),
                 )]),
                 Line::from(vec![Span::styled(
@@ -295,7 +339,7 @@ impl App {
          ***************************************************************************************************/
 
         let mut files_text: Text = Text::from("-");
-        let sha: Oid = *self.shas.get(self.selected).unwrap();
+        let sha: Oid = *self.oids.get(self.selected).unwrap();
         if sha != Oid::zero() {
             files_text = get_changed_filenames_as_text(&self.repo, sha);
         }
@@ -404,7 +448,7 @@ impl App {
         frame.render_widget(table, chunks_horizontal[0]);
 
         // Render the scrollbar
-        let total_lines = self.shas.len();
+        let total_lines = self.oids.len();
         let visible_height = chunks_inspector[0].height as usize;
         if total_lines > visible_height {
             let mut scrollbar_state = ScrollbarState::new(total_lines).position(self.scroll.get());
@@ -426,7 +470,7 @@ impl App {
             let mut length = 0;
             let branches = self
                 ._tips
-                .entry(*self.shas.get(self.selected).unwrap())
+                .entry(*self.oids.get(self.selected).unwrap())
                 .or_default();
             let spans: Vec<Line> = branches
                 .iter()
@@ -542,12 +586,12 @@ impl App {
                 if !self.modal {
                     let branches = self
                         ._tips
-                        .entry(*self.shas.get(self.selected).unwrap())
+                        .entry(*self.oids.get(self.selected).unwrap())
                         .or_default();
                     if branches.len() > 1 {
                         self.modal = true;
                     } else {
-                        checkout(&self.repo, *self.shas.get(self.selected).unwrap());
+                        checkout(&self.repo, *self.oids.get(self.selected).unwrap());
                         self.reload();
                     }
                 }
@@ -585,7 +629,7 @@ impl Default for App {
             repo,
 
             // Data
-            shas: Vec::new(),
+            oids: Vec::new(),
             graph: Vec::new(),
             branches: Vec::new(),
             messages: Vec::new(),

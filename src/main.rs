@@ -1,3 +1,7 @@
+#[rustfmt::skip]
+use std::io;
+use app::App;
+#[rustfmt::skip]
 mod app;
 mod core {
     pub mod buffer;
@@ -15,10 +19,6 @@ pub mod utils {
     pub mod symbols;
     pub mod time;
 }
-
-use std::io;
-
-use app::App;
 
 fn main() -> io::Result<()> {
     let mut terminal = ratatui::init();

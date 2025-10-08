@@ -1,10 +1,17 @@
-use std::{cell::RefCell, collections::HashMap};
-
+#[rustfmt::skip]
+use std::{
+    cell::RefCell,
+    collections::HashMap
+};
+#[rustfmt::skip]
 use ratatui::{
-    style::{Color, Style},
+    style::{
+        Color,
+        Style
+    },
     text::Span,
 };
-
+#[rustfmt::skip]
 use crate::utils::colors::ColorPicker;
 
 #[derive(Eq, Hash, PartialEq)]
