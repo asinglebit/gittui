@@ -32,6 +32,7 @@ pub struct App {
     files_scroll: Cell<usize>,
     selected: usize,
     modal: bool,
+    minimal: bool,
     exit: bool,
 }
 
@@ -57,6 +58,7 @@ impl App {
     }
 
     pub fn draw(&mut self, frame: &mut Frame) {
+
         /***************************************************************************************************
          * Layout
          ***************************************************************************************************/
@@ -64,9 +66,9 @@ impl App {
         let chunks_vertical = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
             .constraints([
-                ratatui::layout::Constraint::Length(1),
+                ratatui::layout::Constraint::Length(if self.minimal {0} else {1}),
                 ratatui::layout::Constraint::Percentage(100),
-                ratatui::layout::Constraint::Length(1),
+                ratatui::layout::Constraint::Length(if self.minimal {0} else {1}),
             ])
             .split(frame.area());
 
@@ -152,81 +154,8 @@ impl App {
             .right_aligned()
             .block(Block::default());
 
+        frame.render_widget(Clear, chunks_status_bar[1]);
         frame.render_widget(title_paragraph, chunks_status_bar[1]);
-
-        /***************************************************************************************************
-         * Graph table
-         ***************************************************************************************************/
-
-        let table_height = chunks_horizontal[0].height as usize - 2;
-        let total_rows = self.graph.len();
-
-        // Make sure selected row is visible
-        if self.selected < self.scroll.get() {
-            self.scroll.set(self.selected);
-        } else if self.selected >= self.scroll.get() + table_height {
-            self.scroll
-                .set(self.selected.saturating_sub(table_height - 1));
-        }
-
-        let start = self.scroll.get();
-        let end = (self.scroll.get() + table_height).min(total_rows);
-
-        // Start with fake commit row
-        let mut rows = Vec::with_capacity(end - start + 1); // preallocate for efficiency
-
-        // Add the rest of the commits
-        for (i, ((graph, branch), buffer)) in self.graph[start..end]
-            .iter()
-            .zip(&self.branches[start..end])
-            .zip(&self.buffers[start..end])
-            .enumerate()
-        {
-            let actual_index = start + i;
-            let mut row = Row::new(vec![
-                WidgetCell::from(graph.clone()),
-                WidgetCell::from(branch.clone()),
-                WidgetCell::from(buffer.clone()),
-            ]);
-
-            if actual_index == self.selected {
-                row = row.style(Style::default().bg(COLOR_GREY_800).fg(COLOR_GREY_600));
-            }
-            rows.push(row);
-        }
-
-        let table = Table::new(
-            rows,
-            [
-                ratatui::layout::Constraint::Length(25),
-                ratatui::layout::Constraint::Percentage(100),
-            ],
-        )
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(COLOR_BORDER))
-                .border_type(ratatui::widgets::BorderType::Rounded),
-        )
-        .row_highlight_style(Style::default().bg(COLOR_SELECTION).fg(COLOR_TEXT_SELECTED))
-        .column_spacing(2);
-
-        frame.render_widget(table, chunks_horizontal[0]);
-
-        // Render the scrollbar
-        let total_lines = self.shas.len();
-        let visible_height = chunks_inspector[0].height as usize;
-        if total_lines > visible_height {
-            let mut scrollbar_state = ScrollbarState::new(total_lines).position(self.scroll.get());
-            let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .begin_symbol(Some("─"))
-                .end_symbol(Some("─"))
-                .track_symbol(Some("│"))
-                .thumb_symbol("▌")
-                .thumb_style(Style::default().fg(COLOR_GREY_600));
-
-            frame.render_stateful_widget(scrollbar, chunks_horizontal[0], &mut scrollbar_state);
-        }
 
         /***************************************************************************************************
          * Inspector
@@ -320,7 +249,7 @@ impl App {
 
         let commit_paragraph = ratatui::widgets::Paragraph::new(Text::from(commit_lines))
             .left_aligned()
-            .wrap(Wrap { trim: true })
+            // .wrap(Wrap { trim: true }) For some reasone causes ghosting
             .block(
                 Block::default()
                     .title(vec![
@@ -393,6 +322,82 @@ impl App {
             .thumb_style(Style::default().fg(if total_file_lines > visible_height { COLOR_GREY_600 } else { COLOR_BORDER }));
 
         frame.render_stateful_widget(scrollbar, chunks_inspector[1], &mut scrollbar_state);
+
+        /***************************************************************************************************
+         * Graph table
+         ***************************************************************************************************/
+
+        let table_height = chunks_horizontal[0].height as usize - 2;
+        let total_rows = self.graph.len();
+
+        // Make sure selected row is visible
+        if self.selected < self.scroll.get() {
+            self.scroll.set(self.selected);
+        } else if self.selected >= self.scroll.get() + table_height {
+            self.scroll
+                .set(self.selected.saturating_sub(table_height - 1));
+        }
+
+        let start = self.scroll.get();
+        let end = (self.scroll.get() + table_height).min(total_rows);
+
+        // Start with fake commit row
+        let mut rows = Vec::with_capacity(end - start + 1); // preallocate for efficiency
+
+        // Add the rest of the commits
+        for (i, ((graph, branch), buffer)) in self.graph[start..end]
+            .iter()
+            .zip(&self.branches[start..end])
+            .zip(&self.buffers[start..end])
+            .enumerate()
+        {
+            let actual_index = start + i;
+            let mut row = Row::new(vec![
+                WidgetCell::from(graph.clone()),
+                WidgetCell::from(branch.clone()),
+                WidgetCell::from(buffer.clone()),
+            ]);
+
+            if actual_index == self.selected {
+                row = row.style(Style::default().bg(COLOR_GREY_800).fg(COLOR_GREY_600));
+            }
+            rows.push(row);
+        }
+
+        let table = Table::new(
+            rows,
+            [
+                ratatui::layout::Constraint::Length(25),
+                ratatui::layout::Constraint::Percentage(100),
+            ],
+        )
+        .block(
+            Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(COLOR_BORDER))
+            .border_type(ratatui::widgets::BorderType::Rounded),
+        )
+        .row_highlight_style(Style::default().bg(COLOR_SELECTION).fg(COLOR_TEXT_SELECTED))
+        .column_spacing(2);
+    
+        frame.render_widget(Clear, chunks_horizontal[0]);
+
+        frame.render_widget(table, chunks_horizontal[0]);
+
+        // Render the scrollbar
+        let total_lines = self.shas.len();
+        let visible_height = chunks_inspector[0].height as usize;
+        if total_lines > visible_height {
+            let mut scrollbar_state = ScrollbarState::new(total_lines).position(self.scroll.get());
+            let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .begin_symbol(Some("─"))
+                .end_symbol(Some("─"))
+                .track_symbol(Some("│"))
+                .thumb_symbol("▌")
+                .thumb_style(Style::default().fg(COLOR_GREY_600));
+
+            frame.render_stateful_widget(scrollbar, chunks_horizontal[0], &mut scrollbar_state);
+        }
 
         /***************************************************************************************************
          * Modal
@@ -475,6 +480,9 @@ impl App {
                 if self.selected > 0 && self.modal == false {
                     self.selected -= 1;
                 }
+            }
+            KeyCode::Char('f') => {
+                self.minimal = !self.minimal;
             }
             KeyCode::Home => {
                 if self.modal == false {
@@ -562,6 +570,7 @@ impl Default for App {
             files_scroll: 0.into(),
             selected: 0,
             modal: false,
+            minimal: false,
             exit: false,
         }
     }

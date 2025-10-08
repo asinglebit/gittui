@@ -46,7 +46,6 @@ impl Default for ColorPicker {
         ColorPicker {
             lanes: HashMap::new(),
             palette_a: [
-                COLOR_RED,
                 COLOR_PURPLE,
                 COLOR_INDIGO,
                 COLOR_CYAN,
@@ -54,9 +53,9 @@ impl Default for ColorPicker {
                 COLOR_LIME,
                 COLOR_AMBER,
                 COLOR_GRAPEFRUIT,
+                COLOR_RED,
             ],
             palette_b: [
-                COLOR_PINK,
                 COLOR_DURPLE,
                 COLOR_BLUE,
                 COLOR_TEAL,
@@ -64,6 +63,7 @@ impl Default for ColorPicker {
                 COLOR_YELLOW,
                 COLOR_ORANGE,
                 COLOR_BROWN,
+                COLOR_PINK,
             ],
         }
     }
