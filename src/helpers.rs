@@ -94,6 +94,7 @@ pub fn get_commits(
     Vec<Line<'static>>,
     Vec<Line<'static>>,
     Vec<Line<'static>>,
+    HashMap<Oid, Vec<String>>,
 ) {
     let mut color = ColorPicker::default();
     let mut graph = Vec::new();
@@ -146,7 +147,7 @@ pub fn get_commits(
             Style::default().fg(COLOR_GREY_400),
         )));
         graph.push(Line::from(vec![
-            Span::styled("••••••• ", Style::default().fg(COLOR_TEXT)),
+            Span::styled("•••••• ", Style::default().fg(COLOR_TEXT)),
             Span::styled("◌", Style::default().fg(COLOR_GREY_400)),
         ]));
         // _buffer.push(value);
@@ -765,9 +766,6 @@ pub fn get_commits(
             &sha,
             &mut graph,
             spans_graph,
-            &head_sha,
-            &color,
-            commit_lane,
         );
         serialize_branches(
             &sha,
@@ -781,7 +779,7 @@ pub fn get_commits(
         serialize_buffer(&sha, &_buffer, &_timestamps, &mut buffer);
     }
 
-    (shas, graph, branches, messages, buffer)
+    (shas, graph, branches, messages, buffer, _tips)
 }
 
 fn update_buffer(
@@ -920,18 +918,11 @@ fn get_timestamps(
 fn serialize_graph(
     sha: &Oid,
     graph: &mut Vec<Line>,
-    spans_graph: Vec<Span<'static>>,
-    head_sha: &Oid,
-    color: &ColorPicker,
-    commit_lane: usize,
+    spans_graph: Vec<Span<'static>>
 ) {
     let span_sha = Span::styled(
-        sha.to_string()[..7].to_string(),
-        Style::default().fg(if sha == head_sha {
-            color.get(commit_lane)
-        } else {
-            COLOR_TEXT
-        }),
+        sha.to_string()[..6].to_string(),
+        COLOR_TEXT,
     );
     let mut spans = Vec::new();
     spans.push(span_sha);
