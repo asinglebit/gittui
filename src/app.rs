@@ -1,11 +1,11 @@
 use std::{cell::Cell, collections::HashMap, env, io, path::PathBuf};
 
 use crate::{
+    core::walker::walk,
     git::{
         actions::checkout,
         queries::{get_changed_filenames_as_text, get_current_branch},
     },
-    helpers::get_commits,
     utils::{colors::*, time::timestamp_to_utc},
 };
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
@@ -55,7 +55,7 @@ impl App {
     }
 
     fn reload(&mut self) {
-        let (shas, graph, branches, messages, buffer, _tips) = get_commits(&self.repo);
+        let (shas, graph, branches, messages, buffer, _tips) = walk(&self.repo);
         self.shas = shas;
         self.graph = graph;
         self.branches = branches;
