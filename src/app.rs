@@ -2,7 +2,9 @@ use std::{cell::Cell, env, io, path::PathBuf};
 
 use crate::{
     colors::*,
-    helpers::{get_changed_filenames_text, get_commits, get_uncommitted_changes, timestamp_to_utc},
+    helpers::{
+        checkout_sha, get_changed_filenames_text, get_commits, get_current_branch, timestamp_to_utc,
+    },
 };
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use git2::{Oid, Repository};
@@ -56,8 +58,6 @@ impl App {
     }
 
     pub fn draw(&mut self, frame: &mut Frame) {
-        let changes = get_uncommitted_changes(&self.repo);
-
         /***************************************************************************************************
          * Layout
          ***************************************************************************************************/
@@ -130,9 +130,14 @@ impl App {
          * Status bar
          ***************************************************************************************************/
 
+        let current_branch_name = match get_current_branch(&self.repo) {
+            Some(branch) => format!(" ● {}", branch),
+            None => format!(" ○ HEAD: {}", self.repo.head().unwrap().target().unwrap()),
+        };
+
         let sha_paragraph = ratatui::widgets::Paragraph::new(Text::from(Line::from(Span::styled(
-            format!(" SHA: {}", self.shas.get(self.selected).unwrap()),
-            Style::default().fg(COLOR_TEXT),
+            current_branch_name,
+            Style::default().fg(COLOR_RED),
         ))))
         .left_aligned()
         .block(Block::default());
@@ -292,6 +297,7 @@ impl App {
                     Span::styled(body, Style::default().fg(COLOR_TEXT)),
                 ]),
             ]);
+        } else {
         }
 
         let visible_height = chunks_inspector[0].height as usize;
@@ -442,6 +448,10 @@ impl App {
                 } else {
                     self.selected = self.branches.len() - 1;
                 }
+            }
+            KeyCode::Enter => {
+                checkout_sha(&self.repo, *self.shas.get(self.selected).unwrap());
+                self.reload();
             }
             _ => {}
         }

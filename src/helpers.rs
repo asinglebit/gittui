@@ -1,6 +1,8 @@
 use crate::colors::*;
 use chrono::{DateTime, FixedOffset, TimeZone, Utc};
-use git2::{BranchType, Commit, Delta, Oid, Repository, Status, StatusOptions, Time};
+use git2::{
+    BranchType, Commit, Delta, Oid, Repository, Status, StatusOptions, Time, build::CheckoutBuilder,
+};
 use ratatui::{
     style::{Color, Style},
     text::{Line, Span, Text},
@@ -110,25 +112,41 @@ pub fn get_commits(
     let mut _not_found_mergers: Vec<Oid> = Vec::new();
 
     // Make a fake commit for unstaged changes
-    let uncommitted_changes = get_uncommitted_changes(repo);
+    let (new_count, modified_count, deleted_count) = get_uncommitted_changes_counts(repo);
     let head = repo.head().unwrap();
-    let head_sha = head.target().unwrap(); // Oid (SHA1)
+    let head_sha = head.target().unwrap();
     {
         shas.push(Oid::zero());
-        branches.push(Line::from(Span::styled(
-            if uncommitted_changes.len() > 0 {
-                format!("Uncommitted changes ({})", uncommitted_changes.len())
-            } else {
-                "No uncommitted changes".to_string()
-            },
+        let mut uncommited_line_spans = vec![Span::styled(
+            format!("◌ "),
             Style::default().fg(COLOR_GREY_400),
-        )));
+        )];
+        if modified_count > 0 {
+            uncommited_line_spans.push(Span::styled(
+                format!("~{} ", modified_count),
+                Style::default().fg(COLOR_GREY_400),
+            ));
+        }
+        if new_count > 0 {
+            uncommited_line_spans.push(Span::styled(
+                format!("+{} ", new_count),
+                Style::default().fg(COLOR_GREY_400),
+            ));
+        }
+        if new_count > 0 {
+            uncommited_line_spans.push(Span::styled(
+                format!("-{} ", deleted_count),
+                Style::default().fg(COLOR_GREY_400),
+            ));
+        }
+
+        branches.push(Line::from(uncommited_line_spans));
         buffer.push(Line::from(Span::styled(
             "--",
             Style::default().fg(COLOR_GREY_400),
         )));
         graph.push(Line::from(vec![
-            Span::styled("🞄🞄🞄🞄🞄🞄🞄 ", Style::default().fg(COLOR_TEXT)),
+            Span::styled("••••••• ", Style::default().fg(COLOR_TEXT)),
             Span::styled("◌", Style::default().fg(COLOR_GREY_400)),
         ]));
         // _buffer.push(value);
@@ -178,6 +196,7 @@ pub fn get_commits(
                 .or_default()
                 .push((symbol, custom.unwrap_or(color.get(lane))));
         };
+        let mut commit_lane = 0;
 
         {
             // Otherwise (meaning we reached a tip, merge or a non-branching commit)
@@ -249,6 +268,7 @@ pub fn get_commits(
                     }
                 } else if sha == metadata.sha {
                     is_commit_found = true;
+                    commit_lane = lane_idx;
 
                     if metadata.parents.len() > 1 && !_tips.contains_key(&sha) {
                         layer(
@@ -635,13 +655,13 @@ pub fn get_commits(
                     layer(
                         &color,
                         Layers::Pipes,
-                        if metadata.parents.contains(&head_sha) {
+                        if metadata.parents.contains(&head_sha) && lane_idx == 0 {
                             symbol_vertical_dotted.to_string()
                         } else {
                             symbol_vertical.to_string()
                         },
                         lane_idx,
-                        if metadata.parents.contains(&head_sha) {
+                        if metadata.parents.contains(&head_sha) && lane_idx == 0 {
                             Some(COLOR_GREY_500)
                         } else {
                             None
@@ -741,7 +761,14 @@ pub fn get_commits(
 
         // Serialize
         serialize_shas(&sha, &mut shas);
-        serialize_graph(&sha, &mut graph, spans_graph);
+        serialize_graph(
+            &sha,
+            &mut graph,
+            spans_graph,
+            &head_sha,
+            &color,
+            commit_lane,
+        );
         serialize_branches(
             &sha,
             &mut branches,
@@ -865,6 +892,15 @@ fn get_branches(repo: &Repository, tips: &HashMap<Oid, Vec<String>>) -> HashMap<
     map
 }
 
+pub fn get_current_branch(repo: &Repository) -> Option<String> {
+    let head = repo.head().unwrap();
+    if head.is_branch() {
+        head.shorthand().map(|s| s.to_string())
+    } else {
+        None
+    }
+}
+
 fn get_timestamps(
     repo: &Repository,
     _branches: &HashMap<Oid, Vec<String>>,
@@ -881,10 +917,21 @@ fn get_timestamps(
         .collect()
 }
 
-fn serialize_graph(sha: &Oid, graph: &mut Vec<Line>, spans_graph: Vec<Span<'static>>) {
+fn serialize_graph(
+    sha: &Oid,
+    graph: &mut Vec<Line>,
+    spans_graph: Vec<Span<'static>>,
+    head_sha: &Oid,
+    color: &ColorPicker,
+    commit_lane: usize,
+) {
     let span_sha = Span::styled(
         sha.to_string()[..7].to_string(),
-        Style::default().fg(COLOR_TEXT),
+        Style::default().fg(if sha == head_sha {
+            color.get(commit_lane)
+        } else {
+            COLOR_TEXT
+        }),
     );
     let mut spans = Vec::new();
     spans.push(span_sha);
@@ -981,34 +1028,32 @@ fn serialize_buffer(
     buffer.push(Line::from(_spans));
 }
 
-pub fn get_uncommitted_changes(repo: &Repository) -> Vec<String> {
+pub fn get_uncommitted_changes_counts(repo: &Repository) -> (usize, usize, usize) {
     let mut options = StatusOptions::new();
     options.include_untracked(true); // include untracked files
-    options.include_ignored(false); // ignore ignored files
+    options.include_ignored(false); // skip ignored files
     options.recurse_untracked_dirs(true);
 
     let statuses = repo.statuses(Some(&mut options)).unwrap();
 
-    let mut changed_files = Vec::new();
+    let mut new_count = 0;
+    let mut modified_count = 0;
+    let mut deleted_count = 0;
 
     for entry in statuses.iter() {
-        let s = entry.status();
-        let path = entry.path().unwrap_or("<unknown>").to_string();
-
-        if s.contains(Status::WT_NEW)
-            || s.contains(Status::WT_MODIFIED)
-            || s.contains(Status::WT_DELETED)
-        {
-            changed_files.push(path);
+        let status = entry.status();
+        if status.contains(Status::WT_NEW) || status.contains(Status::INDEX_NEW) {
+            new_count += 1;
         }
-
-        // staged changes
-        // if s.contains(Status::INDEX_NEW) || s.contains(Status::INDEX_MODIFIED) || s.contains(Status::INDEX_DELETED) {
-        //     changed_files.push(path);
-        // }
+        if status.contains(Status::WT_MODIFIED) || status.contains(Status::INDEX_MODIFIED) {
+            modified_count += 1;
+        }
+        if status.contains(Status::WT_DELETED) || status.contains(Status::INDEX_DELETED) {
+            deleted_count += 1;
+        }
     }
 
-    changed_files
+    (new_count, modified_count, deleted_count)
 }
 
 pub fn get_changed_filenames_text(repo: &Repository, oid: Oid) -> Text<'_> {
@@ -1078,4 +1123,18 @@ pub fn timestamp_to_utc(time: Time) -> String {
 
     // Format as string
     final_utc.to_rfc2822()
+}
+
+pub fn checkout_sha(repo: &Repository, sha: Oid) {
+    // Find the commit object
+    let commit = repo.find_commit(sha).unwrap();
+
+    // Set HEAD to the commit (detached)
+    repo.set_head_detached(commit.id()).unwrap();
+
+    // Checkout the commit
+    repo.checkout_head(Some(
+        CheckoutBuilder::default().allow_conflicts(true).force(), // optional: force overwrite local changes
+    ))
+    .expect("Error checking out");
 }
