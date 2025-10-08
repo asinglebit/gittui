@@ -1,7 +1,7 @@
 use crate::{
     core::{
         buffer::Buffer,
-        chunk::Chunk,
+        chunk::{Chunk},
         layers::LayersCtx,
         renderers::{render_branches, render_buffer, render_graph, render_messages},
     },
@@ -80,21 +80,13 @@ pub fn walk(
             ));
         }
 
+        let metadata = Chunk::uncommitted(vec![head_sha]);
         branches.push(Line::from(uncommited_line_spans));
-        buffer.push(Line::from(Span::styled(
-            "--",
-            Style::default().fg(COLOR_GREY_400),
-        )));
+        buffer.push(Line::from(format!("UU({:.2},--)", head_sha)));
         graph.push(Line::from(vec![
-            Span::styled("•••••• ", Style::default().fg(COLOR_TEXT)),
+            Span::styled("······ ", Style::default().fg(COLOR_TEXT)),
             Span::styled(SYM_UNCOMMITED, Style::default().fg(COLOR_GREY_400)),
         ]));
-        // _buffer.push(value);
-        let parents: Vec<Oid> = vec![head_sha];
-        let metadata = Chunk {
-            sha: Oid::from_str("0000000000000000000000000000000000000001").unwrap(),
-            parents,
-        };
 
         // Update
         _buffer.borrow_mut().update(metadata);
@@ -107,7 +99,7 @@ pub fn walk(
         layers.clear();
         let commit = repo.find_commit(sha).unwrap();
         let parents: Vec<Oid> = commit.parent_ids().collect();
-        let metadata = Chunk { sha, parents };
+        let metadata = Chunk::commit(sha, parents);
 
         let mut spans_graph = Vec::new();
 
@@ -120,7 +112,7 @@ pub fn walk(
             let mut is_merged_before = false;
             let mut lane_idx = 0;
             for metadata in &_buffer.borrow().curr {
-                if metadata.sha == Oid::zero() {
+                if metadata.is_dummy() {
                     if let Some(prev) = _buffer.borrow().prev.get(lane_idx) {
                         if prev.parents.len() == 1 {
                             layers.commit(SYM_EMPTY, lane_idx);

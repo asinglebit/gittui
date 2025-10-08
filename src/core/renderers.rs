@@ -77,24 +77,24 @@ pub fn render_buffer(
     // let span_timestamp = Span::styled(format!("{}:{:.3}:{}:{:.3}:{}:{:.3} ", time, o_time, committer_time, o_committer_time, author_time, o_author_time), Style::default().fg(Color::DarkGray));
     // _spans.push(span_timestamp);
 
-    // let formatted_buffer: String = _buffer.borrow().curr.iter().map(|metadata| {
-    //         format!(
-    //             "{:.2}({:<5})",
-    //             metadata.sha,
-    //             if metadata.parents.len() > 0 {
-    //                 let a = metadata.parents.iter().map(|oid| {format!("{:.2}", oid)}).collect::<Vec<String>>();
-    //                 let mut s = a.join(",");
-    //                 if a.len() == 1 {
-    //                     s.push(',');
-    //                     s.push('-');
-    //                     s.push('-');
-    //                 }
-    //                 s
-    //             } else {"--,--".to_string()},
-    //         )
-    //     }).collect::<Vec<String>>().join(" ");
-    // let span_buffer = Span::styled(formatted_buffer, Style::default().fg(COLOR_TEXT));
-    // _spans.push(span_buffer);
+    let formatted_buffer: String = _buffer.borrow().curr.iter().map(|metadata| {
+            format!(
+                "{:.2}({:<5})",
+                metadata.sha,
+                if metadata.parents.len() > 0 {
+                    let a = metadata.parents.iter().map(|oid| {format!("{:.2}", oid)}).collect::<Vec<String>>();
+                    let mut s = a.join(",");
+                    if a.len() == 1 {
+                        s.push(',');
+                        s.push('-');
+                        s.push('-');
+                    }
+                    s
+                } else {"--,--".to_string()},
+            )
+        }).collect::<Vec<String>>().join(" ");
+    let span_buffer = Span::styled(formatted_buffer, Style::default().fg(COLOR_TEXT));
+    _spans.push(span_buffer);
 
     buffer.push(Line::from(_spans));
 }
