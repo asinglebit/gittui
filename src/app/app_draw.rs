@@ -1,28 +1,10 @@
 #[rustfmt::skip]
-use std::{
-    cell::Cell,
-    collections::HashMap,
-    env,
-    io,
-    path::PathBuf
-};
-#[rustfmt::skip]
-use crossterm::event::{
-    self,
-    Event,
-    KeyCode,
-    KeyEvent,
-    KeyEventKind,
-    KeyModifiers
-};
 #[rustfmt::skip]
 use git2::{
-    Oid,
-    Repository
+    Oid
 };
 #[rustfmt::skip]
 use ratatui::{
-    DefaultTerminal,
     Frame,
     style::Style,
     layout::{
@@ -51,159 +33,33 @@ use ratatui::{
 };
 #[rustfmt::skip]
 use crate::{
-    core::walker::walk,
     git::{
-        actions::checkout,
         queries::{
-            get_changed_filenames_as_text,
-            get_current_branch
+            get_changed_filenames_as_text
         },
+    },
+    app::{
+        layout::{
+            layout::generate_layout,
+            title::render_title_bar,
+            status::render_status_bar
+        }
     },
     utils::{
         colors::*,
         time::timestamp_to_utc
     },
 };
-
-pub struct App {
-    // General
-    path: String,
-    repo: Repository,
-
-    // Data
-    oids: Vec<Oid>,
-    tips: HashMap<Oid, Vec<String>>,
-
-    // Lines
-    lines_graph: Vec<Line<'static>>,
-    lines_branches: Vec<Line<'static>>,
-    lines_messages: Vec<Line<'static>>,
-    lines_buffers: Vec<Line<'static>>,
-
-    // Interface
-    scroll: Cell<usize>,
-    files_scroll: Cell<usize>,
-    selected: usize,
-    modal: bool,
-    minimal: bool,
-    exit: bool,
-}
+#[rustfmt::skip]
+use crate::app::app::App;
 
 impl App {
-    pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
-        self.reload();
-
-        while !self.exit {
-            terminal.draw(|frame| self.draw(frame))?;
-            self.handle_events()?;
-        }
-        Ok(())
-    }
-
-    fn reload(&mut self) {
-        let walked = walk(&self.repo);
-        self.oids = walked.oids;
-        self.tips = walked.tips;
-        self.lines_graph = walked.lines_graph;
-        self.lines_branches = walked.lines_branches;
-        self.lines_messages = walked.lines_messages;
-        self.lines_buffers = walked.lines_buffer;
-    }
 
     pub fn draw(&mut self, frame: &mut Frame) {
-        /***************************************************************************************************
-         * Layout
-         ***************************************************************************************************/
 
-        let chunks_vertical = ratatui::layout::Layout::default()
-            .direction(ratatui::layout::Direction::Vertical)
-            .constraints([
-                ratatui::layout::Constraint::Length(if self.minimal { 0 } else { 1 }),
-                ratatui::layout::Constraint::Percentage(100),
-                ratatui::layout::Constraint::Length(if self.minimal { 0 } else { 1 }),
-            ])
-            .split(frame.area());
-
-        let chunks_title_bar = ratatui::layout::Layout::default()
-            .direction(ratatui::layout::Direction::Horizontal)
-            .constraints([
-                ratatui::layout::Constraint::Percentage(80),
-                ratatui::layout::Constraint::Percentage(20),
-            ])
-            .split(chunks_vertical[0]);
-
-        let chunks_horizontal = ratatui::layout::Layout::default()
-            .direction(ratatui::layout::Direction::Horizontal)
-            .constraints([
-                ratatui::layout::Constraint::Percentage(70),
-                ratatui::layout::Constraint::Percentage(30),
-            ])
-            .split(chunks_vertical[1]);
-
-        let chunks_inspector = ratatui::layout::Layout::default()
-            .direction(ratatui::layout::Direction::Vertical)
-            .constraints([
-                ratatui::layout::Constraint::Percentage(40),
-                ratatui::layout::Constraint::Percentage(60),
-            ])
-            .split(chunks_horizontal[1]);
-
-        let chunks_status_bar = ratatui::layout::Layout::default()
-            .direction(ratatui::layout::Direction::Horizontal)
-            .constraints([
-                ratatui::layout::Constraint::Percentage(80),
-                ratatui::layout::Constraint::Percentage(20),
-            ])
-            .split(chunks_vertical[2]);
-
-        let padding = ratatui::widgets::Padding {
-            left: 1,
-            right: 1,
-            top: 0,
-            bottom: 0,
-        };
-
-        /***************************************************************************************************
-         * Title bar
-         ***************************************************************************************************/
-        let current_branch_name = match get_current_branch(&self.repo) {
-            Some(branch) => format!(" ● {}", branch),
-            None => format!(" ○ HEAD: {}", self.repo.head().unwrap().target().unwrap()),
-        };
-
-        let sha_paragraph = ratatui::widgets::Paragraph::new(Text::from(Line::from(vec![
-            Span::styled(" GUITAR |", Style::default().fg(COLOR_TEXT)),
-            Span::styled(current_branch_name, Style::default().fg(COLOR_TEXT)),
-        ])))
-        .left_aligned()
-        .block(Block::default());
-
-        frame.render_widget(sha_paragraph, chunks_title_bar[0]);
-
-        /***************************************************************************************************
-         * Status bar
-         ***************************************************************************************************/
-
-        let status_paragraph =
-            ratatui::widgets::Paragraph::new(Text::from(Line::from(vec![Span::styled(
-                format!(" 🖿  {}", self.path),
-                Style::default().fg(COLOR_TEXT),
-            )])))
-            .left_aligned()
-            .block(Block::default());
-
-        frame.render_widget(status_paragraph, chunks_status_bar[0]);
-
-        let title_paragraph =
-            ratatui::widgets::Paragraph::new(Text::from(Line::from(Span::styled(
-                format!("{}/{}", self.selected + 1, self.lines_messages.len()),
-                Style::default().fg(COLOR_TEXT),
-            ))))
-            .right_aligned()
-            .block(Block::default());
-
-        frame.render_widget(Clear, chunks_status_bar[1]);
-        frame.render_widget(title_paragraph, chunks_status_bar[1]);
+        let layout = generate_layout(&frame, self.is_minimal);
+        render_title_bar(frame, &self.repo, &layout);
+        render_status_bar(frame, &layout, self.selected, &self.lines_messages, &self.path);
 
         /***************************************************************************************************
          * Inspector
@@ -276,7 +132,7 @@ impl App {
             ]);
         }
 
-        let visible_height = chunks_inspector[0].height as usize;
+        let visible_height = layout.inspector.height as usize;
         let total_inspector_lines = commit_lines
             .iter()
             .map(|line| {
@@ -288,11 +144,18 @@ impl App {
                     .join("");
                 let visual_width = line_str.len(); // approximate: counts chars, may differ for wide unicode
                 // How many wrapped lines this line takes
-                let wrapped_lines = (visual_width + chunks_inspector[0].width as usize)
-                    / chunks_inspector[0].width as usize;
+                let wrapped_lines = (visual_width + layout.inspector.width as usize)
+                    / layout.inspector.width as usize;
                 wrapped_lines.max(1) // at least 1 line
             })
             .sum::<usize>();
+        
+        let padding = ratatui::widgets::Padding {
+            left: 1,
+            right: 1,
+            top: 0,
+            bottom: 0,
+        };
 
         let commit_paragraph = ratatui::widgets::Paragraph::new(Text::from(commit_lines))
             .left_aligned()
@@ -312,7 +175,7 @@ impl App {
                     .border_type(ratatui::widgets::BorderType::Rounded),
             );
 
-        frame.render_widget(commit_paragraph, chunks_inspector[0]);
+        frame.render_widget(commit_paragraph, layout.inspector);
 
         // Render the scrollbar
         let mut scrollbar_state =
@@ -334,19 +197,26 @@ impl App {
                 }),
             );
 
-        frame.render_stateful_widget(scrollbar, chunks_inspector[0], &mut scrollbar_state);
+        frame.render_stateful_widget(scrollbar, layout.inspector, &mut scrollbar_state);
 
         /***************************************************************************************************
          * Files
          ***************************************************************************************************/
 
+        
+        let padding = ratatui::widgets::Padding {
+            left: 1,
+            right: 1,
+            top: 0,
+            bottom: 0,
+        };
         let mut files_text: Text = Text::from("-");
         let sha: Oid = *self.oids.get(self.selected).unwrap();
         if sha != Oid::zero() {
             files_text = get_changed_filenames_as_text(&self.repo, sha);
         }
         let total_file_lines = files_text.lines.len();
-        let visible_height = chunks_inspector[1].height as usize;
+        let visible_height = layout.files.height as usize;
         let files_paragraph = ratatui::widgets::Paragraph::new(files_text)
             .left_aligned()
             .wrap(Wrap { trim: false })
@@ -366,7 +236,7 @@ impl App {
                     .border_type(ratatui::widgets::BorderType::Rounded),
             );
 
-        frame.render_widget(files_paragraph, chunks_inspector[1]);
+        frame.render_widget(files_paragraph, layout.files);
 
         // Render the scrollbar
         let mut scrollbar_state =
@@ -386,13 +256,13 @@ impl App {
                 COLOR_BORDER
             }));
 
-        frame.render_stateful_widget(scrollbar, chunks_inspector[1], &mut scrollbar_state);
+        frame.render_stateful_widget(scrollbar, layout.files, &mut scrollbar_state);
 
         /***************************************************************************************************
          * Graph table
          ***************************************************************************************************/
 
-        let table_height = chunks_horizontal[0].height as usize - 2;
+        let table_height = layout.graph.height as usize - 2;
         let total_rows = self.lines_graph.len();
 
         // Make sure selected row is visible
@@ -445,13 +315,13 @@ impl App {
         .row_highlight_style(Style::default().bg(COLOR_SELECTION).fg(COLOR_TEXT_SELECTED))
         .column_spacing(2);
 
-        frame.render_widget(Clear, chunks_horizontal[0]);
+        frame.render_widget(Clear, layout.graph);
 
-        frame.render_widget(table, chunks_horizontal[0]);
+        frame.render_widget(table, layout.graph);
 
         // Render the scrollbar
         let total_lines = self.oids.len();
-        let visible_height = chunks_inspector[0].height as usize;
+        let visible_height = layout.graph.height as usize;
         if total_lines > visible_height {
             let mut scrollbar_state = ScrollbarState::new(total_lines).position(self.scroll.get());
             let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
@@ -461,14 +331,14 @@ impl App {
                 .thumb_symbol("▌")
                 .thumb_style(Style::default().fg(COLOR_GREY_600));
 
-            frame.render_stateful_widget(scrollbar, chunks_horizontal[0], &mut scrollbar_state);
+            frame.render_stateful_widget(scrollbar, layout.graph, &mut scrollbar_state);
         }
 
         /***************************************************************************************************
          * Modal
          ***************************************************************************************************/
 
-        if self.modal {
+        if self.is_modal {
             let mut length = 0;
             let branches = self
                 .tips
@@ -521,129 +391,6 @@ impl App {
                 .alignment(Alignment::Center);
 
             paragraph.render(modal_area, frame.buffer_mut());
-        }
-    }
-
-    fn handle_events(&mut self) -> io::Result<()> {
-        match event::read()? {
-            Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-                self.handle_key_event(key_event)
-            }
-            _ => {}
-        };
-        Ok(())
-    }
-
-    fn handle_key_event(&mut self, key_event: KeyEvent) {
-        match key_event.code {
-            KeyCode::Char('r') => self.reload(),
-            KeyCode::Char('q') => self.exit(),
-            KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
-                self.exit()
-            }
-            KeyCode::Char('j') | KeyCode::Down => {
-                if self.selected + 1 < self.lines_branches.len() && !self.modal {
-                    self.selected += 1;
-                }
-            }
-            KeyCode::Char('k') | KeyCode::Up => {
-                if self.selected > 0 && !self.modal {
-                    self.selected -= 1;
-                }
-            }
-            KeyCode::Char('f') => {
-                self.minimal = !self.minimal;
-            }
-            KeyCode::Home => {
-                if !self.modal {
-                    self.selected = 0;
-                }
-            }
-            KeyCode::End => {
-                if !self.lines_branches.is_empty() && !self.modal {
-                    self.selected = self.lines_branches.len() - 1;
-                }
-            }
-            KeyCode::PageUp => {
-                if !self.modal {
-                    let page = 20;
-                    if self.selected >= page {
-                        self.selected -= page;
-                    } else {
-                        self.selected = 0;
-                    }
-                }
-            }
-            KeyCode::PageDown => {
-                if !self.modal {
-                    let page = 20;
-                    if self.selected + page < self.lines_branches.len() {
-                        self.selected += page;
-                    } else {
-                        self.selected = self.lines_branches.len() - 1;
-                    }
-                }
-            }
-            KeyCode::Enter => {
-                if !self.modal {
-                    let branches = self
-                        .tips
-                        .entry(*self.oids.get(self.selected).unwrap())
-                        .or_default();
-                    if branches.len() > 1 {
-                        self.modal = true;
-                    } else {
-                        checkout(&self.repo, *self.oids.get(self.selected).unwrap());
-                        self.reload();
-                    }
-                }
-            }
-            KeyCode::Esc => {
-                if self.modal {
-                    self.modal = false;
-                }
-            }
-            _ => {}
-        }
-    }
-
-    fn exit(&mut self) {
-        self.exit = true;
-    }
-}
-
-impl Default for App {
-    fn default() -> Self {
-        let args: Vec<String> = env::args().collect();
-        let path = if args.len() > 1 {
-            &args[1]
-        } else {
-            &".".to_string()
-        };
-        let absolute_path: PathBuf = std::fs::canonicalize(path)
-            .unwrap_or_else(|_| PathBuf::from(path));
-        let repo = Repository::open(absolute_path.clone()).expect("Could not open repo");
-
-        App {
-            // General
-            path: absolute_path.display().to_string(),
-            repo,
-
-            // Data
-            oids: Vec::new(),
-            tips: HashMap::new(),
-            lines_graph: Vec::new(),
-            lines_branches: Vec::new(),
-            lines_messages: Vec::new(),
-            lines_buffers: Vec::new(),
-
-            // Interface
-            scroll: 0.into(),
-            files_scroll: 0.into(),
-            selected: 0,
-            modal: false,
-            minimal: false,
-            exit: false,
         }
     }
 }

@@ -157,7 +157,8 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
                         let mut merger_idx: usize = 0;
                         for chunk_nested in &buffer.borrow().curr {
                             if chunk_nested.parents.len() == 1
-                                && chunk.parents.last().unwrap() == chunk_nested.parents.first().unwrap()
+                                && chunk.parents.last().unwrap()
+                                    == chunk_nested.parents.first().unwrap()
                             {
                                 is_merger_found = true;
                                 break;
@@ -173,7 +174,9 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
                             mergee_idx += 1;
                         }
 
-                        for (chunk_nested_idx, chunk_nested) in buffer.borrow().curr.iter().enumerate() {
+                        for (chunk_nested_idx, chunk_nested) in
+                            buffer.borrow().curr.iter().enumerate()
+                        {
                             if !is_mergee_found {
                                 if oid == chunk_nested.oid {
                                     is_mergee_found = true;
@@ -191,7 +194,9 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
                                         layers.merge(SYM_EMPTY, merger_idx);
                                         layers.merge(SYM_EMPTY, merger_idx);
                                     } else if chunk_nested.parents.len() == 1
-                                        && chunk.parents.contains(chunk_nested.parents.first().unwrap())
+                                        && chunk
+                                            .parents
+                                            .contains(chunk_nested.parents.first().unwrap())
                                     {
                                         layers.merge(SYM_MERGE_RIGHT_FROM, merger_idx);
                                         if chunk_nested_idx + 1 == mergee_idx {
@@ -217,7 +222,9 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
                                 // After the commit
                                 if is_merger_found && !is_merged_before {
                                     if chunk_nested.parents.len() == 1
-                                        && chunk.parents.contains(chunk_nested.parents.first().unwrap())
+                                        && chunk
+                                            .parents
+                                            .contains(chunk_nested.parents.first().unwrap())
                                     {
                                         layers.merge(SYM_MERGE_LEFT_FROM, merger_idx);
                                         layers.merge(SYM_EMPTY, merger_idx);
