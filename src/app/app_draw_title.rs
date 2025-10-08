@@ -26,14 +26,14 @@ use crate::{git::queries::get_current_branch};
 impl App {
 
     pub fn draw_title(&mut self, frame: &mut Frame) {
-        let current_branch_name = match get_current_branch(&self.repo) {
-            Some(branch) => format!(" ● {}", branch),
-            None => format!(" ○ HEAD: {}", self.repo.head().unwrap().target().unwrap()),
+        let span_current_checkout = match get_current_branch(&self.repo) {
+            Some(branch) => Span::styled(format!(" ● {}", branch), Style::default().fg(COLOR_PURPLE)),
+            None => Span::styled(format!(" ○ HEAD: {}", self.repo.head().unwrap().target().unwrap()), Style::default().fg(COLOR_TEXT)),
         };
 
         let sha_paragraph = ratatui::widgets::Paragraph::new(Text::from(Line::from(vec![
             Span::styled(" GUITAR |", Style::default().fg(COLOR_TEXT)),
-            Span::styled(current_branch_name, Style::default().fg(COLOR_TEXT)),
+            span_current_checkout,
         ])))
         .left_aligned()
         .block(Block::default());
