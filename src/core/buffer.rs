@@ -2,20 +2,11 @@ use git2::Oid;
 
 use crate::core::chunk::Chunk;
 
+#[derive(Default)]
 pub struct Buffer {
     pub prev: Vec<Chunk>,
     pub curr: Vec<Chunk>,
     mergers: Vec<Oid>,
-}
-
-impl Default for Buffer {
-    fn default() -> Self {
-        Buffer {
-            prev: Vec::new(),
-            curr: Vec::new(),
-            mergers: Vec::new(),
-        }
-    }
 }
 
 impl Buffer {

@@ -44,11 +44,11 @@ pub fn walk(
     let mut buffer = Vec::new();
     let mut shas = Vec::new();
 
-    let _tips: HashMap<Oid, Vec<String>> = get_tips(&repo);
+    let _tips: HashMap<Oid, Vec<String>> = get_tips(repo);
     let mut _tip_colors: HashMap<Oid, Color> = HashMap::new();
-    let _branches: HashMap<Oid, Vec<String>> = get_branches(&repo, &_tips);
-    let _timestamps: HashMap<Oid, (Time, Time, Time)> = get_timestamps(&repo, &_branches);
-    let mut _sorted: Vec<Oid> = get_sorted_commits(&repo);
+    let _branches: HashMap<Oid, Vec<String>> = get_branches(repo, &_tips);
+    let _timestamps: HashMap<Oid, (Time, Time, Time)> = get_timestamps(repo, &_branches);
+    let mut _sorted: Vec<Oid> = get_sorted_commits(repo);
     let mut layers: LayersCtx = layers!(&color);
 
     // Make a fake commit for unstaged changes
@@ -139,14 +139,12 @@ pub fn walk(
 
                     if metadata.parents.len() > 1 && !_tips.contains_key(&sha) {
                         layers.commit(SYM_MERGE, lane_idx);
+                    } else if _tips.contains_key(&sha) {
+                        color.borrow_mut().alternate(lane_idx);
+                        _tip_colors.insert(sha, color.borrow().get(lane_idx));
+                        layers.commit(SYM_COMMIT_BRANCH, lane_idx);
                     } else {
-                        if _tips.contains_key(&sha) {
-                            color.borrow_mut().alternate(lane_idx);
-                            _tip_colors.insert(sha, color.borrow().get(lane_idx));
-                            layers.commit(SYM_COMMIT_BRANCH, lane_idx);
-                        } else {
-                            layers.commit(SYM_COMMIT, lane_idx);
-                        };
+                        layers.commit(SYM_COMMIT, lane_idx);
                     }
                     layers.commit(SYM_EMPTY, lane_idx);
                     layers.pipe(SYM_EMPTY, lane_idx);
@@ -176,8 +174,7 @@ pub fn walk(
                             mergee_idx += 1;
                         }
 
-                        let mut mtdt_idx = 0;
-                        for mtdt in &_buffer.borrow().curr {
+                        for (mtdt_idx, mtdt) in _buffer.borrow().curr.iter().enumerate() {
                             if !is_mergee_found {
                                 if sha == mtdt.sha {
                                     is_mergee_found = true;
@@ -194,33 +191,27 @@ pub fn walk(
                                     if !is_merger_found {
                                         layers.merge(SYM_EMPTY, merger_idx);
                                         layers.merge(SYM_EMPTY, merger_idx);
-                                    } else {
-                                        if mtdt.parents.len() == 1
-                                            && metadata
-                                                .parents
-                                                .contains(&mtdt.parents.first().unwrap())
-                                        {
-                                            layers.merge(SYM_MERGE_RIGHT_FROM, merger_idx);
-                                            if mtdt_idx + 1 == mergee_idx {
-                                                layers.merge(SYM_EMPTY, merger_idx);
-                                            } else {
-                                                layers.merge(SYM_HORIZONTAL, merger_idx);
-                                            }
-                                            is_drawing = true;
+                                    } else if mtdt.parents.len() == 1
+                                        && metadata.parents.contains(mtdt.parents.first().unwrap())
+                                    {
+                                        layers.merge(SYM_MERGE_RIGHT_FROM, merger_idx);
+                                        if mtdt_idx + 1 == mergee_idx {
+                                            layers.merge(SYM_EMPTY, merger_idx);
                                         } else {
-                                            if is_drawing {
-                                                if mtdt_idx + 1 == mergee_idx {
-                                                    layers.merge(SYM_HORIZONTAL, merger_idx);
-                                                    layers.merge(SYM_EMPTY, merger_idx);
-                                                } else {
-                                                    layers.merge(SYM_HORIZONTAL, merger_idx);
-                                                    layers.merge(SYM_HORIZONTAL, merger_idx);
-                                                }
-                                            } else {
-                                                layers.merge(SYM_EMPTY, merger_idx);
-                                                layers.merge(SYM_EMPTY, merger_idx);
-                                            }
+                                            layers.merge(SYM_HORIZONTAL, merger_idx);
                                         }
+                                        is_drawing = true;
+                                    } else if is_drawing {
+                                        if mtdt_idx + 1 == mergee_idx {
+                                            layers.merge(SYM_HORIZONTAL, merger_idx);
+                                            layers.merge(SYM_EMPTY, merger_idx);
+                                        } else {
+                                            layers.merge(SYM_HORIZONTAL, merger_idx);
+                                            layers.merge(SYM_HORIZONTAL, merger_idx);
+                                        }
+                                    } else {
+                                        layers.merge(SYM_EMPTY, merger_idx);
+                                        layers.merge(SYM_EMPTY, merger_idx);
                                     }
                                 }
                             } else {
@@ -232,19 +223,15 @@ pub fn walk(
                                         layers.merge(SYM_MERGE_LEFT_FROM, merger_idx);
                                         layers.merge(SYM_EMPTY, merger_idx);
                                         is_drawing = false;
+                                    } else if is_drawing {
+                                        layers.merge(SYM_HORIZONTAL, merger_idx);
+                                        layers.merge(SYM_HORIZONTAL, merger_idx);
                                     } else {
-                                        if is_drawing {
-                                            layers.merge(SYM_HORIZONTAL, merger_idx);
-                                            layers.merge(SYM_HORIZONTAL, merger_idx);
-                                        } else {
-                                            layers.merge(SYM_EMPTY, merger_idx);
-                                            layers.merge(SYM_EMPTY, merger_idx);
-                                        }
+                                        layers.merge(SYM_EMPTY, merger_idx);
+                                        layers.merge(SYM_EMPTY, merger_idx);
                                     }
                                 }
                             }
-
-                            mtdt_idx += 1;
                         }
 
                         if !is_merger_found {

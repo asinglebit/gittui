@@ -200,11 +200,11 @@ impl App {
                     Style::default().fg(COLOR_GREY_400),
                 )]),
                 Line::from(vec![Span::styled(
-                    format!("{}", author.email().unwrap_or("")),
+                    author.email().unwrap_or("").to_string(),
                     Style::default().fg(COLOR_TEXT),
                 )]),
                 Line::from(vec![Span::styled(
-                    format!("{}", timestamp_to_utc(author.when())),
+                    timestamp_to_utc(author.when()),
                     Style::default().fg(COLOR_TEXT),
                 )]),
                 Line::from(vec![Span::styled(
@@ -212,11 +212,11 @@ impl App {
                     Style::default().fg(COLOR_GREY_400),
                 )]),
                 Line::from(vec![Span::styled(
-                    format!("{}", committer.email().unwrap_or("")),
+                    committer.email().unwrap_or("").to_string(),
                     Style::default().fg(COLOR_TEXT),
                 )]),
                 Line::from(vec![Span::styled(
-                    format!("{}", timestamp_to_utc(committer.when())),
+                    timestamp_to_utc(committer.when()).to_string(),
                     Style::default().fg(COLOR_TEXT),
                 )]),
                 Line::from(vec![
@@ -228,7 +228,6 @@ impl App {
                     Span::styled(body, Style::default().fg(COLOR_TEXT)),
                 ]),
             ]);
-        } else {
         }
 
         let visible_height = chunks_inspector[0].height as usize;
@@ -428,7 +427,7 @@ impl App {
             let branches = self
                 ._tips
                 .entry(*self.shas.get(self.selected).unwrap())
-                .or_insert_with(Vec::new);
+                .or_default();
             let spans: Vec<Line> = branches
                 .iter()
                 .map(|branch_name| {
@@ -497,12 +496,12 @@ impl App {
                 self.exit()
             }
             KeyCode::Char('j') | KeyCode::Down => {
-                if self.selected + 1 < self.branches.len() && self.modal == false {
+                if self.selected + 1 < self.branches.len() && !self.modal {
                     self.selected += 1;
                 }
             }
             KeyCode::Char('k') | KeyCode::Up => {
-                if self.selected > 0 && self.modal == false {
+                if self.selected > 0 && !self.modal {
                     self.selected -= 1;
                 }
             }
@@ -510,17 +509,17 @@ impl App {
                 self.minimal = !self.minimal;
             }
             KeyCode::Home => {
-                if self.modal == false {
+                if !self.modal {
                     self.selected = 0;
                 }
             }
             KeyCode::End => {
-                if !self.branches.is_empty() && self.modal == false {
+                if !self.branches.is_empty() && !self.modal {
                     self.selected = self.branches.len() - 1;
                 }
             }
             KeyCode::PageUp => {
-                if self.modal == false {
+                if !self.modal {
                     let page = 20;
                     if self.selected >= page {
                         self.selected -= page;
@@ -530,7 +529,7 @@ impl App {
                 }
             }
             KeyCode::PageDown => {
-                if self.modal == false {
+                if !self.modal {
                     let page = 20;
                     if self.selected + page < self.branches.len() {
                         self.selected += page;
@@ -540,11 +539,11 @@ impl App {
                 }
             }
             KeyCode::Enter => {
-                if self.modal == false {
+                if !self.modal {
                     let branches = self
                         ._tips
                         .entry(*self.shas.get(self.selected).unwrap())
-                        .or_insert_with(Vec::new);
+                        .or_default();
                     if branches.len() > 1 {
                         self.modal = true;
                     } else {
@@ -554,7 +553,7 @@ impl App {
                 }
             }
             KeyCode::Esc => {
-                if self.modal == true {
+                if self.modal {
                     self.modal = false;
                 }
             }
@@ -576,7 +575,7 @@ impl Default for App {
             &".".to_string()
         };
         let absolute_path: PathBuf =
-            std::fs::canonicalize(&path).unwrap_or_else(|_| PathBuf::from(path));
+            std::fs::canonicalize(path).unwrap_or_else(|_| PathBuf::from(path));
         // let path_buf = PathBuf::from(&path);
         let repo = Repository::open(absolute_path.clone()).expect("Could not open repo");
 
