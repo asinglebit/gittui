@@ -467,47 +467,55 @@ impl App {
                 self.exit()
             }
             KeyCode::Char('j') | KeyCode::Down => {
-                if self.selected + 1 < self.branches.len() {
+                if self.selected + 1 < self.branches.len() && self.modal == false {
                     self.selected += 1;
                 }
             }
             KeyCode::Char('k') | KeyCode::Up => {
-                if self.selected > 0 {
+                if self.selected > 0 && self.modal == false {
                     self.selected -= 1;
                 }
             }
             KeyCode::Home => {
-                self.selected = 0;
+                if self.modal == false {
+                    self.selected = 0;
+                }
             }
             KeyCode::End => {
-                if !self.branches.is_empty() {
+                if !self.branches.is_empty() && self.modal == false {
                     self.selected = self.branches.len() - 1;
                 }
             }
             KeyCode::PageUp => {
-                let page = 20;
-                if self.selected >= page {
-                    self.selected -= page;
-                } else {
-                    self.selected = 0;
+                if self.modal == false {
+                    let page = 20;
+                    if self.selected >= page {
+                        self.selected -= page;
+                    } else {
+                        self.selected = 0;
+                    }
                 }
             }
             KeyCode::PageDown => {
-                let page = 20;
-                if self.selected + page < self.branches.len() {
-                    self.selected += page;
-                } else {
-                    self.selected = self.branches.len() - 1;
+                if self.modal == false {
+                    let page = 20;
+                    if self.selected + page < self.branches.len() {
+                        self.selected += page;
+                    } else {
+                        self.selected = self.branches.len() - 1;
+                    }
                 }
             }
             KeyCode::Enter => {
-                let branches = self._tips.entry(*self.shas.get(self.selected).unwrap()).or_insert_with(Vec::new);
-                if branches.len() > 1 {
-                    self.modal = true;
-                } else {
-                    checkout_sha(&self.repo, *self.shas.get(self.selected).unwrap());
-                    self.reload();
-                }                
+                if self.modal == false {
+                    let branches = self._tips.entry(*self.shas.get(self.selected).unwrap()).or_insert_with(Vec::new);
+                    if branches.len() > 1 {
+                        self.modal = true;
+                    } else {
+                        checkout_sha(&self.repo, *self.shas.get(self.selected).unwrap());
+                        self.reload();
+                    }
+                }
             }
             KeyCode::Esc => {
                 if self.modal == true {
