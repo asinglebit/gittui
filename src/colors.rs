@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use ratatui::style::Color;
 
 pub const COLOR_RED: Color = Color::Rgb(239, 83, 80);
@@ -30,8 +32,58 @@ pub const COLOR_GREY_900: Color = Color::Rgb(33, 33, 33);
 
 pub const COLOR_STEEL_700: Color = Color::Rgb(69, 90, 100);
 
-pub const COLOR_TITLE: Color = COLOR_GREY_400;
 pub const COLOR_BORDER: Color = COLOR_GREY_800;
-pub const COLOR_TEXT: Color = COLOR_GREY_700;
 pub const COLOR_SELECTION: Color = COLOR_STEEL_700;
+pub const COLOR_TEXT: Color = COLOR_GREY_700;
 pub const COLOR_TEXT_SELECTED: Color = COLOR_GREY_300;
+
+pub struct ColorPicker {
+    lanes: HashMap<usize, bool>,
+    palette_a: [Color; 8],
+    palette_b: [Color; 8],
+}
+
+impl Default for ColorPicker {
+    fn default() -> Self {
+        ColorPicker {
+            lanes: HashMap::new(),
+            palette_a: [
+                COLOR_PURPLE,
+                COLOR_INDIGO,
+                COLOR_CYAN,
+                COLOR_GREEN,
+                COLOR_LIME,
+                COLOR_AMBER,
+                COLOR_GRAPEFRUIT,
+                COLOR_RED,
+            ],
+            palette_b: [
+                COLOR_DURPLE,
+                COLOR_BLUE,
+                COLOR_TEAL,
+                COLOR_GRASS,
+                COLOR_YELLOW,
+                COLOR_ORANGE,
+                COLOR_BROWN,
+                COLOR_PINK,
+            ],
+        }
+    }
+}
+
+impl ColorPicker {
+    pub fn alternate(&mut self, lane: usize) {
+        self.lanes
+            .entry(lane)
+            .and_modify(|value| *value = !*value)
+            .or_insert(false);
+    }
+
+    pub fn get(&self, lane: usize) -> Color {
+        if self.lanes.get(&lane).copied().unwrap_or(false) {
+            self.palette_b[lane % self.palette_b.len()]
+        } else {
+            self.palette_a[lane % self.palette_a.len()]
+        }
+    }
+}

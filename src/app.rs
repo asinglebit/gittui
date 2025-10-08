@@ -7,7 +7,7 @@ use crate::{
     },
 };
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use git2::{Oid, Repository, Status};
+use git2::{Oid, Repository};
 use ratatui::{
     layout::{Alignment, Rect}, style::Style, text::{Line, Span, Text}, widgets::{
         Block, Borders, Cell as WidgetCell, Clear, Paragraph, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table, Widget, Wrap

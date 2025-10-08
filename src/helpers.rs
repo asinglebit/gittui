@@ -1,4 +1,4 @@
-use crate::colors::*;
+use crate::{colors::*, graph::chunk::Chunk};
 use chrono::{DateTime, FixedOffset, TimeZone, Utc};
 use git2::{
     BranchType, Commit, Delta, Oid, Repository, Status, StatusOptions, Time, build::CheckoutBuilder,
@@ -9,81 +9,12 @@ use ratatui::{
 };
 use std::collections::HashMap;
 
-#[derive(Clone)]
-struct CommitMetadata {
-    sha: Oid,
-    parents: Vec<Oid>,
-}
-
-impl CommitMetadata {
-    fn dummy() -> Self {
-        CommitMetadata {
-            sha: Oid::zero(),
-            parents: Vec::new(),
-        }
-    }
-
-    fn is_dummy(&self) -> bool {
-        self.sha == Oid::zero() && self.parents.is_empty()
-    }
-}
 
 #[derive(Eq, Hash, PartialEq)]
 enum Layers {
     Commits = 0,
     Merges = 1,
     Pipes = 2,
-}
-
-struct ColorPicker {
-    lanes: HashMap<usize, bool>,
-    palette_a: [Color; 8],
-    palette_b: [Color; 8],
-}
-
-impl Default for ColorPicker {
-    fn default() -> Self {
-        ColorPicker {
-            lanes: HashMap::new(),
-            palette_a: [
-                COLOR_PURPLE,
-                COLOR_INDIGO,
-                COLOR_CYAN,
-                COLOR_GREEN,
-                COLOR_LIME,
-                COLOR_AMBER,
-                COLOR_GRAPEFRUIT,
-                COLOR_RED,
-            ],
-            palette_b: [
-                COLOR_DURPLE,
-                COLOR_BLUE,
-                COLOR_TEAL,
-                COLOR_GRASS,
-                COLOR_YELLOW,
-                COLOR_ORANGE,
-                COLOR_BROWN,
-                COLOR_PINK,
-            ],
-        }
-    }
-}
-
-impl ColorPicker {
-    fn alternate(&mut self, lane: usize) {
-        self.lanes
-            .entry(lane)
-            .and_modify(|value| *value = !*value)
-            .or_insert(false);
-    }
-
-    fn get(&self, lane: usize) -> Color {
-        if self.lanes.get(&lane).copied().unwrap_or(false) {
-            self.palette_b[lane % self.palette_b.len()]
-        } else {
-            self.palette_a[lane % self.palette_a.len()]
-        }
-    }
 }
 
 pub fn get_commits(
@@ -103,8 +34,8 @@ pub fn get_commits(
     let mut buffer = Vec::new();
     let mut shas = Vec::new();
 
-    let mut _buffer_prev: Vec<CommitMetadata> = Vec::new();
-    let mut _buffer: Vec<CommitMetadata> = Vec::new();
+    let mut _buffer_prev: Vec<Chunk> = Vec::new();
+    let mut _buffer: Vec<Chunk> = Vec::new();
     let _tips: HashMap<Oid, Vec<String>> = get_tips(&repo);
     let mut _tip_colors: HashMap<Oid, Color> = HashMap::new();
     let _branches: HashMap<Oid, Vec<String>> = get_branches(&repo, &_tips);
@@ -152,7 +83,7 @@ pub fn get_commits(
         ]));
         // _buffer.push(value);
         let parents: Vec<Oid> = vec![head_sha];
-        let metadata = CommitMetadata {
+        let metadata = Chunk {
             sha: Oid::from_str("0000000000000000000000000000000000000001").unwrap(),
             parents,
         };
@@ -165,7 +96,7 @@ pub fn get_commits(
     for sha in _sorted {
         let commit = repo.find_commit(sha).unwrap();
         let parents: Vec<Oid> = commit.parent_ids().collect();
-        let metadata = CommitMetadata { sha, parents };
+        let metadata = Chunk { sha, parents };
 
         let mut spans_graph = Vec::new();
 
@@ -197,7 +128,6 @@ pub fn get_commits(
                 .or_default()
                 .push((symbol, custom.unwrap_or(color.get(lane))));
         };
-        let mut commit_lane = 0;
 
         {
             // Otherwise (meaning we reached a tip, merge or a non-branching commit)
@@ -783,9 +713,9 @@ pub fn get_commits(
 }
 
 fn update_buffer(
-    buffer: &mut Vec<CommitMetadata>,
+    buffer: &mut Vec<Chunk>,
     _not_found_mergers: &mut Vec<Oid>,
-    metadata: CommitMetadata,
+    metadata: Chunk,
 ) {
     // Erase trailing dummy metadata
     while buffer.last().is_some_and(|c| c.is_dummy()) {
@@ -833,7 +763,7 @@ fn update_buffer(
                 if inner.parents.len() > 1 {
                     inner.parents.retain(|sha| *sha != old_sha);
                 } else {
-                    *inner = CommitMetadata::dummy();
+                    *inner = Chunk::dummy();
                 }
             }
         }
@@ -982,7 +912,7 @@ fn serialize_shas(sha: &Oid, shas: &mut Vec<Oid>) {
 
 fn serialize_buffer(
     _sha: &Oid,
-    _buffer: &Vec<CommitMetadata>,
+    _buffer: &Vec<Chunk>,
     _timestamps: &HashMap<Oid, (Time, Time, Time)>,
     buffer: &mut Vec<Line>,
 ) {

@@ -1,6 +1,9 @@
 mod app;
 mod colors;
 mod helpers;
+mod graph {
+    pub mod chunk;
+}
 
 use std::io;
 
