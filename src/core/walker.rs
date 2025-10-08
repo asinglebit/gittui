@@ -49,6 +49,7 @@ use crate::{
 pub struct Walked<'a> {
     pub oids: Vec<Oid>,
     pub tips: HashMap<Oid, Vec<String>>,
+    pub tip_colors: HashMap<Oid, Color>,
     pub lines_graph: Vec<Line<'a>>,
     pub lines_branches: Vec<Line<'a>>,
     pub lines_messages: Vec<Line<'a>>,
@@ -335,6 +336,7 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
     Walked {
         oids,
         tips,
+        tip_colors,
         lines_graph,
         lines_branches,
         lines_messages,

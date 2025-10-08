@@ -24,6 +24,7 @@ impl Default for App {
             // Data
             oids: Vec::new(),
             tips: HashMap::new(),
+            tip_colors: HashMap::new(),
             lines_graph: Vec::new(),
             lines_branches: Vec::new(),
             lines_messages: Vec::new(),
@@ -34,9 +35,11 @@ impl Default for App {
             scroll: 0.into(),
             files_scroll: 0.into(),
             selected: 0,
-            is_modal: false,
             is_minimal: false,
             is_exit: false,
+            
+            is_modal: false,
+            modal_selected: 0
         }
     }
 }

@@ -14,7 +14,10 @@ use crossterm::event::{
 #[rustfmt::skip]
 use crate::{
     git::{
-        actions::checkout,
+        actions::{
+            checkout_head,
+            checkout_branch
+        }
     },
 };
 #[rustfmt::skip]
@@ -42,11 +45,23 @@ impl App {
             KeyCode::Char('j') | KeyCode::Down => {
                 if self.selected + 1 < self.lines_branches.len() && !self.is_modal {
                     self.selected += 1;
+                } else if self.is_modal {
+                    let branches = self
+                        .tips
+                        .entry(*self.oids.get(self.selected).unwrap())
+                        .or_default();
+                    self.modal_selected = if self.modal_selected + 1 > branches.len() as i32 - 1 { 0 } else { self.modal_selected + 1 };
                 }
             }
             KeyCode::Char('k') | KeyCode::Up => {
                 if self.selected > 0 && !self.is_modal {
                     self.selected -= 1;
+                } else if self.is_modal {
+                    let branches = self
+                        .tips
+                        .entry(*self.oids.get(self.selected).unwrap())
+                        .or_default();
+                    self.modal_selected = if self.modal_selected - 1 < 0 { branches.len() as i32 - 1 } else { self.modal_selected - 1 };
                 }
             }
             KeyCode::Char('f') => {
@@ -83,21 +98,31 @@ impl App {
                 }
             }
             KeyCode::Enter => {
+                let branches = self
+                    .tips
+                    .entry(*self.oids.get(self.selected).unwrap())
+                    .or_default();
+
                 if !self.is_modal {
-                    let branches = self
-                        .tips
-                        .entry(*self.oids.get(self.selected).unwrap())
-                        .or_default();
-                    if branches.len() > 1 {
-                        self.is_modal = true;
-                    } else {
-                        checkout(&self.repo, *self.oids.get(self.selected).unwrap());
+                    if branches.len() == 0 {
+                        checkout_head(&self.repo, *self.oids.get(self.selected).unwrap());
                         self.reload();
+                    } else if branches.len() == 1 {
+                        checkout_branch(&self.repo, branches.first().unwrap()).expect("Error");
+                        self.reload();
+                    } else {
+                        self.is_modal = true;
                     }
+                } else {
+                    checkout_branch(&self.repo, branches.get(self.modal_selected as usize).unwrap()).expect("Error");
+                    self.modal_selected = 0;
+                    self.is_modal = false;
+                    self.reload();
                 }
             }
             KeyCode::Esc => {
                 if self.is_modal {
+                    self.modal_selected = 0;
                     self.is_modal = false;
                 }
             }

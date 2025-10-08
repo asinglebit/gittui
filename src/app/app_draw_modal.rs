@@ -33,18 +33,21 @@ impl App {
     pub fn draw_modal(&mut self, frame: &mut Frame) {
 
         if self.is_modal {
+            let oid = *self.oids.get(self.selected).unwrap();
+            let color = self.tip_colors.get(&oid).unwrap();
             let mut length = 0;
             let branches = self
                 .tips
-                .entry(*self.oids.get(self.selected).unwrap())
+                .entry(oid)
                 .or_default();
             let spans: Vec<Line> = branches
                 .iter()
-                .map(|branch_name| {
+                .enumerate() 
+                .map(|(idx, branch_name)| {
                     length = (10 + branch_name.len()).max(length);
                     Line::from(Span::styled(
                         format!("● {} ", branch_name),
-                        Style::default().fg(COLOR_GREY_400),
+                        Style::default().fg(if idx == self.modal_selected as usize { *color } else { COLOR_TEXT }),
                     ))
                 })
                 .collect();

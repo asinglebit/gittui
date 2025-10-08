@@ -5,7 +5,6 @@ use std::{
     io,
 };
 #[rustfmt::skip]
-#[rustfmt::skip]
 use git2::{
     Oid,
     Repository
@@ -15,6 +14,7 @@ use ratatui::{
     DefaultTerminal,
     Frame,
     layout::Rect,
+    style::Color,
     text::{
         Line,
     },
@@ -43,6 +43,7 @@ pub struct App {
     // Data
     pub oids: Vec<Oid>,
     pub tips: HashMap<Oid, Vec<String>>,
+    pub tip_colors: HashMap<Oid, Color>,
 
     // Lines
     pub lines_graph: Vec<Line<'static>>,
@@ -55,9 +56,11 @@ pub struct App {
     pub scroll: Cell<usize>,
     pub files_scroll: Cell<usize>,
     pub selected: usize,
-    pub is_modal: bool,
     pub is_minimal: bool,
     pub is_exit: bool,
+    
+    pub is_modal: bool,
+    pub modal_selected: i32
 }
 
 impl App {
@@ -86,6 +89,7 @@ impl App {
         let walked = walk(&self.repo);
         self.oids = walked.oids;
         self.tips = walked.tips;
+        self.tip_colors = walked.tip_colors;
         self.lines_graph = walked.lines_graph;
         self.lines_branches = walked.lines_branches;
         self.lines_messages = walked.lines_messages;
