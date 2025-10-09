@@ -49,6 +49,7 @@ use crate::{
 pub struct Walked<'a> {
     pub oids: Vec<Oid>,
     pub tips: HashMap<Oid, Vec<String>>,
+    pub oid_colors: HashMap<Oid, Color>,
     pub tip_colors: HashMap<Oid, Color>,
     pub branch_oid_map: HashMap<String, Oid>,
     pub oid_branch_map: HashMap<Oid, Vec<String>>,
@@ -76,6 +77,8 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
     let mut oids = vec![Oid::zero()];
     // Mapping of tip oids of the branches to the branch names
     let tips: HashMap<Oid, Vec<String>> = get_tips(repo);
+    // Mapping of oids to lanes
+    let mut oid_colors: HashMap<Oid, Color> = HashMap::new();
     // Mapping of tip oids of the branches to the colors
     let mut tip_colors: HashMap<Oid, Color> = HashMap::new();
     // Mapping of every oid to every branch it is a part of
@@ -138,6 +141,7 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
                     }
                 } else if oid == chunk.oid {
                     is_commit_found = true;
+                    oid_colors.entry(oid).or_insert(color.borrow().get(lane_idx));
 
                     if chunk.parents.len() > 1 && !tips.contains_key(&oid) {
                         layers.commit(SYM_MERGE, lane_idx);
@@ -338,6 +342,7 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
     Walked {
         oids,
         tips,
+        oid_colors,
         tip_colors,
         branch_oid_map,
         oid_branch_map,

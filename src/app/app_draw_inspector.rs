@@ -64,20 +64,20 @@ impl App {
         if !is_showing_uncommitted {
             
             // Query commit info
-            let sha: Oid = *self.oids.get(self.graph_selected).unwrap();
-            let commit = self.repo.find_commit(sha).unwrap();
+            let oid: Oid = *self.oids.get(self.graph_selected).unwrap();
+            let commit = self.repo.find_commit(oid).unwrap();
             let author = commit.author();
             let committer = commit.committer();
             let summary = commit.summary().unwrap_or("<no summary>").to_string();
             let body = commit.body().unwrap_or("<no body>").to_string();
-            let branches = self.oid_branch_map.get(&sha).unwrap();
+            let branches = self.oid_branch_map.get(&oid).unwrap();
 
             // Assemble lines
             lines = vec![
                 Line::from(vec![Span::styled("commit sha:", Style::default().fg(COLOR_GREY_500))]),
                 Line::from(vec![Span::styled(
-                    truncate_with_ellipsis(&format!("{}", sha), max_text_width),
-                    Style::default().fg(COLOR_TEXT),
+                    truncate_with_ellipsis(&format!("#{}", oid), max_text_width),
+                    Style::default().fg(*self.oid_colors.get(&oid).unwrap()),
                 )]),
                 Line::from(""),
                 Line::from(vec![Span::styled("parent shas:", Style::default().fg(COLOR_GREY_500))]),
@@ -85,8 +85,8 @@ impl App {
 
             for parent_id in commit.parent_ids() {
                 lines.push(Line::from(vec![Span::styled(
-                    truncate_with_ellipsis(&format!("{}", parent_id), max_text_width),
-                    Style::default().fg(COLOR_TEXT),
+                    truncate_with_ellipsis(&format!("#{}", parent_id), max_text_width),
+                    Style::default().fg(*self.oid_colors.get(&parent_id).unwrap()),
                 )]));
             }
 

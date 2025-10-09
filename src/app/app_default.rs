@@ -53,6 +53,7 @@ impl Default for App {
             // Data
             oids: Vec::new(),
             tips: HashMap::new(),
+            oid_colors: HashMap::new(),
             tip_colors: HashMap::new(),
             branch_oid_map: HashMap::new(),
             oid_branch_map: HashMap::new(),
@@ -87,7 +88,7 @@ impl Default for App {
             status_bottom_scroll: 0.into(),
 
             // Modal branch
-            modal_selected: 0,
+            modal_checkout_selected: 0,
 
             // Exit
             is_exit: false,   

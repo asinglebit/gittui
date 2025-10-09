@@ -11,7 +11,8 @@ mod app {
     pub mod app_draw_inspector;
     pub mod app_draw_status;
     pub mod app_draw_statusbar;
-    pub mod app_draw_modal;
+    pub mod app_draw_modal_checkout;
+    pub mod app_draw_modal_actions;
 }
 mod core {
     pub mod buffer;

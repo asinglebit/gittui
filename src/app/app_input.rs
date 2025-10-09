@@ -1,3 +1,4 @@
+use std::usize;
 #[rustfmt::skip]
 use std::{
     io,
@@ -61,13 +62,17 @@ impl App {
                     Focus::StatusBottom => {
                         self.status_bottom_selected += 1;
                     }
+                    Focus::ModalActions => {
+                        // TODO
+                    }
                     Focus::ModalCheckout => {
                         let branches = self
                             .tips
                             .entry(*self.oids.get(self.graph_selected).unwrap())
                             .or_default();
-                        self.modal_selected = if self.modal_selected + 1 > branches.len() as i32 - 1 { 0 } else { self.modal_selected + 1 };
+                        self.modal_checkout_selected = if self.modal_checkout_selected + 1 > branches.len() as i32 - 1 { 0 } else { self.modal_checkout_selected + 1 };
                     }
+                    _ => {}
                 }
             }
             KeyCode::Char('k') | KeyCode::Up => {
@@ -95,13 +100,17 @@ impl App {
                             self.status_bottom_selected -= 1;
                         }
                     }
+                    Focus::ModalActions => {
+                        // TODO
+                    }
                     Focus::ModalCheckout => {
                         let branches = self
                             .tips
                             .entry(*self.oids.get(self.graph_selected).unwrap())
                             .or_default();
-                        self.modal_selected = if self.modal_selected - 1 < 0 { branches.len() as i32 - 1 } else { self.modal_selected - 1 };
+                        self.modal_checkout_selected = if self.modal_checkout_selected - 1 < 0 { branches.len() as i32 - 1 } else { self.modal_checkout_selected - 1 };
                     }
+                    _ => {}
                 }
             }
             KeyCode::Char('f') => {
@@ -123,6 +132,60 @@ impl App {
                     }
                 }
             }
+            KeyCode::Char('x') => {
+                match self.focus {
+                    Focus::ModalActions => {
+                        self.focus = Focus::Graph;
+                    }
+                    Focus::ModalCheckout => {
+                        self.modal_checkout_selected = 0;
+                        self.focus = Focus::Graph;
+                    }
+                    _ => {},
+                };
+            }
+            KeyCode::Char('c') => {
+                match self.focus {
+                    Focus::Graph | Focus::ModalActions => {
+                        let branches = self
+                            .tips
+                            .entry(*self.oids.get(self.graph_selected).unwrap())
+                            .or_default();
+                        if self.graph_selected == 0 {
+                            return;
+                        }
+                        if branches.is_empty() {
+                            checkout_head(&self.repo, *self.oids.get(self.graph_selected).unwrap());
+                            self.reload();
+                        } else if branches.len() == 1 {
+                            checkout_branch(&self.repo, branches.first().unwrap()).expect("Error");
+                            self.reload();
+                        } else {
+                            self.focus = Focus::ModalCheckout;
+                        }
+                        
+                    }
+                    _ => {}
+                };
+            }
+            KeyCode::Enter => {
+                match self.focus {
+                    Focus::Graph => {
+                        self.focus = Focus::ModalActions;
+                    }
+                    Focus::ModalCheckout => {
+                        let branches = self
+                            .tips
+                            .entry(*self.oids.get(self.graph_selected).unwrap())
+                            .or_default();
+                        checkout_branch(&self.repo, branches.get(self.modal_checkout_selected as usize).unwrap()).expect("Error");
+                        self.modal_checkout_selected = 0;
+                        self.focus = Focus::Graph;
+                        self.reload();
+                    }
+                    _ => {}
+                };
+            }
             KeyCode::Tab => {
                 self.focus = match self.focus {
                     Focus::Graph => {
@@ -143,67 +206,96 @@ impl App {
                 };
             }
             KeyCode::Home => {
-                if self.focus != Focus::ModalCheckout {
-                    self.graph_selected = 0;
-                }
-            }
-            KeyCode::End => {
-                if !self.lines_branches.is_empty() && self.focus != Focus::ModalCheckout {
-                    self.graph_selected = self.lines_branches.len() - 1;
-                }
-            }
-            KeyCode::PageUp => {
-                if self.focus != Focus::ModalCheckout {
-                    let page = 20;
-                    if self.graph_selected >= page {
-                        self.graph_selected -= page;
-                    } else {
+                match self.focus {
+                    Focus::Graph => {
                         self.graph_selected = 0;
                     }
-                }
+                    Focus::Inspector => {
+                        self.inspector_selected = 0;
+                    }
+                    Focus::StatusTop => {
+                        self.status_top_selected = 0;
+                    }
+                    Focus::StatusBottom => {
+                        self.status_bottom_selected = 0;
+                    }
+                    _ => {},
+                };
+            }
+            KeyCode::End => {
+                match self.focus {
+                    Focus::Graph => {
+                        if !self.lines_branches.is_empty() {
+                            self.graph_selected = self.lines_branches.len() - 1;
+                        }
+                    }
+                    Focus::Inspector => {
+                        self.inspector_selected = usize::MAX;
+                    }
+                    Focus::StatusTop => {
+                        self.status_top_selected = usize::MAX;
+                    }
+                    Focus::StatusBottom => {
+                        self.status_bottom_selected = usize::MAX;
+                    }
+                    _ => {},
+                };
+            }
+            KeyCode::PageUp => {
+                let page = 20;
+                match self.focus {
+                    Focus::Graph => {
+                        if self.graph_selected >= page {
+                            self.graph_selected -= page;
+                        } else {
+                            self.graph_selected = 0;
+                        }
+                    }
+                    Focus::Inspector => {
+                        self.inspector_selected = self.inspector_selected.saturating_sub(page);
+                    }
+                    Focus::StatusTop => {
+                        self.status_top_selected = self.status_top_selected.saturating_sub(page);
+                    }
+                    Focus::StatusBottom => {
+                        self.status_bottom_selected = self.status_bottom_selected.saturating_sub(page);
+                    }
+                    _ => {},
+                };
             }
             KeyCode::PageDown => {
-                if self.focus != Focus::ModalCheckout {
-                    let page = 20;
-                    if self.graph_selected + page < self.lines_branches.len() {
-                        self.graph_selected += page;
-                    } else {
-                        self.graph_selected = self.lines_branches.len() - 1;
+                let page = 20;
+                match self.focus {
+                    Focus::Graph => {
+                        if self.graph_selected + page < self.lines_branches.len() {
+                            self.graph_selected += page;
+                        } else {
+                            self.graph_selected = self.lines_branches.len() - 1;
+                        }
                     }
-                }
-            }
-            KeyCode::Enter => {
-
-                let branches = self
-                    .tips
-                    .entry(*self.oids.get(self.graph_selected).unwrap())
-                    .or_default();
-
-                if self.focus != Focus::ModalCheckout {
-                    if self.graph_selected == 0 {
-                        return;
+                    Focus::Inspector => {
+                        self.inspector_selected += page;
                     }
-                    if branches.is_empty() {
-                        checkout_head(&self.repo, *self.oids.get(self.graph_selected).unwrap());
-                        self.reload();
-                    } else if branches.len() == 1 {
-                        checkout_branch(&self.repo, branches.first().unwrap()).expect("Error");
-                        self.reload();
-                    } else {
-                        self.focus = Focus::ModalCheckout;
+                    Focus::StatusTop => {
+                        self.status_top_selected += page;
                     }
-                } else {
-                    checkout_branch(&self.repo, branches.get(self.modal_selected as usize).unwrap()).expect("Error");
-                    self.modal_selected = 0;
-                    self.focus = Focus::Graph;
-                    self.reload();
-                }
+                    Focus::StatusBottom => {
+                        self.status_bottom_selected += page;
+                    }
+                    _ => {},
+                };
             }
             KeyCode::Esc => {
-                if self.focus == Focus::ModalCheckout {
-                    self.modal_selected = 0;
-                    self.focus = Focus::Graph;
-                }
+                match self.focus {
+                    Focus::ModalActions => {
+                        self.focus = Focus::Graph;
+                    }
+                    Focus::ModalCheckout => {
+                        self.modal_checkout_selected = 0;
+                        self.focus = Focus::Graph;
+                    }
+                    _ => {},
+                };
             }
             _ => {}
         }

@@ -19,18 +19,26 @@ use crate::{
     },
 };
 #[rustfmt::skip]
-use crate::app::{
-    app::App,
+use crate::{
+    app::app::{
+        App,
+    },
+    git::queries::get_current_branch
 };
 
 impl App {
 
     pub fn draw_statusbar(&mut self, frame: &mut Frame) {
+        
+        let lines = match get_current_branch(&self.repo) {
+            Some(branch) => Line::from(vec![Span::styled(format!(" ● {}", branch), Style::default().fg(COLOR_PURPLE))]),
+            None => {
+                let oid = self.repo.head().unwrap().target().unwrap();
+                Line::from(vec![Span::styled(format!(" detached head: #{:.6}", oid), Style::default().fg(COLOR_TEXT))])
+            },
+        };
         let status_paragraph =
-            ratatui::widgets::Paragraph::new(Text::from(Line::from(vec![Span::styled(
-                format!(" 🖿  {}", self.path),
-                Style::default().fg(COLOR_TEXT),
-            )])))
+            ratatui::widgets::Paragraph::new(Text::from(lines))
             .left_aligned()
             .block(Block::default());
 

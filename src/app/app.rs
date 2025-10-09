@@ -43,6 +43,7 @@ pub enum Focus {
     Inspector,
     StatusTop,
     StatusBottom,
+    ModalActions,
     ModalCheckout
 }
 
@@ -55,6 +56,7 @@ pub struct App {
     // Data
     pub oids: Vec<Oid>,
     pub tips: HashMap<Oid, Vec<String>>,
+    pub oid_colors: HashMap<Oid, Color>,
     pub tip_colors: HashMap<Oid, Color>,
     pub branch_oid_map: HashMap<String, Oid>,
     pub oid_branch_map: HashMap<Oid, Vec<String>>,
@@ -91,7 +93,7 @@ pub struct App {
     pub status_bottom_scroll: Cell<usize>,
 
     // Modal branch
-    pub modal_selected: i32,
+    pub modal_checkout_selected: i32,
 
     // Exit
     pub is_exit: bool,    
@@ -110,20 +112,26 @@ impl App {
     }
     
     pub fn draw(&mut self, frame: &mut Frame) {
+        // Compute the layout
         self.layout(frame);
-        frame.render_widget(Clear, frame.area());
+
+        // Main app
         self.draw_title(frame);
         self.draw_graph(frame);
         if self.is_status {self.draw_status(frame);}
         if self.is_inspector && self.graph_selected != 0 {self.draw_inspector(frame);}
         self.draw_statusbar(frame);
-        self.draw_modal(frame);
+
+        // Modals
+        if self.focus == Focus::ModalActions {self.draw_modal_actions(frame);}
+        if self.focus == Focus::ModalCheckout {self.draw_modal_checkout(frame);}
     }
 
     pub fn reload(&mut self) {
         let walked = walk(&self.repo);
         self.oids = walked.oids;
         self.tips = walked.tips;
+        self.oid_colors = walked.oid_colors;
         self.tip_colors = walked.tip_colors;
         self.branch_oid_map = walked.branch_oid_map;
         self.oid_branch_map = walked.oid_branch_map;
