@@ -34,7 +34,7 @@ impl App {
             .left_aligned()
             .block(Block::default());
 
-        frame.render_widget(status_paragraph, self.layout.status_left);
+        frame.render_widget(status_paragraph, self.layout.statusbar_left);
 
         let title_paragraph =
             ratatui::widgets::Paragraph::new(Text::from(Line::from(Span::styled(
@@ -44,7 +44,7 @@ impl App {
             .right_aligned()
             .block(Block::default());
 
-        frame.render_widget(Clear, self.layout.status_right);
-        frame.render_widget(title_paragraph, self.layout.status_right);
+        frame.render_widget(Clear, self.layout.statusbar_right);
+        frame.render_widget(title_paragraph, self.layout.statusbar_right);
     }
 }

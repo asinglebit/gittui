@@ -30,9 +30,10 @@ pub struct Layout {
     pub title_right: Rect,
     pub graph: Rect,
     pub inspector: Rect,
-    pub files: Rect,
-    pub status_left: Rect,
-    pub status_right: Rect
+    pub status_top: Rect,
+    pub status_bottom: Rect,
+    pub statusbar_left: Rect,
+    pub statusbar_right: Rect,
 }
 
 pub struct App {
@@ -85,7 +86,7 @@ impl App {
         self.draw_title(frame);
         self.draw_graph(frame);
         if self.is_status {self.draw_status(frame);}
-        if self.is_inspector {self.draw_inspector(frame);}
+        if self.is_inspector && self.selected != 0 {self.draw_inspector(frame);}
         self.draw_statusbar(frame);
         self.draw_modal(frame);
     }
