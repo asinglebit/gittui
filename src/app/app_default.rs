@@ -25,6 +25,8 @@ impl Default for App {
             oids: Vec::new(),
             tips: HashMap::new(),
             tip_colors: HashMap::new(),
+            branch_oid_map: HashMap::new(),
+            oid_branch_map: HashMap::new(),
             lines_graph: Vec::new(),
             lines_branches: Vec::new(),
             lines_messages: Vec::new(),

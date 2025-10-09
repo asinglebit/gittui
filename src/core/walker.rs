@@ -33,7 +33,7 @@ use crate::{
         },
     },
     git::queries::{
-        // get_branches,
+        get_branches,
         get_sorted_commits,
         // get_timestamps,
         get_tips,
@@ -50,6 +50,8 @@ pub struct Walked<'a> {
     pub oids: Vec<Oid>,
     pub tips: HashMap<Oid, Vec<String>>,
     pub tip_colors: HashMap<Oid, Color>,
+    pub branch_oid_map: HashMap<String, Oid>,
+    pub oid_branch_map: HashMap<Oid, Vec<String>>,
     pub lines_graph: Vec<Line<'a>>,
     pub lines_branches: Vec<Line<'a>>,
     pub lines_messages: Vec<Line<'a>>,
@@ -77,7 +79,7 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
     // Mapping of tip oids of the branches to the colors
     let mut tip_colors: HashMap<Oid, Color> = HashMap::new();
     // Mapping of every oid to every branch it is a part of
-    // let branches: HashMap<Oid, Vec<String>> = get_branches(repo, &tips);
+    let (oid_branch_map, branch_oid_map) = get_branches(repo, &tips);
     // Timestamps of every oid
     // let timestamps: HashMap<Oid, (Time, Time, Time)> = get_timestamps(repo, &branches);
     // Topologically sorted list of oids including the uncommited
@@ -337,6 +339,8 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
         oids,
         tips,
         tip_colors,
+        branch_oid_map,
+        oid_branch_map,
         lines_graph,
         lines_branches,
         lines_messages,

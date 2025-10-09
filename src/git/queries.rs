@@ -173,19 +173,21 @@ pub fn get_tips(repo: &Repository) -> HashMap<Oid, Vec<String>> {
 pub fn get_branches(
     repo: &Repository,
     tips: &HashMap<Oid, Vec<String>>,
-) -> HashMap<Oid, Vec<String>> {
-    let mut map: HashMap<Oid, Vec<String>> = HashMap::new();
-    for (sha_tip, names) in tips {
+) -> (HashMap<Oid, Vec<String>>, HashMap<String, Oid>) {
+    let mut oid_branch_map: HashMap<Oid, Vec<String>> = HashMap::new();
+    let mut branch_oid_map: HashMap<String, Oid> = HashMap::new();
+    for (oid_tip, names) in tips {
         let mut revwalk = repo.revwalk().unwrap();
-        revwalk.push(*sha_tip).unwrap();
-        for sha_step in revwalk {
-            let sha = sha_step.unwrap();
+        revwalk.push(*oid_tip).unwrap();
+        for oid_step in revwalk {
+            let oid = oid_step.unwrap();
             for name in names {
-                map.entry(sha).or_default().push(name.clone());
+                oid_branch_map.entry(oid).or_default().push(name.clone());
+                branch_oid_map.entry(name.to_string()).or_insert(oid);
             }
         }
     }
-    map
+    (oid_branch_map, branch_oid_map)
 }
 
 pub fn get_current_branch(repo: &Repository) -> Option<String> {

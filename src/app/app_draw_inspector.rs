@@ -3,6 +3,7 @@
 use git2::{
     Oid
 };
+use ratatui::widgets::Wrap;
 #[rustfmt::skip]
 use ratatui::{
     Frame,
@@ -20,6 +21,7 @@ use ratatui::{
         ScrollbarState,
     },
 };
+use crate::utils::symbols::truncate_with_ellipsis;
 #[rustfmt::skip]
 use crate::{
     utils::{
@@ -33,6 +35,11 @@ use crate::app::app::App;
 impl App {
 
     pub fn draw_inspector(&mut self, frame: &mut Frame) {
+
+        // Calculate maximum available width for text
+        let available_width = self.layout.inspector.width as usize - 2;
+        let max_text_width = available_width.saturating_sub(1);
+
         let mut commit_lines: Vec<Line<'_>> = Vec::new();
         let sha: Oid = *self.oids.get(self.selected).unwrap();
         if sha != Oid::zero() {
@@ -41,6 +48,7 @@ impl App {
             let committer = commit.committer();
             let summary = commit.summary().unwrap_or("<no summary>").to_string();
             let body = commit.body().unwrap_or("<no body>").to_string();
+            let branches = self.oid_branch_map.get(&sha).unwrap();
 
             commit_lines = vec![
                 Line::from(vec![Span::styled(
@@ -48,7 +56,7 @@ impl App {
                     Style::default().fg(COLOR_GREY_400),
                 )]),
                 Line::from(vec![Span::styled(
-                    format!("{}", self.oids.get(self.selected).unwrap()),
+                    truncate_with_ellipsis(&format!("{}", self.oids.get(self.selected).unwrap()), max_text_width),
                     Style::default().fg(COLOR_TEXT),
                 )]),
                 Line::from(vec![Span::styled(
@@ -59,8 +67,24 @@ impl App {
 
             for parent_id in commit.parent_ids() {
                 commit_lines.push(Line::from(vec![Span::styled(
-                    format!("{}", parent_id),
+                    truncate_with_ellipsis(&format!("{}", parent_id), max_text_width),
                     Style::default().fg(COLOR_TEXT),
+                )]));
+            }
+
+            commit_lines.extend(vec![
+                Line::from(vec![Span::styled(
+                    format!("Featured branches:"),
+                    Style::default().fg(COLOR_GREY_400),
+                )]),
+            ]);
+
+            for branch in branches {
+                let oid = self.branch_oid_map.get(branch).unwrap();
+                let color = self.tip_colors.get(oid).unwrap();
+                commit_lines.push(Line::from(vec![Span::styled(
+                    truncate_with_ellipsis(&format!("● {}", branch), max_text_width),
+                    Style::default().fg(*color),
                 )]));
             }
 
@@ -127,7 +151,7 @@ impl App {
 
         let commit_paragraph = ratatui::widgets::Paragraph::new(Text::from(commit_lines))
             .left_aligned()
-            // .wrap(Wrap { trim: true }) For some reasone causes ghosting
+            .wrap(Wrap { trim: true }) //For some reasone causes ghosting
             .block(
                 Block::default()
                     .title(vec![
