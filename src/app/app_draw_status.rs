@@ -63,8 +63,8 @@ impl App {
         let mut status_bottom_text: Text = Text::from("Hello world");
 
         // If viewing uncommitted changes
-        if self.selected != 0 {
-            let sha: Oid = *self.oids.get(self.selected).unwrap();
+        if self.graph_selected != 0 {
+            let sha: Oid = *self.oids.get(self.graph_selected).unwrap();
             let files = get_changed_filenames(&self.repo, sha);
             let mut lines = Vec::new();
             for file_change in files {
@@ -172,17 +172,17 @@ impl App {
         let total_file_lines = status_top_text.lines.len();
         let visible_height = self.layout.status_top.height as usize;
         let status_paragraph = ratatui::widgets::Paragraph::new(status_top_text)
-            .alignment(if !is_staged_changes && self.selected == 0 {ratatui::layout::Alignment::Center} else {ratatui::layout::Alignment::Left})
+            .alignment(if !is_staged_changes && self.graph_selected == 0 {ratatui::layout::Alignment::Center} else {ratatui::layout::Alignment::Left})
             .wrap(Wrap { trim: false })
-            .scroll((self.status_scroll.get() as u16, 0))
+            .scroll((self.status_top_scroll.get() as u16, 0))
             .block(
                 Block::default()
                     .title(vec![
                         Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                        Span::styled(if self.selected == 0 { " (s)taged " } else { " (s)tatus " }, Style::default().fg(if self.focus == Panes::StatusTop { COLOR_GREY_500 } else { COLOR_TEXT } )),
+                        Span::styled(if self.graph_selected == 0 { " (s)taged " } else { " (s)tatus " }, Style::default().fg(if self.focus == Panes::StatusTop { COLOR_GREY_500 } else { COLOR_TEXT } )),
                         Span::styled("─", Style::default().fg(COLOR_BORDER)),
                     ])
-                    .title_bottom(if self.selected == 0 {vec![
+                    .title_bottom(if self.graph_selected == 0 {vec![
                         Span::styled("─", Style::default().fg(COLOR_BORDER)),
                         Span::styled(" unstaged ", Style::default().fg(if self.focus == Panes::StatusBottom { COLOR_GREY_500 } else { COLOR_TEXT } )),
                         Span::styled("─", Style::default().fg(COLOR_BORDER)),
@@ -199,10 +199,10 @@ impl App {
 
         // Render the scrollbar
         let mut scrollbar_state =
-            ScrollbarState::new(total_file_lines).position(self.status_scroll.get());
+            ScrollbarState::new(total_file_lines).position(self.status_top_scroll.get());
         let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
-            .begin_symbol(if self.is_inspector && self.selected != 0 { Some("│") } else { Some("╮") })
-            .end_symbol(if self.selected == 0 { Some("┤") } else {  Some("╯") })
+            .begin_symbol(if self.is_inspector && self.graph_selected != 0 { Some("│") } else { Some("╮") })
+            .end_symbol(if self.graph_selected == 0 { Some("┤") } else {  Some("╯") })
             .track_symbol(Some("│"))
             .thumb_symbol(if total_file_lines > visible_height {
                 "▌"
@@ -217,13 +217,13 @@ impl App {
 
         frame.render_stateful_widget(scrollbar, self.layout.status_top, &mut scrollbar_state);
 
-        if self.selected == 0 {
+        if self.graph_selected == 0 {
             let total_file_lines = status_bottom_text.lines.len();
             let visible_height = self.layout.status_bottom.height as usize;
             let status_paragraph = ratatui::widgets::Paragraph::new(status_bottom_text)
-                .alignment(if !is_unstaged_changes && self.selected == 0 {ratatui::layout::Alignment::Center} else {ratatui::layout::Alignment::Left})
+                .alignment(if !is_unstaged_changes && self.graph_selected == 0 {ratatui::layout::Alignment::Center} else {ratatui::layout::Alignment::Left})
                 .wrap(Wrap { trim: false })
-                .scroll((self.status_scroll.get() as u16, 0))
+                .scroll((self.status_top_scroll.get() as u16, 0))
                 .block(
                     Block::default()
                         .borders(Borders::BOTTOM | Borders::RIGHT)
@@ -236,7 +236,7 @@ impl App {
 
             // Render the scrollbar
             let mut scrollbar_state =
-                ScrollbarState::new(total_file_lines).position(self.status_scroll.get());
+                ScrollbarState::new(total_file_lines).position(self.status_top_scroll.get());
             let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
                 .begin_symbol(Some("│"))
                 .end_symbol(Some("╯"))

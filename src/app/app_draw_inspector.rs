@@ -43,7 +43,7 @@ impl App {
         let max_text_width = available_width.saturating_sub(1);
 
         let mut commit_lines: Vec<Line<'_>> = Vec::new();
-        let sha: Oid = *self.oids.get(self.selected).unwrap();
+        let sha: Oid = *self.oids.get(self.graph_selected).unwrap();
         if sha != Oid::zero() {
             let commit = self.repo.find_commit(sha).unwrap();
             let author = commit.author();
@@ -58,7 +58,7 @@ impl App {
                     Style::default().fg(COLOR_GREY_400),
                 )]),
                 Line::from(vec![Span::styled(
-                    truncate_with_ellipsis(&format!("{}", self.oids.get(self.selected).unwrap()), max_text_width),
+                    truncate_with_ellipsis(&format!("{}", self.oids.get(self.graph_selected).unwrap()), max_text_width),
                     Style::default().fg(COLOR_TEXT),
                 )]),
                 Line::from(vec![Span::styled(
@@ -173,7 +173,7 @@ impl App {
 
         // Render the scrollbar
         let mut scrollbar_state =
-            ScrollbarState::new(total_inspector_lines).position(self.status_scroll.get());
+            ScrollbarState::new(total_inspector_lines).position(self.status_top_scroll.get());
         let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
             .begin_symbol(Some("╮"))
             .end_symbol(if self.is_status { Some("│") } else { Some("╯") })

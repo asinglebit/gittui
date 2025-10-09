@@ -32,7 +32,13 @@ impl App {
         };
 
         let sha_paragraph = ratatui::widgets::Paragraph::new(Text::from(Line::from(vec![
-            Span::styled(" GUITAR |", Style::default().fg(COLOR_TEXT)),
+            Span::styled(" G", Style::default().fg(COLOR_BLUE)),
+            Span::styled("U", Style::default().fg(COLOR_TEAL)),
+            Span::styled("I", Style::default().fg(COLOR_TEAL)),
+            Span::styled("T", Style::default().fg(COLOR_GREEN)),
+            Span::styled("A", Style::default().fg(COLOR_GRASS)),
+            Span::styled("R", Style::default().fg(COLOR_GRASS)),
+            Span::styled(" |", Style::default().fg(COLOR_TEXT)),
             span_current_checkout,
         ])))
         .left_aligned()

@@ -38,7 +38,7 @@ impl App {
 
         let title_paragraph =
             ratatui::widgets::Paragraph::new(Text::from(Line::from(Span::styled(
-                format!("{}/{}", self.selected + 1, self.lines_messages.len()),
+                format!("{}/{}", self.graph_selected + 1, self.lines_messages.len()),
                 Style::default().fg(COLOR_TEXT),
             ))))
             .right_aligned()

@@ -66,18 +66,29 @@ pub struct App {
     pub layout: Layout,
 
     // Panes
-    pub is_inspector: bool,
-    pub is_status: bool,
-    pub focus: Panes,
-
-    // Rest
-    pub scroll: Cell<usize>,
-    pub status_scroll: Cell<usize>,
-    pub selected: usize,
     pub is_minimal: bool,
-    pub is_exit: bool,    
+    pub is_status: bool,
+    pub is_inspector: bool,
     pub is_modal: bool,
-    pub modal_selected: i32
+    pub focus: Panes,
+    
+    // Graph
+    pub graph_selected: usize,
+    pub graph_scroll: Cell<usize>,
+    
+    // Status top
+    pub status_top_selected: usize,
+    pub status_top_scroll: Cell<usize>,
+    
+    // Status bottom
+    pub status_bottom_selected: usize,
+    pub status_bottom_scroll: Cell<usize>,
+
+    // Modal branch
+    pub modal_selected: i32,
+
+    // Exit
+    pub is_exit: bool,    
 }
 
 impl App {
@@ -97,7 +108,7 @@ impl App {
         self.draw_title(frame);
         self.draw_graph(frame);
         if self.is_status {self.draw_status(frame);}
-        if self.is_inspector && self.selected != 0 {self.draw_inspector(frame);}
+        if self.is_inspector && self.graph_selected != 0 {self.draw_inspector(frame);}
         self.draw_statusbar(frame);
         self.draw_modal(frame);
     }

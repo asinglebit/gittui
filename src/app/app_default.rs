@@ -45,18 +45,29 @@ impl Default for App {
             layout: Layout::default(),
             
             // Panes
-            is_inspector: true,
-            is_status: true,
-            focus: Panes::Graph,
-
-            // Rest
-            scroll: 0.into(),
-            status_scroll: 0.into(),
-            selected: 0,
             is_minimal: false,
-            is_exit: false,            
+            is_status: true,
+            is_inspector: true,
             is_modal: false,
-            modal_selected: 0
+            focus: Panes::Graph,
+            
+            // Graph
+            graph_selected: 0,
+            graph_scroll: 0.into(),
+            
+            // Status top
+            status_top_selected: 0,
+            status_top_scroll: 0.into(),
+            
+            // Status bottom
+            status_bottom_selected: 0,
+            status_bottom_scroll: 0.into(),
+
+            // Modal branch
+            modal_selected: 0,
+
+            // Exit
+            is_exit: false,   
         }
     }
 }

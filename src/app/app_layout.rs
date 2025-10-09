@@ -12,7 +12,7 @@ impl App {
 
     pub fn layout(&mut self, frame: &mut Frame) {
 
-        let is_inspector = self.is_inspector && self.selected != 0;
+        let is_inspector = self.is_inspector && self.graph_selected != 0;
         let is_pane_visible = is_inspector || self.is_status;
 
         let chunks_vertical = ratatui::layout::Layout::default()
@@ -51,8 +51,8 @@ impl App {
         let chunks_status = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
             .constraints([
-                ratatui::layout::Constraint::Percentage(if self.selected == 0 { 50 } else { 100 }),
-                ratatui::layout::Constraint::Percentage(if self.selected == 0 { 50 } else { 0 }),
+                ratatui::layout::Constraint::Percentage(if self.graph_selected == 0 { 50 } else { 100 }),
+                ratatui::layout::Constraint::Percentage(if self.graph_selected == 0 { 50 } else { 0 }),
             ])
             .split(chunks_pane[1]);
 

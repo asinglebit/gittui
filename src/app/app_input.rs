@@ -46,26 +46,26 @@ impl App {
                 self.exit()
             }
             KeyCode::Char('j') | KeyCode::Down => {
-                if self.selected + 1 < self.lines_branches.len() && !self.is_modal {
-                    self.selected += 1;
+                if self.graph_selected + 1 < self.lines_branches.len() && !self.is_modal {
+                    self.graph_selected += 1;
                 } else if self.is_modal {
                     let branches = self
                         .tips
-                        .entry(*self.oids.get(self.selected).unwrap())
+                        .entry(*self.oids.get(self.graph_selected).unwrap())
                         .or_default();
                     self.modal_selected = if self.modal_selected + 1 > branches.len() as i32 - 1 { 0 } else { self.modal_selected + 1 };
                 }
             }
             KeyCode::Char('k') | KeyCode::Up => {
-                if self.selected > 0 && !self.is_modal {
-                    self.selected -= 1;
-                    if self.selected == 0 && self.focus == Panes::Inspector {
+                if self.graph_selected > 0 && !self.is_modal {
+                    self.graph_selected -= 1;
+                    if self.graph_selected == 0 && self.focus == Panes::Inspector {
                         self.focus = Panes::Graph;
                     }
                 } else if self.is_modal {
                     let branches = self
                         .tips
-                        .entry(*self.oids.get(self.selected).unwrap())
+                        .entry(*self.oids.get(self.graph_selected).unwrap())
                         .or_default();
                     self.modal_selected = if self.modal_selected - 1 < 0 { branches.len() as i32 - 1 } else { self.modal_selected - 1 };
                 }
@@ -92,7 +92,7 @@ impl App {
             KeyCode::Tab => {
                 self.focus = match self.focus {
                     Panes::Graph => {
-                        if self.is_inspector && self.selected != 0 { Panes::Inspector }
+                        if self.is_inspector && self.graph_selected != 0 { Panes::Inspector }
                         else if self.is_status { Panes::StatusTop }
                         else { Panes::Graph }
                     }
@@ -101,7 +101,7 @@ impl App {
                         else { Panes::Graph }
                     }
                     Panes::StatusTop => {
-                        if self.selected == 0 { Panes::StatusBottom }
+                        if self.graph_selected == 0 { Panes::StatusBottom }
                         else { Panes::Graph }
                     }
                     Panes::StatusBottom => { Panes::Graph }
@@ -110,31 +110,31 @@ impl App {
             }
             KeyCode::Home => {
                 if !self.is_modal {
-                    self.selected = 0;
+                    self.graph_selected = 0;
                 }
             }
             KeyCode::End => {
                 if !self.lines_branches.is_empty() && !self.is_modal {
-                    self.selected = self.lines_branches.len() - 1;
+                    self.graph_selected = self.lines_branches.len() - 1;
                 }
             }
             KeyCode::PageUp => {
                 if !self.is_modal {
                     let page = 20;
-                    if self.selected >= page {
-                        self.selected -= page;
+                    if self.graph_selected >= page {
+                        self.graph_selected -= page;
                     } else {
-                        self.selected = 0;
+                        self.graph_selected = 0;
                     }
                 }
             }
             KeyCode::PageDown => {
                 if !self.is_modal {
                     let page = 20;
-                    if self.selected + page < self.lines_branches.len() {
-                        self.selected += page;
+                    if self.graph_selected + page < self.lines_branches.len() {
+                        self.graph_selected += page;
                     } else {
-                        self.selected = self.lines_branches.len() - 1;
+                        self.graph_selected = self.lines_branches.len() - 1;
                     }
                 }
             }
@@ -142,15 +142,15 @@ impl App {
 
                 let branches = self
                     .tips
-                    .entry(*self.oids.get(self.selected).unwrap())
+                    .entry(*self.oids.get(self.graph_selected).unwrap())
                     .or_default();
 
                 if !self.is_modal {
-                    if self.selected == 0 {
+                    if self.graph_selected == 0 {
                         return;
                     }
                     if branches.is_empty() {
-                        checkout_head(&self.repo, *self.oids.get(self.selected).unwrap());
+                        checkout_head(&self.repo, *self.oids.get(self.graph_selected).unwrap());
                         self.reload();
                     } else if branches.len() == 1 {
                         checkout_branch(&self.repo, branches.first().unwrap()).expect("Error");

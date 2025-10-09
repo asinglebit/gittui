@@ -33,7 +33,7 @@ impl App {
     pub fn draw_modal(&mut self, frame: &mut Frame) {
 
         if self.is_modal {
-            let oid = *self.oids.get(self.selected).unwrap();
+            let oid = *self.oids.get(self.graph_selected).unwrap();
             let color = self.tip_colors.get(&oid).unwrap();
             let mut length = 0;
             let branches = self

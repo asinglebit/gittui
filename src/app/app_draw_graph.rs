@@ -35,15 +35,15 @@ impl App {
         let total_rows = self.lines_graph.len();
 
         // Make sure selected row is visible
-        if self.selected < self.scroll.get() {
-            self.scroll.set(self.selected);
-        } else if self.selected >= self.scroll.get() + table_height {
-            self.scroll
-                .set(self.selected.saturating_sub(table_height - 1));
+        if self.graph_selected < self.graph_scroll.get() {
+            self.graph_scroll.set(self.graph_selected);
+        } else if self.graph_selected >= self.graph_scroll.get() + table_height {
+            self.graph_scroll
+                .set(self.graph_selected.saturating_sub(table_height - 1));
         }
 
-        let start = self.scroll.get();
-        let end = (self.scroll.get() + table_height).min(total_rows);
+        let start = self.graph_scroll.get();
+        let end = (self.graph_scroll.get() + table_height).min(total_rows);
 
         // Start with fake commit row
         let mut rows = Vec::with_capacity(end - start + 1); // preallocate for efficiency
@@ -62,7 +62,7 @@ impl App {
                 WidgetCell::from(buffer.clone()),
             ]);
 
-            if actual_index == self.selected {
+            if actual_index == self.graph_selected {
                 row = row.style(Style::default().bg(COLOR_GREY_800).fg(COLOR_GREY_600));
             }
             rows.push(row);
@@ -72,7 +72,7 @@ impl App {
             rows,
             [
                 ratatui::layout::Constraint::Length(25),
-                ratatui::layout::Constraint::Percentage(100),
+                ratatui::layout::Constraint::Percentage(70),
             ],
         )
         .block(
@@ -99,7 +99,7 @@ impl App {
         let total_lines = self.oids.len();
         let visible_height = self.layout.graph.height as usize;
         if total_lines > visible_height {
-            let mut scrollbar_state = ScrollbarState::new(total_lines).position(self.scroll.get());
+            let mut scrollbar_state = ScrollbarState::new(total_lines).position(self.graph_scroll.get());
             let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
                 .begin_symbol(if self.is_inspector || self.is_status { Some("─") } else { Some("╮") })
                 .end_symbol(if self.is_inspector || self.is_status { Some("─") } else { Some("╯") })
