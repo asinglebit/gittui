@@ -41,47 +41,29 @@ use crate::{
 
 impl App {
 
-    fn ensure_inspector_selected_visible(&self, total_lines: usize, visible_height: usize) {
-        if visible_height == 0 || total_lines == 0 {
-            self.inspector_scroll.set(0);
-            return;
-        }
-
-        // Max scroll offset so that a full page fits (if total_lines < visible_height, max_scroll = 0)
-        let max_scroll = total_lines.saturating_sub(visible_height);
-
-        // Get current scroll and clamp it to max_scroll
-        let mut scroll = self.inspector_scroll.get().min(max_scroll);
-        let sel = self.inspector_selected.min(total_lines.saturating_sub(1));
-
-        // If selection is above the viewport -> jump scroll up
-        if sel < scroll {
-            scroll = sel;
-            self.inspector_scroll.set(scroll);
-            return;
-        }
-
-        // If selection is below the viewport -> jump scroll down so selection is the last visible line
-        if sel >= scroll + visible_height {
-            let desired = sel.saturating_sub(visible_height).saturating_add(1);
-            scroll = desired.min(max_scroll);
-            self.inspector_scroll.set(scroll);
-            return;
-        }
-
-        // Otherwise selection is already visible; ensure scroll is clamped
-        self.inspector_scroll.set(scroll);
-    }
-
     pub fn draw_inspector(&mut self, frame: &mut Frame) {
         
-        // Calculate available width
+        // Padding
+        let padding = ratatui::widgets::Padding {
+            left: 1,
+            right: 1,
+            top: 0,
+            bottom: 0,
+        };
+        
+        // Calculate maximum available width for text
         let available_width = self.layout.inspector.width as usize - 1;
         let max_text_width = available_width.saturating_sub(2);
 
-        let mut commit_lines: Vec<Line<'_>> = Vec::new();
+        // Flags
+        let is_showing_uncommitted = self.graph_selected == 0;
 
-        if self.graph_selected != 0 {
+        // Lines
+        let mut lines: Vec<Line<'_>> = Vec::new();
+
+        if !is_showing_uncommitted {
+            
+            // Query commit info
             let sha: Oid = *self.oids.get(self.graph_selected).unwrap();
             let commit = self.repo.find_commit(sha).unwrap();
             let author = commit.author();
@@ -90,7 +72,8 @@ impl App {
             let body = commit.body().unwrap_or("<no body>").to_string();
             let branches = self.oid_branch_map.get(&sha).unwrap();
 
-            commit_lines = vec![
+            // Assemble lines
+            lines = vec![
                 Line::from(vec![Span::styled("commit sha:", Style::default().fg(COLOR_GREY_500))]),
                 Line::from(vec![Span::styled(
                     truncate_with_ellipsis(&format!("{}", sha), max_text_width),
@@ -101,17 +84,17 @@ impl App {
             ];
 
             for parent_id in commit.parent_ids() {
-                commit_lines.push(Line::from(vec![Span::styled(
+                lines.push(Line::from(vec![Span::styled(
                     truncate_with_ellipsis(&format!("{}", parent_id), max_text_width),
                     Style::default().fg(COLOR_TEXT),
                 )]));
             }
 
-            commit_lines.extend(vec![
+            lines.extend(vec![
                 Line::from(""),
             ]);
 
-            commit_lines.push(Line::from(vec![Span::styled(
+            lines.push(Line::from(vec![Span::styled(
                 "featured branches:",
                 Style::default().fg(COLOR_GREY_500),
             )]));
@@ -119,17 +102,17 @@ impl App {
             for branch in branches {
                 let oid = self.branch_oid_map.get(branch).unwrap();
                 let color = self.tip_colors.get(oid).unwrap();
-                commit_lines.push(Line::from(vec![Span::styled(
+                lines.push(Line::from(vec![Span::styled(
                     truncate_with_ellipsis(&format!("● {}", branch), max_text_width),
                     Style::default().fg(*color),
                 )]));
             }
 
-            commit_lines.extend(vec![
+            lines.extend(vec![
                 Line::from(""),
             ]);
 
-            commit_lines.extend(vec![
+            lines.extend(vec![
                 Line::from(vec![Span::styled(
                     format!("authored by: {}", author.name().unwrap_or("-")),
                     Style::default().fg(COLOR_GREY_500),
@@ -164,13 +147,13 @@ impl App {
 
             let wrapped = clean_commit_text(&summary, max_text_width);
             for wrap in wrapped {
-                commit_lines.push(Line::from(vec![Span::styled(
+                lines.push(Line::from(vec![Span::styled(
                     wrap,
                     Style::default().fg(COLOR_TEXT),
                 )]));
             }
             
-            commit_lines.extend(vec![
+            lines.extend(vec![
                 Line::from(""),
                 Line::from(vec![Span::styled(
                     "message body:",
@@ -180,36 +163,33 @@ impl App {
 
             let wrapped = clean_commit_text(&body, max_text_width);
             for wrap in wrapped {
-                commit_lines.push(Line::from(vec![Span::styled(
+                lines.push(Line::from(vec![Span::styled(
                     wrap,
                     Style::default().fg(COLOR_TEXT),
                 )]));
             }
-
         }
 
-        let padding = ratatui::widgets::Padding {
-            left: 1,
-            right: 1,
-            top: 0,
-            bottom: 0,
-        };
-
-        let total_lines = commit_lines.len();
+        // Get vertical dimensions
+        let total_lines = lines.len();
         let visible_height = self.layout.inspector.height as usize - 2;
 
+        // Clamp selection
         if total_lines == 0 {
             self.inspector_selected = 0;
         } else if self.inspector_selected >= total_lines {
             self.inspector_selected = total_lines - 1;
         }
 
-        self.ensure_inspector_selected_visible(total_lines, visible_height);
+        // Trap selection
+        self.trap_selection(self.inspector_selected, &self.inspector_scroll, total_lines, visible_height);
 
+        // Calculate scroll
         let scroll_offset = self.inspector_scroll.get().min(total_lines.saturating_sub(visible_height));
         let end = (scroll_offset + visible_height).min(total_lines);
 
-        let items: Vec<ListItem> = commit_lines[scroll_offset..end]
+        // Setup list items
+        let list_items: Vec<ListItem> = lines[scroll_offset..end]
             .iter()
             .enumerate()
             .map(|(i, line)| {
@@ -221,8 +201,9 @@ impl App {
                 item
             })
             .collect();
-
-        let list = List::new(items)
+        
+        // Setup the list
+        let list = List::new(list_items)
             .block(
                 Block::default()
                     .padding(padding)
@@ -257,20 +238,20 @@ impl App {
 
         frame.render_widget(list, self.layout.inspector);
 
-        let mut scrollbar_state =
-            ScrollbarState::new(total_lines).position(self.inspector_scroll.get());
-
+        // Setup the scrollbar
+        let mut scrollbar_state = ScrollbarState::new(total_lines).position(self.inspector_scroll.get());
         let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
             .begin_symbol(Some("╮"))
             .end_symbol(if self.is_status { Some("│") } else { Some("╯") })
             .track_symbol(Some("│"))
             .thumb_symbol(if total_lines > visible_height { "▌" } else { "│" })
-            .thumb_style(Style::default().fg(if total_lines > visible_height {
+            .thumb_style(Style::default().fg(if total_lines > visible_height && self.focus == Focus::Inspector {
                 COLOR_GREY_600
             } else {
                 COLOR_BORDER
             }));
 
+        // Render the scrollbar
         frame.render_stateful_widget(scrollbar, self.layout.inspector, &mut scrollbar_state);
     }
 }

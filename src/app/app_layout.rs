@@ -1,4 +1,6 @@
 #[rustfmt::skip]
+use std::cell::Cell;
+#[rustfmt::skip]
 use ratatui::{
     Frame,
 };
@@ -74,5 +76,37 @@ impl App {
             statusbar_left: chunks_status_bar[0],
             statusbar_right: chunks_status_bar[1]
         }
+    }
+
+    pub fn trap_selection(&self, selected: usize, scroll: &Cell<usize>, total_lines: usize, visible_height: usize) {
+        if visible_height == 0 || total_lines == 0 {
+            scroll.set(0);
+            return;
+        }
+
+        // Max scroll offset so that a full page fits (if total_lines < visible_height, max_scroll = 0)
+        let max_scroll = total_lines.saturating_sub(visible_height);
+
+        // Get current scroll and clamp it to max_scroll
+        let mut scroll_val = scroll.get().min(max_scroll);
+        let sel = selected.min(total_lines.saturating_sub(1));
+
+        // If selection is above the viewport -> jump scroll up
+        if sel < scroll_val {
+            scroll_val = sel;
+            scroll.set(scroll_val);
+            return;
+        }
+
+        // If selection is below the viewport -> jump scroll down so selection is the last visible line
+        if sel >= scroll_val + visible_height {
+            let desired = sel.saturating_sub(visible_height).saturating_add(1);
+            scroll_val = desired.min(max_scroll);
+            scroll.set(scroll_val);
+            return;
+        }
+
+        // Otherwise selection is already visible; ensure scroll is clamped
+        scroll.set(scroll_val);
     }
 }
