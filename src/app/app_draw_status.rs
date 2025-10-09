@@ -42,7 +42,6 @@ use crate::{
 
 impl App {
 
-
     pub fn draw_status(&mut self, frame: &mut Frame) {
         
         // Padding
@@ -238,7 +237,7 @@ impl App {
             frame.render_widget(list, self.layout.status_top);
 
             // Setup the scrollbar
-            let mut scrollbar_state = ScrollbarState::new(visible_height).position(self.status_top_scroll.get());
+            let mut scrollbar_state = ScrollbarState::new(total_lines.saturating_sub(visible_height)).position(self.status_top_scroll.get());
             let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
                 .begin_symbol(if self.is_inspector && self.graph_selected != 0 { Some("│") } else { Some("╮") })
                 .end_symbol(if self.graph_selected == 0 { Some("┤") } else {  Some("╯") })
@@ -306,7 +305,7 @@ impl App {
                 frame.render_widget(list, self.layout.status_bottom);
 
                 // Setup the scrollbar
-                let mut scrollbar_state = ScrollbarState::new(visible_height).position(self.status_bottom_scroll.get());
+                let mut scrollbar_state = ScrollbarState::new(total_lines.saturating_sub(visible_height)).position(self.status_bottom_scroll.get());
                 let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
                     .begin_symbol(Some("│"))
                     .end_symbol(Some("╯"))

@@ -233,7 +233,7 @@ impl App {
         frame.render_widget(list, self.layout.inspector);
 
         // Setup the scrollbar
-        let mut scrollbar_state = ScrollbarState::new(visible_height).position(self.inspector_scroll.get());
+        let mut scrollbar_state = ScrollbarState::new(total_lines.saturating_sub(visible_height)).position(self.inspector_scroll.get());
         let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
             .begin_symbol(Some("╮"))
             .end_symbol(if self.is_status { Some("│") } else { Some("╯") })
