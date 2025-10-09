@@ -171,7 +171,7 @@ impl App {
         
         let total_file_lines = status_top_text.lines.len();
         let visible_height = self.layout.status_top.height as usize;
-        let status_paragraph = ratatui::widgets::Paragraph::new(status_top_text)
+        let status_paragraph = ratatui::widgets::Paragraph::new(Text::from(Line::from("")))
             .alignment(if !is_staged_changes && self.graph_selected == 0 {ratatui::layout::Alignment::Center} else {ratatui::layout::Alignment::Left})
             .wrap(Wrap { trim: false })
             .scroll((self.status_top_scroll.get() as u16, 0))
