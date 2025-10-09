@@ -20,20 +20,25 @@ use ratatui::{
         Wrap,
     },
 };
-use crate::{git::queries::{get_changed_filenames, FileStatus}, utils::symbols::truncate_with_ellipsis};
 #[rustfmt::skip]
 use crate::{
     git::{
         queries::{
-            get_uncommitted_changes
+            get_uncommitted_changes,
+            get_changed_filenames,
+            FileStatus
         },
     },
     utils::{
-        colors::*
+        colors::*,
+        symbols::*
     },
+    app::app::{
+        App,
+        Panes
+    }
 };
 #[rustfmt::skip]
-use crate::app::app::App;
 
 impl App {
 
@@ -174,12 +179,12 @@ impl App {
                 Block::default()
                     .title(vec![
                         Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                        Span::styled(if self.selected == 0 { " (s)taged " } else { " (s)tatus " }, Style::default().fg(COLOR_TEXT)),
+                        Span::styled(if self.selected == 0 { " (s)taged " } else { " (s)tatus " }, Style::default().fg(if self.focus == Panes::StatusTop { COLOR_GREY_500 } else { COLOR_TEXT } )),
                         Span::styled("─", Style::default().fg(COLOR_BORDER)),
                     ])
                     .title_bottom(if self.selected == 0 {vec![
                         Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                        Span::styled(" unstaged ", Style::default().fg(COLOR_TEXT)),
+                        Span::styled(" unstaged ", Style::default().fg(if self.focus == Panes::StatusBottom { COLOR_GREY_500 } else { COLOR_TEXT } )),
                         Span::styled("─", Style::default().fg(COLOR_BORDER)),
                     ]} else {vec![]})
                     .title_alignment(ratatui::layout::Alignment::Right)

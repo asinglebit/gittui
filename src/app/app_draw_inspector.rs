@@ -21,16 +21,18 @@ use ratatui::{
         ScrollbarState,
     },
 };
-use crate::utils::symbols::truncate_with_ellipsis;
 #[rustfmt::skip]
 use crate::{
     utils::{
         colors::*,
+        symbols::truncate_with_ellipsis,
         time::timestamp_to_utc
     },
+    app::app::{
+        App,
+        Panes
+    },
 };
-#[rustfmt::skip]
-use crate::app::app::App;
 
 impl App {
 
@@ -156,7 +158,7 @@ impl App {
                 Block::default()
                     .title(vec![
                         Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                        Span::styled(" (i)nspector ", Style::default().fg(COLOR_TEXT)),
+                        Span::styled(" (i)nspector ", Style::default().fg(if self.focus == Panes::Inspector { COLOR_GREY_500 } else { COLOR_TEXT } )),
                         Span::styled("─", Style::default().fg(COLOR_BORDER)),
                     ])
                     .title_alignment(ratatui::layout::Alignment::Right)

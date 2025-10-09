@@ -1,8 +1,17 @@
-use std::{collections::HashMap, env, path::PathBuf};
-
+#[rustfmt::skip]
+use std::{
+    collections::HashMap,
+    env,
+    path::PathBuf
+};
+#[rustfmt::skip]
 use git2::Repository;
-
-use crate::app::app::{App, Layout};
+#[rustfmt::skip]
+use crate::app::app::{
+    App,
+    Layout,
+    Panes
+};
 
 impl Default for App {
     fn default() -> Self {
@@ -38,6 +47,7 @@ impl Default for App {
             // Panes
             is_inspector: true,
             is_status: true,
+            focus: Panes::Graph,
 
             // Rest
             scroll: 0.into(),

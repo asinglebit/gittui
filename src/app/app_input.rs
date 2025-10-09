@@ -21,7 +21,10 @@ use crate::{
     },
 };
 #[rustfmt::skip]
-use crate::app::app::App;
+use crate::app::app::{
+    App,
+    Panes
+};
 
 impl App {
 
@@ -56,6 +59,9 @@ impl App {
             KeyCode::Char('k') | KeyCode::Up => {
                 if self.selected > 0 && !self.is_modal {
                     self.selected -= 1;
+                    if self.selected == 0 && self.focus == Panes::Inspector {
+                        self.focus = Panes::Graph;
+                    }
                 } else if self.is_modal {
                     let branches = self
                         .tips
@@ -69,9 +75,38 @@ impl App {
             }
             KeyCode::Char('s') => {
                 self.is_status = !self.is_status;
+                if !self.is_status && (self.focus == Panes::StatusTop || self.focus == Panes::StatusBottom) {
+                    self.focus = Panes::Graph;
+                }
             }
             KeyCode::Char('i') => {
                 self.is_inspector = !self.is_inspector;
+                if !self.is_inspector && self.focus == Panes::Inspector {
+                    if self.is_status {
+                        self.focus = Panes::StatusTop;
+                    } else {
+                        self.focus = Panes::Graph;
+                    }
+                }
+            }
+            KeyCode::Tab => {
+                self.focus = match self.focus {
+                    Panes::Graph => {
+                        if self.is_inspector && self.selected != 0 { Panes::Inspector }
+                        else if self.is_status { Panes::StatusTop }
+                        else { Panes::Graph }
+                    }
+                    Panes::Inspector => {
+                        if self.is_status { Panes::StatusTop }
+                        else { Panes::Graph }
+                    }
+                    Panes::StatusTop => {
+                        if self.selected == 0 { Panes::StatusBottom }
+                        else { Panes::Graph }
+                    }
+                    Panes::StatusBottom => { Panes::Graph }
+                    _ => Panes::Graph,
+                };
             }
             KeyCode::Home => {
                 if !self.is_modal {

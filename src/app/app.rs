@@ -36,6 +36,14 @@ pub struct Layout {
     pub statusbar_right: Rect,
 }
 
+#[derive(PartialEq, Eq)]
+pub enum Panes {
+    Graph,
+    Inspector,
+    StatusTop,
+    StatusBottom
+}
+
 pub struct App {
     // General
     pub path: String,
@@ -60,6 +68,7 @@ pub struct App {
     // Panes
     pub is_inspector: bool,
     pub is_status: bool,
+    pub focus: Panes,
 
     // Rest
     pub scroll: Cell<usize>,

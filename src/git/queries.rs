@@ -219,20 +219,20 @@ pub fn get_uncommitted_changes(repo: &Repository) -> Result<UncommittedChanges, 
     let mut options = StatusOptions::new();
     options.include_untracked(true);
     options.show(git2::StatusShow::IndexAndWorkdir);
-    
+
     let statuses = repo.statuses(Some(&mut options))?;
-    
+
     let mut changes = UncommittedChanges::default();
-    
+
     for entry in statuses.iter() {
         let status = entry.status();
         let path = entry.path().unwrap_or("").to_string();
-        
+
         // Skip files that are committed (no changes)
         if status.is_empty() {
             continue;
         }
-        
+
         // Check staged changes (INDEX vs HEAD)
         if status.is_index_modified() {
             changes.staged.modified.push(path.clone());
@@ -241,7 +241,7 @@ pub fn get_uncommitted_changes(repo: &Repository) -> Result<UncommittedChanges, 
         } else if status.is_index_deleted() {
             changes.staged.deleted.push(path.clone());
         }
-        
+
         // Check unstaged changes (WORKDIR vs INDEX)
         if status.is_wt_modified() {
             changes.unstaged.modified.push(path.clone());
@@ -251,7 +251,7 @@ pub fn get_uncommitted_changes(repo: &Repository) -> Result<UncommittedChanges, 
             changes.unstaged.deleted.push(path);
         }
     }
-    
+
     Ok(changes)
 }
 
@@ -290,7 +290,7 @@ pub fn get_changed_filenames(repo: &Repository, oid: Oid) -> Vec<FileChange> {
                         Delta::Renamed => FileStatus::Renamed,
                         _ => FileStatus::Other,
                     };
-                    
+
                     changes.push(FileChange {
                         filename: path.display().to_string(),
                         status,

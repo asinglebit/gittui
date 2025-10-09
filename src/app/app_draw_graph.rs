@@ -2,6 +2,7 @@
 use ratatui::{
     Frame,
     style::Style,
+    text::Span,
     widgets::{
         Block,
         Borders,
@@ -21,7 +22,10 @@ use crate::{
     },
 };
 #[rustfmt::skip]
-use crate::app::app::App;
+use crate::app::app::{
+    App,
+    Panes
+};
 
 impl App {
 
@@ -73,6 +77,13 @@ impl App {
         )
         .block(
             Block::default()
+                .title(vec![
+                    Span::styled("─", Style::default().fg(COLOR_BORDER)),
+                    Span::styled(" (g)raph ", Style::default().fg(if self.focus == Panes::Graph { COLOR_GREY_500 } else { COLOR_TEXT } )),
+                    Span::styled("─", Style::default().fg(COLOR_BORDER)),
+                ])
+                .title_alignment(ratatui::layout::Alignment::Right)
+                .title_style(Style::default().fg(COLOR_GREY_400))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(COLOR_BORDER))
                 .border_type(ratatui::widgets::BorderType::Rounded),
