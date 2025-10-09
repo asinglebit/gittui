@@ -6,12 +6,14 @@ use std::{
 };
 #[rustfmt::skip]
 use git2::Repository;
+use ratatui::{style::Style, text::{Line, Span}};
 #[rustfmt::skip]
 use crate::app::app::{
     App,
     Layout,
-    Panes
+    Focus
 };
+use crate::utils::colors::{random_color, COLOR_TEXT};
 
 impl Default for App {
     fn default() -> Self {
@@ -25,10 +27,20 @@ impl Default for App {
             .unwrap_or_else(|_| PathBuf::from(path));
         let repo = Repository::open(absolute_path.clone()).expect("Could not open repo");
 
+        let logo = vec![
+            Span::styled(" g", Style::default().fg(random_color())),
+            Span::styled("u", Style::default().fg(random_color())),
+            Span::styled("i", Style::default().fg(random_color())),
+            Span::styled("t", Style::default().fg(random_color())),
+            Span::styled("a", Style::default().fg(random_color())),
+            Span::styled("╭", Style::default().fg(random_color()))
+        ];
+
         App {
             // General
             path: absolute_path.display().to_string(),
             repo,
+            logo,
 
             // Data
             oids: Vec::new(),
@@ -44,16 +56,19 @@ impl Default for App {
             // Interface
             layout: Layout::default(),
             
-            // Panes
+            // Focus
             is_minimal: false,
             is_status: true,
             is_inspector: true,
-            is_modal: false,
-            focus: Panes::Graph,
+            focus: Focus::Graph,
             
             // Graph
             graph_selected: 0,
             graph_scroll: 0.into(),
+    
+            // Inspector
+            inspector_selected: 0,
+            inspector_scroll: 0.into(),
             
             // Status top
             status_top_selected: 0,

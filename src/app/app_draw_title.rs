@@ -31,16 +31,12 @@ impl App {
             None => Span::styled(format!(" ○ HEAD: {}", self.repo.head().unwrap().target().unwrap()), Style::default().fg(COLOR_TEXT)),
         };
 
-        let sha_paragraph = ratatui::widgets::Paragraph::new(Text::from(Line::from(vec![
-            Span::styled(" G", Style::default().fg(COLOR_BLUE)),
-            Span::styled("U", Style::default().fg(COLOR_TEAL)),
-            Span::styled("I", Style::default().fg(COLOR_TEAL)),
-            Span::styled("T", Style::default().fg(COLOR_GREEN)),
-            Span::styled("A", Style::default().fg(COLOR_GRASS)),
-            Span::styled("R", Style::default().fg(COLOR_GRASS)),
+        let sha_paragraph = ratatui::widgets::Paragraph::new(Text::from(Line::from([
+            self.logo.clone(), vec![
+
             Span::styled(" |", Style::default().fg(COLOR_TEXT)),
             span_current_checkout,
-        ])))
+        ]].concat())))
         .left_aligned()
         .block(Block::default());
         frame.render_widget(sha_paragraph, self.layout.title_left);

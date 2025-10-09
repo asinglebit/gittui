@@ -20,3 +20,14 @@ pub fn truncate_with_ellipsis(text: &str, max_width: usize) -> String {
         format!("{}...", &text[..max_width - 3])
     }
 }
+
+pub fn wrap_line(content: String, max_width: usize) -> Vec<String> {
+    let mut wrapped_lines = Vec::new();
+    let mut start = 0;
+    while start < content.len() {
+        let end = (start + max_width).min(content.len());
+        wrapped_lines.push(content[start..end].to_string());
+        start = end;
+    }
+    wrapped_lines
+}

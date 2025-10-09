@@ -9,6 +9,7 @@ use git2::{
     Oid,
     Repository
 };
+use ratatui::{text::Span, widgets::Clear};
 #[rustfmt::skip]
 use ratatui::{
     DefaultTerminal,
@@ -37,15 +38,17 @@ pub struct Layout {
 }
 
 #[derive(PartialEq, Eq)]
-pub enum Panes {
+pub enum Focus {
     Graph,
     Inspector,
     StatusTop,
-    StatusBottom
+    StatusBottom,
+    ModalCheckout
 }
 
 pub struct App {
     // General
+    pub logo: Vec<Span<'static>>,
     pub path: String,
     pub repo: Repository,
 
@@ -65,16 +68,19 @@ pub struct App {
     // Interface
     pub layout: Layout,
 
-    // Panes
+    // Focus
     pub is_minimal: bool,
     pub is_status: bool,
     pub is_inspector: bool,
-    pub is_modal: bool,
-    pub focus: Panes,
+    pub focus: Focus,
     
     // Graph
     pub graph_selected: usize,
     pub graph_scroll: Cell<usize>,
+    
+    // Inspector
+    pub inspector_selected: usize,
+    pub inspector_scroll: Cell<usize>,
     
     // Status top
     pub status_top_selected: usize,
@@ -105,6 +111,7 @@ impl App {
     
     pub fn draw(&mut self, frame: &mut Frame) {
         self.layout(frame);
+        frame.render_widget(Clear, frame.area());
         self.draw_title(frame);
         self.draw_graph(frame);
         if self.is_status {self.draw_status(frame);}

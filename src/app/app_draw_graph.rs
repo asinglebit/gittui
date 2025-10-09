@@ -24,7 +24,7 @@ use crate::{
 #[rustfmt::skip]
 use crate::app::app::{
     App,
-    Panes
+    Focus
 };
 
 impl App {
@@ -79,7 +79,7 @@ impl App {
             Block::default()
                 .title(vec![
                     Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                    Span::styled(" (g)raph ", Style::default().fg(if self.focus == Panes::Graph { COLOR_GREY_500 } else { COLOR_TEXT } )),
+                    Span::styled(" (g)raph ", Style::default().fg(if self.focus == Focus::Graph { COLOR_GREY_500 } else { COLOR_TEXT } )),
                     Span::styled("─", Style::default().fg(COLOR_BORDER)),
                 ])
                 .title_alignment(ratatui::layout::Alignment::Right)

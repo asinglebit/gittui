@@ -1,5 +1,6 @@
 #[rustfmt::skip]
 use std::collections::HashMap;
+use rand::seq::SliceRandom;
 #[rustfmt::skip]
 use ratatui::style::Color;
 
@@ -87,4 +88,28 @@ impl ColorPicker {
             self.palette_a[lane % self.palette_a.len()]
         }
     }
+}
+
+pub fn random_color() -> Color {
+    let colors = [
+                // COLOR_PURPLE,
+                COLOR_INDIGO,
+                COLOR_CYAN,
+                COLOR_GREEN,
+                COLOR_LIME,
+                COLOR_AMBER,
+                COLOR_GRAPEFRUIT,
+                // COLOR_RED,
+                // COLOR_DURPLE,
+                COLOR_BLUE,
+                COLOR_TEAL,
+                COLOR_GRASS,
+                COLOR_YELLOW,
+                COLOR_ORANGE,
+                // COLOR_BROWN,
+                COLOR_PINK,
+            ];
+    
+    // Pick a random one
+    *colors.choose(&mut rand::thread_rng()).unwrap()
 }

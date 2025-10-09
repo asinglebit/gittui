@@ -35,7 +35,7 @@ use crate::{
     },
     app::app::{
         App,
-        Panes
+        Focus
     }
 };
 #[rustfmt::skip]
@@ -179,12 +179,12 @@ impl App {
                 Block::default()
                     .title(vec![
                         Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                        Span::styled(if self.graph_selected == 0 { " (s)taged " } else { " (s)tatus " }, Style::default().fg(if self.focus == Panes::StatusTop { COLOR_GREY_500 } else { COLOR_TEXT } )),
+                        Span::styled(if self.graph_selected == 0 { " (s)taged " } else { " (s)tatus " }, Style::default().fg(if self.focus == Focus::StatusTop { COLOR_GREY_500 } else { COLOR_TEXT } )),
                         Span::styled("─", Style::default().fg(COLOR_BORDER)),
                     ])
                     .title_bottom(if self.graph_selected == 0 {vec![
                         Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                        Span::styled(" unstaged ", Style::default().fg(if self.focus == Panes::StatusBottom { COLOR_GREY_500 } else { COLOR_TEXT } )),
+                        Span::styled(" unstaged ", Style::default().fg(if self.focus == Focus::StatusBottom { COLOR_GREY_500 } else { COLOR_TEXT } )),
                         Span::styled("─", Style::default().fg(COLOR_BORDER)),
                     ]} else {vec![]})
                     .title_alignment(ratatui::layout::Alignment::Right)

@@ -26,13 +26,16 @@ use crate::{
     },
 };
 #[rustfmt::skip]
-use crate::app::app::App;
+use crate::app::app::{
+    Focus,
+    App
+};
 
 impl App {
 
     pub fn draw_modal(&mut self, frame: &mut Frame) {
 
-        if self.is_modal {
+        if self.focus == Focus::ModalCheckout {
             let oid = *self.oids.get(self.graph_selected).unwrap();
             let color = self.tip_colors.get(&oid).unwrap();
             let mut length = 0;

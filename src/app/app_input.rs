@@ -23,7 +23,7 @@ use crate::{
 #[rustfmt::skip]
 use crate::app::app::{
     App,
-    Panes
+    Focus
 };
 
 impl App {
@@ -46,28 +46,62 @@ impl App {
                 self.exit()
             }
             KeyCode::Char('j') | KeyCode::Down => {
-                if self.graph_selected + 1 < self.lines_branches.len() && !self.is_modal {
-                    self.graph_selected += 1;
-                } else if self.is_modal {
-                    let branches = self
-                        .tips
-                        .entry(*self.oids.get(self.graph_selected).unwrap())
-                        .or_default();
-                    self.modal_selected = if self.modal_selected + 1 > branches.len() as i32 - 1 { 0 } else { self.modal_selected + 1 };
+                match self.focus {
+                    Focus::Graph => {
+                        if self.graph_selected + 1 < self.lines_branches.len() {
+                            self.graph_selected += 1;
+                        }
+                    }
+                    Focus::Inspector => {
+                        self.inspector_selected += 1;
+                    }
+                    Focus::StatusTop => {
+                        self.status_top_selected += 1;
+                    }
+                    Focus::StatusBottom => {
+                        self.status_bottom_selected += 1;
+                    }
+                    Focus::ModalCheckout => {
+                        let branches = self
+                            .tips
+                            .entry(*self.oids.get(self.graph_selected).unwrap())
+                            .or_default();
+                        self.modal_selected = if self.modal_selected + 1 > branches.len() as i32 - 1 { 0 } else { self.modal_selected + 1 };
+                    }
                 }
             }
             KeyCode::Char('k') | KeyCode::Up => {
-                if self.graph_selected > 0 && !self.is_modal {
-                    self.graph_selected -= 1;
-                    if self.graph_selected == 0 && self.focus == Panes::Inspector {
-                        self.focus = Panes::Graph;
+                match self.focus {
+                    Focus::Graph => {
+                        if self.graph_selected > 0 {
+                            self.graph_selected -= 1;
+                            if self.graph_selected == 0 && self.focus == Focus::Inspector {
+                                self.focus = Focus::Graph;
+                            }
+                        }
                     }
-                } else if self.is_modal {
-                    let branches = self
-                        .tips
-                        .entry(*self.oids.get(self.graph_selected).unwrap())
-                        .or_default();
-                    self.modal_selected = if self.modal_selected - 1 < 0 { branches.len() as i32 - 1 } else { self.modal_selected - 1 };
+                    Focus::Inspector => {
+                        if self.inspector_selected > 0 {
+                            self.inspector_selected -= 1;
+                        }
+                    }
+                    Focus::StatusTop => {
+                        if self.status_top_selected > 0 {
+                            self.status_top_selected -= 1;
+                        }
+                    }
+                    Focus::StatusBottom => {
+                        if self.status_bottom_selected > 0 {
+                            self.status_bottom_selected -= 1;
+                        }
+                    }
+                    Focus::ModalCheckout => {
+                        let branches = self
+                            .tips
+                            .entry(*self.oids.get(self.graph_selected).unwrap())
+                            .or_default();
+                        self.modal_selected = if self.modal_selected - 1 < 0 { branches.len() as i32 - 1 } else { self.modal_selected - 1 };
+                    }
                 }
             }
             KeyCode::Char('f') => {
@@ -75,51 +109,51 @@ impl App {
             }
             KeyCode::Char('s') => {
                 self.is_status = !self.is_status;
-                if !self.is_status && (self.focus == Panes::StatusTop || self.focus == Panes::StatusBottom) {
-                    self.focus = Panes::Graph;
+                if !self.is_status && (self.focus == Focus::StatusTop || self.focus == Focus::StatusBottom) {
+                    self.focus = Focus::Graph;
                 }
             }
             KeyCode::Char('i') => {
                 self.is_inspector = !self.is_inspector;
-                if !self.is_inspector && self.focus == Panes::Inspector {
+                if !self.is_inspector && self.focus == Focus::Inspector {
                     if self.is_status {
-                        self.focus = Panes::StatusTop;
+                        self.focus = Focus::StatusTop;
                     } else {
-                        self.focus = Panes::Graph;
+                        self.focus = Focus::Graph;
                     }
                 }
             }
             KeyCode::Tab => {
                 self.focus = match self.focus {
-                    Panes::Graph => {
-                        if self.is_inspector && self.graph_selected != 0 { Panes::Inspector }
-                        else if self.is_status { Panes::StatusTop }
-                        else { Panes::Graph }
+                    Focus::Graph => {
+                        if self.is_inspector && self.graph_selected != 0 { Focus::Inspector }
+                        else if self.is_status { Focus::StatusTop }
+                        else { Focus::Graph }
                     }
-                    Panes::Inspector => {
-                        if self.is_status { Panes::StatusTop }
-                        else { Panes::Graph }
+                    Focus::Inspector => {
+                        if self.is_status { Focus::StatusTop }
+                        else { Focus::Graph }
                     }
-                    Panes::StatusTop => {
-                        if self.graph_selected == 0 { Panes::StatusBottom }
-                        else { Panes::Graph }
+                    Focus::StatusTop => {
+                        if self.graph_selected == 0 { Focus::StatusBottom }
+                        else { Focus::Graph }
                     }
-                    Panes::StatusBottom => { Panes::Graph }
-                    _ => Panes::Graph,
+                    Focus::StatusBottom => { Focus::Graph }
+                    _ => Focus::Graph,
                 };
             }
             KeyCode::Home => {
-                if !self.is_modal {
+                if self.focus != Focus::ModalCheckout {
                     self.graph_selected = 0;
                 }
             }
             KeyCode::End => {
-                if !self.lines_branches.is_empty() && !self.is_modal {
+                if !self.lines_branches.is_empty() && self.focus != Focus::ModalCheckout {
                     self.graph_selected = self.lines_branches.len() - 1;
                 }
             }
             KeyCode::PageUp => {
-                if !self.is_modal {
+                if self.focus != Focus::ModalCheckout {
                     let page = 20;
                     if self.graph_selected >= page {
                         self.graph_selected -= page;
@@ -129,7 +163,7 @@ impl App {
                 }
             }
             KeyCode::PageDown => {
-                if !self.is_modal {
+                if self.focus != Focus::ModalCheckout {
                     let page = 20;
                     if self.graph_selected + page < self.lines_branches.len() {
                         self.graph_selected += page;
@@ -145,7 +179,7 @@ impl App {
                     .entry(*self.oids.get(self.graph_selected).unwrap())
                     .or_default();
 
-                if !self.is_modal {
+                if self.focus != Focus::ModalCheckout {
                     if self.graph_selected == 0 {
                         return;
                     }
@@ -156,19 +190,19 @@ impl App {
                         checkout_branch(&self.repo, branches.first().unwrap()).expect("Error");
                         self.reload();
                     } else {
-                        self.is_modal = true;
+                        self.focus = Focus::ModalCheckout;
                     }
                 } else {
                     checkout_branch(&self.repo, branches.get(self.modal_selected as usize).unwrap()).expect("Error");
                     self.modal_selected = 0;
-                    self.is_modal = false;
+                    self.focus = Focus::Graph;
                     self.reload();
                 }
             }
             KeyCode::Esc => {
-                if self.is_modal {
+                if self.focus == Focus::ModalCheckout {
                     self.modal_selected = 0;
-                    self.is_modal = false;
+                    self.focus = Focus::Graph;
                 }
             }
             _ => {}
