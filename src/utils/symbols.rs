@@ -98,3 +98,12 @@ pub fn clean_commit_text(raw: &str, max_width: usize) -> Vec<String> {
 
     cleaned_lines
 }
+
+pub fn center_line(line: &str, width: usize) -> String {
+    if line.len() >= width {
+        line.to_string()
+    } else {
+        let padding = (width - line.len()) / 2;
+        format!("{}{}", " ".repeat(padding), line)
+    }
+}

@@ -180,7 +180,7 @@ impl App {
         } else if self.inspector_selected >= total_lines {
             self.inspector_selected = total_lines - 1;
         }
-
+        
         // Trap selection
         self.trap_selection(self.inspector_selected, &self.inspector_scroll, total_lines, visible_height);
 
@@ -195,7 +195,7 @@ impl App {
             .map(|(i, line)| {
                 let absolute_idx = scroll_offset + i;
                 let mut item = ListItem::new(line.clone());
-                if absolute_idx == self.inspector_selected {
+                if absolute_idx == self.inspector_selected && self.focus == Focus::Inspector {
                     item = item.style(Style::default().bg(COLOR_GREY_800));
                 }
                 item
@@ -228,18 +228,12 @@ impl App {
                     })
                     .border_style(Style::default().fg(COLOR_BORDER))
                     .border_type(ratatui::widgets::BorderType::Rounded),
-            )
-            .highlight_style(
-                Style::default()
-                    .bg(COLOR_GREY_800)
-                    .fg(COLOR_TEXT),
-            )
-            .repeat_highlight_symbol(false);
+            );
 
         frame.render_widget(list, self.layout.inspector);
 
         // Setup the scrollbar
-        let mut scrollbar_state = ScrollbarState::new(total_lines).position(self.inspector_scroll.get());
+        let mut scrollbar_state = ScrollbarState::new(visible_height).position(self.inspector_scroll.get());
         let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
             .begin_symbol(Some("╮"))
             .end_symbol(if self.is_status { Some("│") } else { Some("╯") })

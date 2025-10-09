@@ -6,14 +6,22 @@ use std::{
 };
 #[rustfmt::skip]
 use git2::Repository;
-use ratatui::{style::Style, text::{Line, Span}};
+use ratatui::{
+    style::Style,
+    text::{
+        Span
+    }
+};
 #[rustfmt::skip]
 use crate::app::app::{
     App,
     Layout,
     Focus
 };
-use crate::utils::colors::{random_color, COLOR_TEXT};
+#[rustfmt::skip]
+use crate::utils::colors::{
+    random_color
+};
 
 impl Default for App {
     fn default() -> Self {

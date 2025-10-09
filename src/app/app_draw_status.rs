@@ -2,14 +2,14 @@
 use git2::{
     Oid
 };
-use ratatui::{layout::Alignment, text::Line, widgets::{List, ListItem}};
 #[rustfmt::skip]
 use ratatui::{
     Frame,
     style::Style,
+    layout::Alignment,
     text::{
         Span,
-        Text
+        Line
     },
     widgets::{
         Block,
@@ -17,7 +17,8 @@ use ratatui::{
         Scrollbar,
         ScrollbarOrientation,
         ScrollbarState,
-        Wrap,
+        List,
+        ListItem
     },
 };
 #[rustfmt::skip]
@@ -38,7 +39,6 @@ use crate::{
         Focus
     }
 };
-#[rustfmt::skip]
 
 impl App {
 
@@ -74,54 +74,18 @@ impl App {
             
             // Staged changes with prefix
             for file in changes.staged.modified.into_iter() {
-                lines_status_bottom.push(Line::from(vec![
+                lines_status_top.push(Line::from(vec![
                     Span::styled("~ ", Style::default().fg(COLOR_BLUE)),
                     Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
                 ]));
             }
             for file in changes.staged.added.into_iter() {
-                lines_status_bottom.push(Line::from(vec![
+                lines_status_top.push(Line::from(vec![
                     Span::styled("+ ", Style::default().fg(COLOR_GREEN)),
                     Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
                 ]));
             }
             for file in changes.staged.deleted.into_iter() {
-                lines_status_bottom.push(Line::from(vec![
-                    Span::styled("- ", Style::default().fg(COLOR_RED)),
-                    Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
-                ]));
-            }
-            
-            // Handle no changes
-            if lines_status_bottom.is_empty() {
-                let visible_height = self.layout.status_top.height as usize;
-                let blank_lines_before = visible_height.saturating_sub(3) / 2;
-                for _ in 0..blank_lines_before {
-                    lines_status_bottom.push(Line::from(""));
-                }
-                lines_status_bottom.push(Line::from(Span::styled(
-                    truncate_with_ellipsis("⊘ no staged changes", max_text_width),
-                    Style::default().fg(COLOR_GREY_800),
-                )));
-            } else {
-                is_staged_changes = true;
-            }
-            
-            // Unstaged changes with prefix
-            let mut lines_status_top = Vec::new();
-            for file in changes.unstaged.modified.into_iter() {
-                lines_status_top.push(Line::from(vec![
-                    Span::styled("~ ", Style::default().fg(COLOR_BLUE)),
-                    Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
-                ]));
-            }
-            for file in changes.unstaged.added.into_iter() {
-                lines_status_top.push(Line::from(vec![
-                    Span::styled("+ ", Style::default().fg(COLOR_GREEN)),
-                    Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
-                ]));
-            }
-            for file in changes.unstaged.deleted.into_iter() {
                 lines_status_top.push(Line::from(vec![
                     Span::styled("- ", Style::default().fg(COLOR_RED)),
                     Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
@@ -131,12 +95,47 @@ impl App {
             // Handle no changes
             if lines_status_top.is_empty() {
                 let visible_height = self.layout.status_bottom.height as usize;
-                let blank_lines_before = visible_height.saturating_sub(2) / 2;
+                let blank_lines_before = visible_height.saturating_sub(3) / 2;
                 for _ in 0..blank_lines_before {
                     lines_status_top.push(Line::from(""));
                 }
                 lines_status_top.push(Line::from(Span::styled(
-                    truncate_with_ellipsis("⊘ no unstaged changes", max_text_width),
+                    center_line(&truncate_with_ellipsis("⊘ no staged changes", max_text_width), max_text_width + 3),
+                    Style::default().fg(COLOR_GREY_800),
+                )));
+            } else {
+                is_staged_changes = true;
+            }
+            
+            // Unstaged changes with prefix
+            for file in changes.unstaged.modified.into_iter() {
+                lines_status_bottom.push(Line::from(vec![
+                    Span::styled("~ ", Style::default().fg(COLOR_BLUE)),
+                    Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
+                ]));
+            }
+            for file in changes.unstaged.added.into_iter() {
+                lines_status_bottom.push(Line::from(vec![
+                    Span::styled("+ ", Style::default().fg(COLOR_GREEN)),
+                    Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
+                ]));
+            }
+            for file in changes.unstaged.deleted.into_iter() {
+                lines_status_bottom.push(Line::from(vec![
+                    Span::styled("- ", Style::default().fg(COLOR_RED)),
+                    Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
+                ]));
+            }
+            
+            // Handle no changes
+            if lines_status_bottom.is_empty() {
+                let visible_height = self.layout.status_top.height as usize;
+                let blank_lines_before = visible_height.saturating_sub(2) / 2;
+                for _ in 0..blank_lines_before {
+                    lines_status_bottom.push(Line::from(""));
+                }
+                lines_status_bottom.push(Line::from(Span::styled(
+                    center_line(&truncate_with_ellipsis("⊘ no unstaged changes", max_text_width), max_text_width + 3),
                     Style::default().fg(COLOR_GREY_800),
                 )));
             } else {
@@ -172,9 +171,11 @@ impl App {
                     lines_status_top.push(Line::from(""));
                 }
                 lines_status_top.push(Line::from(Span::styled(
-                    truncate_with_ellipsis("⊘ no staged changes", max_text_width),
+                    center_line(&truncate_with_ellipsis("⊘ no staged changes", max_text_width), max_text_width + 3),
                     Style::default().fg(COLOR_GREY_800),
                 )));
+            } else {
+                is_staged_changes = true;
             }
         }
         
@@ -205,7 +206,7 @@ impl App {
                 .map(|(i, line)| {
                     let absolute_idx = scroll_offset + i;
                     let mut item = ListItem::new(line.clone());
-                    if absolute_idx == self.status_top_selected {
+                    if absolute_idx == self.status_top_selected && self.focus == Focus::StatusTop && is_staged_changes {
                         item = item.style(Style::default().bg(COLOR_GREY_800));
                     }
                     item
@@ -232,18 +233,12 @@ impl App {
                         .borders(Borders::BOTTOM | Borders::RIGHT | Borders::TOP)
                         .border_style(Style::default().fg(COLOR_BORDER))
                         .border_type(ratatui::widgets::BorderType::Rounded),
-                )
-                .highlight_style(
-                    Style::default()
-                        .bg(COLOR_GREY_800)
-                        .fg(COLOR_TEXT),
-                )
-                .repeat_highlight_symbol(false);
+                );
 
             frame.render_widget(list, self.layout.status_top);
 
             // Setup the scrollbar
-            let mut scrollbar_state = ScrollbarState::new(total_lines).position(self.status_top_scroll.get());
+            let mut scrollbar_state = ScrollbarState::new(visible_height).position(self.status_top_scroll.get());
             let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
                 .begin_symbol(if self.is_inspector && self.graph_selected != 0 { Some("│") } else { Some("╮") })
                 .end_symbol(if self.graph_selected == 0 { Some("┤") } else {  Some("╯") })
@@ -291,7 +286,7 @@ impl App {
                     .map(|(i, line)| {
                         let absolute_idx = scroll_offset + i;
                         let mut item = ListItem::new(line.clone());
-                        if absolute_idx == self.status_bottom_selected {
+                        if absolute_idx == self.status_bottom_selected && self.focus == Focus::StatusBottom && total_lines > 0 && is_unstaged_changes {
                             item = item.style(Style::default().bg(COLOR_GREY_800));
                         }
                         item
@@ -306,21 +301,12 @@ impl App {
                             .borders(Borders::BOTTOM | Borders::RIGHT)
                             .border_style(Style::default().fg(COLOR_BORDER))
                             .border_type(ratatui::widgets::BorderType::Rounded),
-                    )
-                    .highlight_style(
-                        Style::default()
-                            .bg(COLOR_GREY_800)
-                            .fg(COLOR_TEXT),
-                    )
-                    .repeat_highlight_symbol(false);
+                    );
 
                 frame.render_widget(list, self.layout.status_bottom);
 
-                // .alignment(if !is_unstaged_changes && self.graph_selected == 0 {ratatui::layout::Alignment::Center} else {ratatui::layout::Alignment::Left})
-
-
                 // Setup the scrollbar
-                let mut scrollbar_state = ScrollbarState::new(total_lines).position(self.status_bottom_scroll.get());
+                let mut scrollbar_state = ScrollbarState::new(visible_height).position(self.status_bottom_scroll.get());
                 let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
                     .begin_symbol(Some("│"))
                     .end_symbol(Some("╯"))

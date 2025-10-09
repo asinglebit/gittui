@@ -28,7 +28,7 @@ use crate::{
 #[derive(Default)]
 pub struct Layout {
     pub title_left: Rect,
-    pub title_right: Rect,
+    // pub title_right: Rect,
     pub graph: Rect,
     pub inspector: Rect,
     pub status_top: Rect,

@@ -7,7 +7,6 @@ use ratatui::{
         Block,
         Borders,
         Cell as WidgetCell,
-        Clear,
         Row,
         Scrollbar,
         ScrollbarOrientation,
@@ -90,8 +89,6 @@ impl App {
         )
         .row_highlight_style(Style::default().bg(COLOR_SELECTION).fg(COLOR_TEXT_SELECTED))
         .column_spacing(2);
-
-        frame.render_widget(Clear, self.layout.graph);
 
         frame.render_widget(table, self.layout.graph);
 
