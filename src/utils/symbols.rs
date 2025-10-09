@@ -10,3 +10,13 @@ pub const SYM_BRANCH_UP: &str = "╯";
 pub const SYM_BRANCH_DOWN: &str = "╮";
 pub const SYM_MERGE: &str = "•";
 pub const SYM_UNCOMMITED: &str = "◌";
+
+pub fn truncate_with_ellipsis(text: &str, max_width: usize) -> String {
+    if text.len() <= max_width {
+        text.to_string()
+    } else if max_width <= 3 {
+        ".".repeat(max_width)
+    } else {
+        format!("{}...", &text[..max_width - 3])
+    }
+}

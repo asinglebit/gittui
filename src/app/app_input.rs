@@ -67,6 +67,12 @@ impl App {
             KeyCode::Char('f') => {
                 self.is_minimal = !self.is_minimal;
             }
+            KeyCode::Char('s') => {
+                self.is_status = !self.is_status;
+            }
+            KeyCode::Char('i') => {
+                self.is_inspector = !self.is_inspector;
+            }
             KeyCode::Home => {
                 if !self.is_modal {
                     self.selected = 0;
@@ -98,12 +104,16 @@ impl App {
                 }
             }
             KeyCode::Enter => {
+
                 let branches = self
                     .tips
                     .entry(*self.oids.get(self.selected).unwrap())
                     .or_default();
 
                 if !self.is_modal {
+                    if self.selected == 0 {
+                        return;
+                    }
                     if branches.is_empty() {
                         checkout_head(&self.repo, *self.oids.get(self.selected).unwrap());
                         self.reload();

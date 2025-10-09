@@ -90,8 +90,8 @@ impl App {
         if total_lines > visible_height {
             let mut scrollbar_state = ScrollbarState::new(total_lines).position(self.scroll.get());
             let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .begin_symbol(Some("─"))
-                .end_symbol(Some("─"))
+                .begin_symbol(if self.is_inspector || self.is_status { Some("─") } else { Some("╮") })
+                .end_symbol(if self.is_inspector || self.is_status { Some("─") } else { Some("╯") })
                 .track_symbol(Some("│"))
                 .thumb_symbol("▌")
                 .thumb_style(Style::default().fg(COLOR_GREY_600));

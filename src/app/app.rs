@@ -53,12 +53,17 @@ pub struct App {
 
     // Interface
     pub layout: Layout,
+
+    // Panes
+    pub is_inspector: bool,
+    pub is_status: bool,
+
+    // Rest
     pub scroll: Cell<usize>,
-    pub files_scroll: Cell<usize>,
+    pub status_scroll: Cell<usize>,
     pub selected: usize,
     pub is_minimal: bool,
-    pub is_exit: bool,
-    
+    pub is_exit: bool,    
     pub is_modal: bool,
     pub modal_selected: i32
 }
@@ -79,9 +84,9 @@ impl App {
         self.layout(frame);
         self.draw_title(frame);
         self.draw_graph(frame);
-        self.draw_files(frame);
-        self.draw_inspector(frame);
-        self.draw_status(frame);
+        if self.is_status {self.draw_status(frame);}
+        if self.is_inspector {self.draw_inspector(frame);}
+        self.draw_statusbar(frame);
         self.draw_modal(frame);
     }
 

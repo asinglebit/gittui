@@ -32,12 +32,17 @@ impl Default for App {
 
             // Interface
             layout: Layout::default(),
+            
+            // Panes
+            is_inspector: true,
+            is_status: true,
+
+            // Rest
             scroll: 0.into(),
-            files_scroll: 0.into(),
+            status_scroll: 0.into(),
             selected: 0,
             is_minimal: false,
-            is_exit: false,
-            
+            is_exit: false,            
             is_modal: false,
             modal_selected: 0
         }

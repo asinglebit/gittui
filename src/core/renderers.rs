@@ -20,6 +20,7 @@ use ratatui::{
         Span
     },
 };
+use crate::utils::colors::{COLOR_BLUE, COLOR_GREEN, COLOR_GREY_500, COLOR_GREY_600, COLOR_RED};
 #[rustfmt::skip]
 use crate::{
     core::buffer::Buffer,
@@ -46,20 +47,32 @@ pub fn render_uncommitted(
     )];
     if *modified_count > 0 {
         uncommited_line_spans.push(Span::styled(
-            format!("~{} ", modified_count),
-            Style::default().fg(COLOR_GREY_400),
+            "~ ",
+            Style::default().fg(COLOR_BLUE),
+        ));
+        uncommited_line_spans.push(Span::styled(
+            format!("{} ", modified_count),
+            Style::default().fg(COLOR_GREY_600),
         ));
     }
     if *new_count > 0 {
         uncommited_line_spans.push(Span::styled(
-            format!("+{} ", new_count),
-            Style::default().fg(COLOR_GREY_400),
+            "+ ",
+            Style::default().fg(COLOR_GREEN),
+        ));
+        uncommited_line_spans.push(Span::styled(
+            format!("{} ", new_count),
+            Style::default().fg(COLOR_GREY_600),
         ));
     }
-    if *new_count > 0 {
+    if *deleted_count > 0 {
         uncommited_line_spans.push(Span::styled(
-            format!("-{} ", deleted_count),
-            Style::default().fg(COLOR_GREY_400),
+            "- ",
+            Style::default().fg(COLOR_RED),
+        ));
+        uncommited_line_spans.push(Span::styled(
+            format!("{} ", deleted_count),
+            Style::default().fg(COLOR_GREY_600),
         ));
     }
     lines_branches.push(Line::from(uncommited_line_spans));

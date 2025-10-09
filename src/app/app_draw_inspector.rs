@@ -132,12 +132,12 @@ impl App {
                 Block::default()
                     .title(vec![
                         Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                        Span::styled(" Inspector ", Style::default().fg(COLOR_TEXT)),
+                        Span::styled(" (i)nspector ", Style::default().fg(COLOR_TEXT)),
                         Span::styled("─", Style::default().fg(COLOR_BORDER)),
                     ])
                     .title_alignment(ratatui::layout::Alignment::Right)
                     .title_style(Style::default().fg(COLOR_GREY_400))
-                    .borders(Borders::RIGHT | Borders::TOP)
+                    .borders(if self.is_status { Borders::RIGHT | Borders::TOP } else { Borders::RIGHT | Borders::TOP | Borders::BOTTOM })
                     .border_style(Style::default().fg(COLOR_BORDER))
                     .padding(padding)
                     .border_type(ratatui::widgets::BorderType::Rounded),
@@ -147,10 +147,10 @@ impl App {
 
         // Render the scrollbar
         let mut scrollbar_state =
-            ScrollbarState::new(total_inspector_lines).position(self.files_scroll.get());
+            ScrollbarState::new(total_inspector_lines).position(self.status_scroll.get());
         let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
             .begin_symbol(Some("╮"))
-            .end_symbol(Some("│"))
+            .end_symbol(if self.is_status { Some("│") } else { Some("╯") })
             .track_symbol(Some("│"))
             .thumb_symbol(if total_inspector_lines > visible_height {
                 "▌"

@@ -11,6 +11,9 @@ use crate::app::app::{
 impl App {
 
     pub fn layout(&mut self, frame: &mut Frame) {
+
+        let is_pane_visible = self.is_inspector || self.is_status;
+
         let chunks_vertical = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
             .constraints([
@@ -31,16 +34,16 @@ impl App {
         let chunks_horizontal = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Horizontal)
             .constraints([
-                ratatui::layout::Constraint::Percentage(70),
-                ratatui::layout::Constraint::Percentage(30),
+                ratatui::layout::Constraint::Percentage(if is_pane_visible { 70 } else { 100 }),
+                ratatui::layout::Constraint::Percentage(if is_pane_visible { 30 } else { 0 }),
             ])
             .split(chunks_vertical[1]);
 
         let chunks_inspector = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
             .constraints([
-                ratatui::layout::Constraint::Percentage(40),
-                ratatui::layout::Constraint::Percentage(60),
+                ratatui::layout::Constraint::Percentage(if self.is_inspector { if !self.is_status { 100 } else { 50 } } else { 0 }),
+                ratatui::layout::Constraint::Percentage(if self.is_status { if !self.is_inspector { 100 } else { 50 } } else { 0 }),
             ])
             .split(chunks_horizontal[1]);
 
