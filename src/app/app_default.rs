@@ -4,9 +4,9 @@ use std::{
     env,
     path::PathBuf
 };
+use edtui::{EditorEventHandler, EditorState};
 #[rustfmt::skip]
 use git2::Repository;
-use rat_text::text_input::TextInputState;
 use ratatui::{
     style::Style,
     text::{
@@ -92,8 +92,8 @@ impl Default for App {
             modal_checkout_selected: 0,
 
             // Modal commit
-            commit_message_input: TextInputState::new(),
-            commit_message_input_cursor: 0,
+            commit_editor: EditorState::default(),
+            editor_event_handler: EditorEventHandler::default(),
 
             // Exit
             is_exit: false,   

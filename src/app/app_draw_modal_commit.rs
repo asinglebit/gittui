@@ -1,11 +1,9 @@
-use ratatui::layout::Position;
+use edtui::EditorMode;
 #[rustfmt::skip]
 use ratatui::{
     Frame,
-    prelude::StatefulWidget,
     style::{
         Style,
-        Stylize
     },
     layout::{
         Alignment,
@@ -20,12 +18,17 @@ use ratatui::{
         Block,
         Borders,
         Clear,
+        Padding,
         Paragraph,
         Widget
     },
 };
 #[rustfmt::skip]
-use rat_text::text_input::TextInput;
+use edtui::{
+    EditorStatusLine,
+    EditorTheme,
+    EditorView
+};
 #[rustfmt::skip]
 use crate::{
     utils::{
@@ -42,7 +45,7 @@ impl App {
     pub fn draw_modal_commit(&mut self, frame: &mut Frame) {
         
         let mut length = 60;
-        let mut height = 9;
+        let mut height = 14;
 
         let mut lines: Vec<Line> = vec![
             Line::from(vec![
@@ -51,9 +54,14 @@ impl App {
             Line::from(""),
             Line::from(""),
             Line::from(""),
+            Line::from(""),
+            Line::from(""),
+            Line::from(""),
+            Line::from(""),
+            Line::from(""),
             Line::from(vec![
-                Span::styled(format!("(enter)"), Style::default().fg(COLOR_GREY_500)),
-                Span::styled(format!("commit "), Style::default().fg(COLOR_TEXT)),
+                Span::styled(if self.commit_editor.mode == EditorMode::Normal {"(c)".to_string()} else { "".to_string() }, Style::default().fg(COLOR_GREY_500)),
+                Span::styled(if self.commit_editor.mode == EditorMode::Normal {"ommit".to_string()} else { "commit".to_string() }, Style::default().fg(COLOR_TEXT)),
             ]),
         ];
             
@@ -80,7 +88,7 @@ impl App {
         let modal_block = Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(COLOR_GREY_600))
-            .title(Span::styled(" (esc) ", Style::default().fg(COLOR_GREY_500)))
+            .title(Span::styled(if self.commit_editor.mode == EditorMode::Normal {" (esc) "} else { "─ esc ─" }, Style::default().fg(if self.commit_editor.mode == EditorMode::Normal { COLOR_GREY_500 } else { COLOR_GREY_600 })))
             .title_alignment(Alignment::Right)
             .padding(padding)
             .border_type(ratatui::widgets::BorderType::Rounded);
@@ -92,24 +100,68 @@ impl App {
         
         // Render the paragraph
         paragraph.render(modal_area, frame.buffer_mut());
-        
-        // Create the input field
-        let text_input = TextInput::new()
-            .style(Style::default().bg(COLOR_GREY_800))
-            .select_style(Style::default().black().on_yellow());
-        let input_area = Rect {
-            x: modal_area.x + modal_area.width / 2 - 20,
-            y: modal_area.y + 4,
-            width: 40,
-            height: 1,
-        };
-        text_input.render(input_area, frame.buffer_mut(), &mut self.commit_message_input);
 
-        // Render the cursor
-        let position = Position {
-            x: input_area.x + self.commit_message_input_cursor as u16,
-            y: input_area.y
+        let custom_theme = EditorTheme {
+            base: Style::default().fg(COLOR_GREY_500),
+            cursor_style: Style::default().bg(COLOR_TEXT),
+            selection_style: Style::default(),
+            block: Some(
+                Block::default()
+                    .padding(Padding {
+                        left: 1,
+                        right: 1,
+                        top: 0,
+                        bottom: 0,
+                    })
+                    .borders(Borders::TOP)
+                    .border_type(ratatui::widgets::BorderType::Rounded)
+                    .border_style(Style::default().fg(COLOR_GREY_800))
+            ),
+            status_line: Some(EditorStatusLine::default()
+                        .style_text(Style::default().fg(COLOR_TEXT))
+                        .style_line(Style::default().fg(COLOR_GREY_800))
+                        .align_left(true)
+                    )
         };
-        frame.set_cursor_position(position);
+        let editor_view = EditorView::new(&mut self.commit_editor)
+            .theme(custom_theme);
+            // .wrap(true);
+            // .syntax_highlighter(Some(SyntaxHighlighter::new("dracula", "json")));
+        
+        let input_area = Rect {
+            x: modal_area.x + modal_area.width / 2 - 29,
+            y: modal_area.y + 4,
+            width: 58,
+            height: 6,
+        };
+
+        // Render the editor in the modal area
+        editor_view.render(input_area, frame.buffer_mut());
+
+        
+        // Modal block
+        Block::default()
+            .borders(Borders::TOP)
+            .border_style(Style::default().fg(COLOR_GREY_800))
+            .border_type(ratatui::widgets::BorderType::Rounded)
+            .render(Rect {
+            x: modal_area.x + 1,
+            y: modal_area.y + 9,
+            width: 2,
+            height: 1,
+        }, frame.buffer_mut());
+
+        // Modal block
+        Block::default()
+            .borders(Borders::TOP)
+            .border_style(Style::default().fg(COLOR_GREY_800))
+            .border_type(ratatui::widgets::BorderType::Rounded)
+            .render(Rect {
+            x: modal_area.x + 11,
+            y: modal_area.y + 9,
+            width: modal_width - 12,
+            height: 1,
+        }, frame.buffer_mut());
+
     }
 }

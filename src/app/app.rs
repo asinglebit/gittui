@@ -4,12 +4,12 @@ use std::{
     collections::HashMap,
     io,
 };
+use edtui::{EditorEventHandler, EditorState};
 #[rustfmt::skip]
 use git2::{
     Oid,
     Repository
 };
-use rat_text::text_input::TextInputState;
 #[rustfmt::skip]
 use ratatui::{
     DefaultTerminal,
@@ -98,8 +98,8 @@ pub struct App {
     pub modal_checkout_selected: i32,
 
     // Modal commit
-    pub commit_message_input: TextInputState,
-    pub commit_message_input_cursor: usize,
+    pub commit_editor: EditorState,
+    pub editor_event_handler: EditorEventHandler,
 
     // Exit
     pub is_exit: bool,    

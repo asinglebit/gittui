@@ -141,7 +141,9 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
                     }
                 } else if oid == chunk.oid {
                     is_commit_found = true;
-                    oid_colors.entry(oid).or_insert(color.borrow().get(lane_idx));
+                    oid_colors
+                        .entry(oid)
+                        .or_insert(color.borrow().get(lane_idx));
 
                     if chunk.parents.len() > 1 && !tips.contains_key(&oid) {
                         layers.commit(SYM_MERGE, lane_idx);
