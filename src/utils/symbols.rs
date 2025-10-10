@@ -1,3 +1,6 @@
+#[rustfmt::skip]
+use edtui::EditorState;
+
 pub const SYM_COMMIT_BRANCH: &str = "●";
 pub const SYM_COMMIT: &str = "○";
 pub const SYM_VERTICAL: &str = "│";
@@ -106,4 +109,11 @@ pub fn center_line(line: &str, width: usize) -> String {
         let padding = (width - line.len()) / 2;
         format!("{}{}", " ".repeat(padding), line)
     }
+}
+pub fn editor_state_to_string(state: &EditorState) -> String {
+    state
+        .lines
+        .iter()
+        .filter_map(|(c, _)| c.copied())
+        .collect::<String>()
 }

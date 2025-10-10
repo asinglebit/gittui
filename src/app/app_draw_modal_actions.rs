@@ -41,8 +41,10 @@ impl App {
         if self.graph_selected == 0 {
             if self.uncommitted.is_clean {
                 lines = vec![
+                    Line::default(),
+                    Line::default(),
                     Line::from(vec![
-                        Span::styled(format!("⊘ no uncommitted changes"), Style::default().fg(COLOR_TEXT))
+                        Span::styled(format!("⊘ no actions"), Style::default().fg(COLOR_TEXT))
                     ]),
                 ];
             } else {
@@ -73,7 +75,7 @@ impl App {
                 }
                 if self.uncommitted.is_staged && self.uncommitted.is_unstaged {
                     line_status.extend(vec![
-                        Span::styled(" | ", Style::default().fg(COLOR_TEXT)),
+                        Span::styled("| ", Style::default().fg(COLOR_TEXT)),
                     ].into_iter());
                 }
                 if self.uncommitted.is_unstaged {
@@ -135,12 +137,10 @@ impl App {
                 Line::from(vec![
                     Span::styled(format!("(c)"), Style::default().fg(COLOR_GREY_500)),
                     Span::styled(format!("heckout "), Style::default().fg(COLOR_TEXT)),
-                    Span::styled(format!("(n)"), Style::default().fg(COLOR_GREY_500)),
-                    Span::styled(format!("ew "), Style::default().fg(COLOR_TEXT)),
-                    Span::styled(format!("(r)"), Style::default().fg(COLOR_GREY_500)),
-                    Span::styled(format!("eset "), Style::default().fg(COLOR_TEXT)),
-                    Span::styled(format!("(d)"), Style::default().fg(COLOR_GREY_500)),
-                    Span::styled(format!("elete "), Style::default().fg(COLOR_TEXT))
+                    Span::styled(format!("(h)"), Style::default().fg(COLOR_GREY_500)),
+                    Span::styled(format!("ard-eset "), Style::default().fg(COLOR_TEXT)),
+                    Span::styled(format!("(m)"), Style::default().fg(COLOR_GREY_500)),
+                    Span::styled(format!("ixed-reset"), Style::default().fg(COLOR_TEXT)),
                 ]),
             ]; 
         } 

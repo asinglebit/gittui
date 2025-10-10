@@ -61,6 +61,10 @@ impl Default for App {
             repo,
             logo,
 
+            // User
+            name: "Single Bit".to_string(),
+            email: "asinglebit@gmail.com".to_string(),
+
             // Data
             oids: Vec::new(),
             tips: HashMap::new(),

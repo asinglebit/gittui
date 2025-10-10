@@ -1,7 +1,7 @@
 #[rustfmt::skip]
 use std::collections::HashMap;
-use std::collections::HashSet;
 use git2::DiffOptions;
+use std::collections::HashSet;
 #[rustfmt::skip]
 use git2::{
     BranchType,
@@ -20,7 +20,7 @@ pub struct UncommittedChanges {
     pub deleted_count: usize,
     pub is_clean: bool,
     pub is_staged: bool,
-    pub is_unstaged: bool
+    pub is_unstaged: bool,
 }
 
 #[derive(Debug, Default)]
@@ -193,8 +193,12 @@ pub fn get_uncommitted_changes(repo: &Repository) -> Result<UncommittedChanges, 
     changes.modified_count = modified.len();
     changes.added_count = added.len();
     changes.deleted_count = deleted.len();
-    changes.is_staged = changes.staged.modified.len() > 0 || changes.staged.added.len() > 0 || changes.staged.deleted.len() > 0;
-    changes.is_unstaged = changes.unstaged.modified.len() > 0 || changes.unstaged.added.len() > 0 || changes.unstaged.deleted.len() > 0;
+    changes.is_staged = changes.staged.modified.len() > 0
+        || changes.staged.added.len() > 0
+        || changes.staged.deleted.len() > 0;
+    changes.is_unstaged = changes.unstaged.modified.len() > 0
+        || changes.unstaged.added.len() > 0
+        || changes.unstaged.deleted.len() > 0;
     changes.is_clean = !changes.is_staged && !changes.is_unstaged;
 
     Ok(changes)
@@ -221,8 +225,7 @@ pub fn get_changed_filenames(repo: &Repository, oid: Oid) -> Vec<FileChange> {
     let parent_tree = commit.parent(0).unwrap().tree().unwrap();
 
     let mut opts = DiffOptions::new();
-    opts
-        .include_untracked(false)
+    opts.include_untracked(false)
         .recurse_untracked_dirs(false)
         .include_typechange(false)
         .ignore_submodules(true)

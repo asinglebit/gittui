@@ -15,21 +15,20 @@ use crossterm::event::{
 use edtui::EditorMode;
 #[rustfmt::skip]
 use crate::{
+    app::app::{
+        App,
+        Focus
+    },
     git::{
         actions::{
             checkout_head,
             checkout_branch,
-            reset_hard,
-        },
-        queries::{
-            get_current_branch
+            commit_staged,
+            git_add_all,
+            reset_to_commit
         }
     },
-};
-#[rustfmt::skip]
-use crate::app::app::{
-    App,
-    Focus
+    utils::symbols::editor_state_to_string
 };
 
 impl App {
@@ -52,6 +51,8 @@ impl App {
                         self.focus = Focus::Graph;
                     }
                     KeyCode::Char('c') => {
+                        commit_staged(&self.repo, &editor_state_to_string(&self.commit_editor), &self.name, &self.email).expect("Error");
+                        self.reload();
                         self.focus = Focus::Graph;
                     }
                     _ => {
@@ -67,7 +68,7 @@ impl App {
 
         match key_event.code {
             KeyCode::Char('q') => self.exit(),
-            KeyCode::Char('r') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+            KeyCode::Char('r') => {
                 self.reload()
             },
             KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -168,7 +169,7 @@ impl App {
             KeyCode::Char('c') => {
                 match self.focus {
                     Focus::Graph | Focus::ModalActions => {
-                        if self.graph_selected == 0 {
+                        if self.graph_selected == 0 && self.uncommitted.is_staged {
                             self.focus = Focus::ModalCommit;
                             return;
                         }
@@ -196,16 +197,35 @@ impl App {
                     _ => {}
                 };
             }
-            KeyCode::Char('r') => {
+            KeyCode::Char('h') => {
                 match self.focus {
                     Focus::Graph | Focus::ModalActions => {
-                        let target = match get_current_branch(&self.repo) {
-                            Some(branch) => branch,
-                            None => "HEAD".to_string()
-                        };
-                        reset_hard(&self.repo, &target).expect("Error");
+                        let oid = self.oids.get(self.graph_selected).unwrap();
+                        reset_to_commit(&self.repo, *oid, git2::ResetType::Hard).expect("Error");
                         self.reload();
                         self.focus = Focus::Graph;
+                    }
+                    _ => {}
+                }
+            }
+            KeyCode::Char('m') => {
+                match self.focus {
+                    Focus::Graph | Focus::ModalActions => {
+                        let oid = self.oids.get(self.graph_selected).unwrap();
+                        reset_to_commit(&self.repo, *oid, git2::ResetType::Mixed).expect("Error");
+                        self.reload();
+                        self.focus = Focus::Graph;
+                    }
+                    _ => {}
+                }
+            }
+            KeyCode::Char('a') => {
+                match self.focus {
+                    Focus::Graph | Focus::ModalActions => {
+                        if self.uncommitted.is_unstaged {
+                            git_add_all(&self.repo).expect("Error");
+                            self.reload();
+                        }
                     }
                     _ => {}
                 }
