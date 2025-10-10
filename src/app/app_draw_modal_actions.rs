@@ -42,7 +42,8 @@ impl App {
         // let branches = self.tips.entry(oid).or_default();
         let mut lines: Vec<Line> = vec![
             Line::from(vec![
-                Span::styled(format!("you are here: #{:.6}", oid), Style::default().fg(*self.oid_colors.get(&oid).unwrap()))
+                Span::styled("you are here: ", Style::default().fg(COLOR_TEXT)),
+                Span::styled(format!("#{:.6}", oid), Style::default().fg(*self.oid_colors.get(&oid).unwrap()))
             ]),
             Line::from(""),
             Line::from(vec![
@@ -50,10 +51,14 @@ impl App {
             ]),
             Line::from(""),
             Line::from(vec![
-                Span::styled(format!("(c)heckout "), Style::default().fg(COLOR_TEXT)),
-                Span::styled(format!("(n)ew "), Style::default().fg(COLOR_TEXT)),
-                Span::styled(format!("(r)eset "), Style::default().fg(COLOR_TEXT)),
-                Span::styled(format!("(d)elete "), Style::default().fg(COLOR_TEXT))
+                Span::styled(format!("(c)"), Style::default().fg(COLOR_GREY_500)),
+                Span::styled(format!("heckout "), Style::default().fg(COLOR_TEXT)),
+                Span::styled(format!("(n)"), Style::default().fg(COLOR_GREY_500)),
+                Span::styled(format!("ew "), Style::default().fg(COLOR_TEXT)),
+                Span::styled(format!("(r)"), Style::default().fg(COLOR_GREY_500)),
+                Span::styled(format!("eset "), Style::default().fg(COLOR_TEXT)),
+                Span::styled(format!("(d)"), Style::default().fg(COLOR_GREY_500)),
+                Span::styled(format!("elete "), Style::default().fg(COLOR_TEXT))
             ]),
         ];
         

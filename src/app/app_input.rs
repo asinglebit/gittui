@@ -12,6 +12,7 @@ use crossterm::event::{
     KeyEventKind,
     KeyModifiers
 };
+use crate::git::{actions::reset_hard, queries::get_current_branch};
 #[rustfmt::skip]
 use crate::{
     git::{
@@ -41,8 +42,10 @@ impl App {
 
     pub fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
-            KeyCode::Char('r') => self.reload(),
             KeyCode::Char('q') => self.exit(),
+            KeyCode::Char('r') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.reload()
+            },
             KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.exit()
             }
@@ -61,9 +64,6 @@ impl App {
                     }
                     Focus::StatusBottom => {
                         self.status_bottom_selected += 1;
-                    }
-                    Focus::ModalActions => {
-                        // TODO
                     }
                     Focus::ModalCheckout => {
                         let branches = self
@@ -99,9 +99,6 @@ impl App {
                         if self.status_bottom_selected > 0 {
                             self.status_bottom_selected -= 1;
                         }
-                    }
-                    Focus::ModalActions => {
-                        // TODO
                     }
                     Focus::ModalCheckout => {
                         let branches = self
@@ -152,21 +149,37 @@ impl App {
                             .entry(*self.oids.get(self.graph_selected).unwrap())
                             .or_default();
                         if self.graph_selected == 0 {
+                            self.focus = Focus::Graph;
                             return;
                         }
                         if branches.is_empty() {
                             checkout_head(&self.repo, *self.oids.get(self.graph_selected).unwrap());
+                            self.focus = Focus::Graph;
                             self.reload();
                         } else if branches.len() == 1 {
                             checkout_branch(&self.repo, branches.first().unwrap()).expect("Error");
+                            self.focus = Focus::Graph;
                             self.reload();
                         } else {
                             self.focus = Focus::ModalCheckout;
                         }
-                        
                     }
                     _ => {}
                 };
+            }
+            KeyCode::Char('r') => {
+                match self.focus {
+                    Focus::Graph | Focus::ModalActions => {
+                        let target = match get_current_branch(&self.repo) {
+                            Some(branch) => branch,
+                            None => "HEAD".to_string()
+                        };
+                        reset_hard(&self.repo, &target).expect("Error");
+                        self.reload();
+                        self.focus = Focus::Graph;
+                    }
+                    _ => {}
+                }
             }
             KeyCode::Enter => {
                 match self.focus {
