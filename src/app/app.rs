@@ -28,7 +28,10 @@ use ratatui::{
 #[rustfmt::skip]
 use crate::{
     core::walker::walk,
-    git::queries::UncommittedChanges
+    git::queries::{
+        FileChange,
+        UncommittedChanges
+    }
 };
 
 #[derive(Default)]
@@ -64,7 +67,7 @@ pub struct App {
     pub name: String,
     pub email: String,
 
-    // Data
+    // Walker data
     pub oids: Vec<Oid>,
     pub tips: HashMap<Oid, Vec<String>>,
     pub oid_colors: HashMap<Oid, Color>,
@@ -73,14 +76,14 @@ pub struct App {
     pub oid_branch_map: HashMap<Oid, Vec<String>>,
     pub uncommitted: UncommittedChanges,
 
-    // Cache
-    // pub changesets: HashMap<>
-
-    // Lines
+    // Walker lines
     pub lines_graph: Vec<Line<'static>>,
     pub lines_branches: Vec<Line<'static>>,
     pub lines_messages: Vec<Line<'static>>,
     pub lines_buffers: Vec<Line<'static>>,
+
+    // Cache
+    pub current_diff: Vec<FileChange>,
 
     // Interface
     pub layout: Layout,
@@ -158,6 +161,8 @@ impl App {
 
     pub fn reload(&mut self) {
         let walked = walk(&self.repo);
+
+        // Walker data
         self.oids = walked.oids;
         self.tips = walked.tips;
         self.oid_colors = walked.oid_colors;
@@ -165,6 +170,8 @@ impl App {
         self.branch_oid_map = walked.branch_oid_map;
         self.oid_branch_map = walked.oid_branch_map;
         self.uncommitted = walked.uncommitted;
+        
+        // Walker lines
         self.lines_graph = walked.lines_graph;
         self.lines_branches = walked.lines_branches;
         self.lines_messages = walked.lines_messages;

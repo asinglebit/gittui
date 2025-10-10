@@ -68,8 +68,8 @@ impl App {
             let commit = self.repo.find_commit(oid).unwrap();
             let author = commit.author();
             let committer = commit.committer();
-            let summary = commit.summary().unwrap_or("<no summary>").to_string();
-            let body = commit.body().unwrap_or("<no body>").to_string();
+            let summary = commit.summary().unwrap_or("⊘ no summary").to_string();
+            let body = commit.body().unwrap_or("⊘ no body").to_string();
             let branches = self.oid_branch_map.get(&oid).unwrap();
 
             // Assemble lines

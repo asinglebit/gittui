@@ -1,8 +1,4 @@
 #[rustfmt::skip]
-use git2::{
-    Oid
-};
-#[rustfmt::skip]
 use ratatui::{
     Frame,
     style::Style,
@@ -25,8 +21,6 @@ use ratatui::{
 use crate::{
     git::{
         queries::{
-            get_uncommitted_changes,
-            get_changed_filenames,
             FileStatus
         },
     },
@@ -67,24 +61,21 @@ impl App {
 
         // If viewing uncommitted changes
         if is_showing_uncommitted {
-
-            // Query changes
-            let changes = get_uncommitted_changes(&self.repo).unwrap();
             
             // Staged changes with prefix
-            for file in changes.staged.modified.into_iter() {
+            for file in self.uncommitted.staged.modified.iter() {
                 lines_status_top.push(Line::from(vec![
                     Span::styled("~ ", Style::default().fg(COLOR_BLUE)),
                     Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
                 ]));
             }
-            for file in changes.staged.added.into_iter() {
+            for file in self.uncommitted.staged.added.iter() {
                 lines_status_top.push(Line::from(vec![
                     Span::styled("+ ", Style::default().fg(COLOR_GREEN)),
                     Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
                 ]));
             }
-            for file in changes.staged.deleted.into_iter() {
+            for file in self.uncommitted.staged.deleted.iter() {
                 lines_status_top.push(Line::from(vec![
                     Span::styled("- ", Style::default().fg(COLOR_RED)),
                     Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
@@ -107,19 +98,19 @@ impl App {
             }
             
             // Unstaged changes with prefix
-            for file in changes.unstaged.modified.into_iter() {
+            for file in self.uncommitted.unstaged.modified.iter() {
                 lines_status_bottom.push(Line::from(vec![
                     Span::styled("~ ", Style::default().fg(COLOR_BLUE)),
                     Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
                 ]));
             }
-            for file in changes.unstaged.added.into_iter() {
+            for file in self.uncommitted.unstaged.added.iter() {
                 lines_status_bottom.push(Line::from(vec![
                     Span::styled("+ ", Style::default().fg(COLOR_GREEN)),
                     Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
                 ]));
             }
-            for file in changes.unstaged.deleted.into_iter() {
+            for file in self.uncommitted.unstaged.deleted.iter() {
                 lines_status_bottom.push(Line::from(vec![
                     Span::styled("- ", Style::default().fg(COLOR_RED)),
                     Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
@@ -142,12 +133,8 @@ impl App {
             }
         } else {
             
-            // Query changes
-            let sha: Oid = *self.oids.get(self.graph_selected).unwrap();
-            let files = get_changed_filenames(&self.repo, sha);
-
             // Assemble lines
-            for file_change in files {
+            for file_change in self.current_diff.iter() {
                 let (symbol, color) = match file_change.status {
                     FileStatus::Added => ("+ ", COLOR_GREEN),
                     FileStatus::Modified => ("~ ", COLOR_BLUE),

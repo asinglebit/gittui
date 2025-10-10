@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 #[rustfmt::skip]
 use std::{
     cell::RefCell,
@@ -108,7 +107,7 @@ pub fn render_branches(
     spans.extend(span_tips);
 
     let span_message = Span::styled(
-        commit.summary().unwrap_or("<no message>").to_string(),
+        commit.summary().unwrap_or("⊘ no message").to_string(),
         Style::default().fg(COLOR_TEXT),
     );
     spans.push(span_message);
@@ -118,7 +117,7 @@ pub fn render_branches(
 pub fn render_messages(commit: &Commit<'_>, lines_messages: &mut Vec<Line>) {
     let mut spans = Vec::new();
     let span_message = Span::styled(
-        commit.summary().unwrap_or("<no message>").to_string(),
+        commit.summary().unwrap_or("⊘ no message").to_string(),
         Style::default().fg(COLOR_TEXT),
     );
     spans.push(span_message);

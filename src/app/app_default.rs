@@ -65,7 +65,7 @@ impl Default for App {
             name: "Single Bit".to_string(),
             email: "asinglebit@gmail.com".to_string(),
 
-            // Data
+            // Walker data
             oids: Vec::new(),
             tips: HashMap::new(),
             oid_colors: HashMap::new(),
@@ -73,10 +73,15 @@ impl Default for App {
             branch_oid_map: HashMap::new(),
             oid_branch_map: HashMap::new(),
             uncommitted: UncommittedChanges::default(),
+
+            // Walker lines
             lines_graph: Vec::new(),
             lines_branches: Vec::new(),
             lines_messages: Vec::new(),
             lines_buffers: Vec::new(),
+
+            // Cache
+            current_diff: Vec::new(),
 
             // Interface
             layout: Layout::default(),

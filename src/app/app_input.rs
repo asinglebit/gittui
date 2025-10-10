@@ -26,6 +26,9 @@ use crate::{
             commit_staged,
             git_add_all,
             reset_to_commit
+        },
+        queries::{
+            get_changed_filenames
         }
     },
     utils::symbols::editor_state_to_string
@@ -80,6 +83,10 @@ impl App {
                         if self.graph_selected + 1 < self.lines_branches.len() {
                             self.graph_selected += 1;
                         }
+                        if self.graph_selected != 0 {
+                            let oid = self.oids.get(self.graph_selected).unwrap();
+                            self.current_diff = get_changed_filenames(&self.repo, *oid);
+                        }
                     }
                     Focus::Inspector => {
                         self.inspector_selected += 1;
@@ -108,6 +115,10 @@ impl App {
                             if self.graph_selected == 0 && self.focus == Focus::Inspector {
                                 self.focus = Focus::Graph;
                             }
+                        }
+                        if self.graph_selected != 0 {
+                            let oid = self.oids.get(self.graph_selected).unwrap();
+                            self.current_diff = get_changed_filenames(&self.repo, *oid);
                         }
                     }
                     Focus::Inspector => {
@@ -290,6 +301,8 @@ impl App {
                         if !self.lines_branches.is_empty() {
                             self.graph_selected = self.lines_branches.len() - 1;
                         }
+                        let oid = self.oids.get(self.graph_selected).unwrap();
+                        self.current_diff = get_changed_filenames(&self.repo, *oid);
                     }
                     Focus::Inspector => {
                         self.inspector_selected = usize::MAX;
@@ -312,6 +325,10 @@ impl App {
                         } else {
                             self.graph_selected = 0;
                         }
+                        if self.graph_selected != 0 {
+                            let oid = self.oids.get(self.graph_selected).unwrap();
+                            self.current_diff = get_changed_filenames(&self.repo, *oid);
+                        }
                     }
                     Focus::Inspector => {
                         self.inspector_selected = self.inspector_selected.saturating_sub(page);
@@ -324,6 +341,11 @@ impl App {
                     }
                     _ => {},
                 };
+
+                if self.graph_selected != 0 {
+                    let oid = self.oids.get(self.graph_selected).unwrap();
+                    self.current_diff = get_changed_filenames(&self.repo, *oid);
+                }
             }
             KeyCode::PageDown => {
                 let page = 20;
@@ -333,6 +355,10 @@ impl App {
                             self.graph_selected += page;
                         } else {
                             self.graph_selected = self.lines_branches.len() - 1;
+                        }
+                        if self.graph_selected != 0 {
+                            let oid = self.oids.get(self.graph_selected).unwrap();
+                            self.current_diff = get_changed_filenames(&self.repo, *oid);
                         }
                     }
                     Focus::Inspector => {
@@ -346,6 +372,11 @@ impl App {
                     }
                     _ => {},
                 };
+
+                if self.graph_selected != 0 {
+                    let oid = self.oids.get(self.graph_selected).unwrap();
+                    self.current_diff = get_changed_filenames(&self.repo, *oid);
+                }
             }
             KeyCode::Esc => {
                 match self.focus {

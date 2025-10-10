@@ -1,6 +1,6 @@
 #[rustfmt::skip]
 use std::collections::HashMap;
-use git2::DiffOptions;
+use git2::{DiffOptions, ObjectType};
 use std::collections::HashSet;
 #[rustfmt::skip]
 use git2::{
@@ -11,6 +11,7 @@ use git2::{
     StatusOptions,
     Time
 };
+
 #[derive(Debug, Default)]
 pub struct UncommittedChanges {
     pub unstaged: FileChanges,
@@ -125,8 +126,11 @@ pub fn get_timestamps(
 
 pub fn get_uncommitted_changes(repo: &Repository) -> Result<UncommittedChanges, git2::Error> {
     let mut options = StatusOptions::new();
-    options.include_untracked(true);
-    options.show(git2::StatusShow::IndexAndWorkdir);
+    options
+        .include_untracked(true)
+        .show(git2::StatusShow::IndexAndWorkdir)
+        .renames_head_to_index(false)
+        .renames_index_to_workdir(false);
 
     let statuses = repo.statuses(Some(&mut options))?;
 
@@ -209,19 +213,42 @@ pub fn get_changed_filenames(repo: &Repository, oid: Oid) -> Vec<FileChange> {
     let tree = commit.tree().unwrap();
     let mut changes = Vec::new();
 
-    if commit.parent_count() == 0 {
-        // Initial commit — mark all files as Added
+    // Helper to recursively walk a tree and collect all files
+    fn walk_tree(repo: &Repository, tree: &git2::Tree, base: &str, changes: &mut Vec<FileChange>) {
         for entry in tree.iter() {
             if let Some(name) = entry.name() {
-                changes.push(FileChange {
-                    filename: name.to_string(),
-                    status: FileStatus::Added,
-                });
+                let path = if base.is_empty() {
+                    name.to_string()
+                } else {
+                    format!("{}/{}", base, name)
+                };
+
+                match entry.kind() {
+                    Some(ObjectType::Blob) => {
+                        changes.push(FileChange {
+                            filename: path,
+                            status: FileStatus::Added, // initial commit / folder contents
+                        });
+                    }
+                    Some(ObjectType::Tree) => {
+                        // Recurse into subdirectory
+                        if let Ok(subtree) = entry.to_object(repo).and_then(|o| o.peel_to_tree()) {
+                            walk_tree(repo, &subtree, &path, changes);
+                        }
+                    }
+                    _ => {}
+                }
             }
         }
+    }
+
+    // Initial commit: recursively collect all files
+    if commit.parent_count() == 0 {
+        walk_tree(repo, &tree, "", &mut changes);
         return changes;
     }
 
+    // Normal commit: diff against parent
     let parent_tree = commit.parent(0).unwrap().tree().unwrap();
 
     let mut opts = DiffOptions::new();
@@ -237,13 +264,27 @@ pub fn get_changed_filenames(repo: &Repository, oid: Oid) -> Vec<FileChange> {
         .diff_tree_to_tree(Some(&parent_tree), Some(&tree), Some(&mut opts))
         .unwrap();
 
-    // Only gather filenames + statuses, skip all other callbacks
     for delta in diff.deltas() {
         let path = delta
             .new_file()
             .path()
             .or_else(|| delta.old_file().path())
             .unwrap();
+
+        // If the delta points to a folder (no extension, tree object), expand recursively
+        let path_str = path.display().to_string();
+
+        // TODO: think of something better later.
+        // We want to make sure we only recurse through folders but we want it to be cheap
+        // Crude check: no '.' -> folder
+        let is_folder = !path_str.contains('.');
+
+        if is_folder {
+            if let Ok(tree_obj) = repo.find_tree(delta.new_file().id()) {
+                walk_tree(repo, &tree_obj, &path_str, &mut changes);
+                continue;
+            }
+        }
 
         let status = match delta.status() {
             Delta::Added => FileStatus::Added,
@@ -254,7 +295,7 @@ pub fn get_changed_filenames(repo: &Repository, oid: Oid) -> Vec<FileChange> {
         };
 
         changes.push(FileChange {
-            filename: path.display().to_string(),
+            filename: path_str,
             status,
         });
     }
