@@ -34,34 +34,53 @@ impl App {
 
     pub fn draw_modal_actions(&mut self, frame: &mut Frame) {
         
-        let mut length = 60;
-        let mut height = 9;
+        let length = 60;
+        let height = 9;
+        let mut lines: Vec<Line> = Vec::new();
 
-        let oid = *self.oids.get(self.graph_selected).unwrap();
-        // let color = self.tip_colors.get(&oid).unwrap();
-        // let branches = self.tips.entry(oid).or_default();
-        let mut lines: Vec<Line> = vec![
-            Line::from(vec![
-                Span::styled("you are here: ", Style::default().fg(COLOR_TEXT)),
-                Span::styled(format!("#{:.6}", oid), Style::default().fg(*self.oid_colors.get(&oid).unwrap()))
-            ]),
-            Line::from(""),
-            Line::from(vec![
-                Span::styled(format!("select an operation to perform"), Style::default().fg(COLOR_TEXT))
-            ]),
-            Line::from(""),
-            Line::from(vec![
-                Span::styled(format!("(c)"), Style::default().fg(COLOR_GREY_500)),
-                Span::styled(format!("heckout "), Style::default().fg(COLOR_TEXT)),
-                Span::styled(format!("(n)"), Style::default().fg(COLOR_GREY_500)),
-                Span::styled(format!("ew "), Style::default().fg(COLOR_TEXT)),
-                Span::styled(format!("(r)"), Style::default().fg(COLOR_GREY_500)),
-                Span::styled(format!("eset "), Style::default().fg(COLOR_TEXT)),
-                Span::styled(format!("(d)"), Style::default().fg(COLOR_GREY_500)),
-                Span::styled(format!("elete "), Style::default().fg(COLOR_TEXT))
-            ]),
-        ];
-        
+        if self.graph_selected == 0 {
+            lines = vec![
+                Line::from(vec![
+                    Span::styled("uncommited changes", Style::default().fg(COLOR_TEXT)),
+                ]),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled(format!("select an operation to perform"), Style::default().fg(COLOR_TEXT))
+                ]),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled(format!("(c)"), Style::default().fg(COLOR_GREY_500)),
+                    Span::styled(format!("ommit "), Style::default().fg(COLOR_TEXT)),
+                    Span::styled(format!("(r)"), Style::default().fg(COLOR_GREY_500)),
+                    Span::styled(format!("eset "), Style::default().fg(COLOR_TEXT)),
+                    Span::styled(format!("(a)"), Style::default().fg(COLOR_GREY_500)),
+                    Span::styled(format!("dd "), Style::default().fg(COLOR_TEXT))
+                ]),
+            ]; 
+        } else {
+            let oid = *self.oids.get(self.graph_selected).unwrap();      
+            lines = vec![
+                Line::from(vec![
+                    Span::styled("you are here: ", Style::default().fg(COLOR_TEXT)),
+                    Span::styled(format!("#{:.6}", oid), Style::default().fg(*self.oid_colors.get(&oid).unwrap()))
+                ]),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled(format!("select an operation to perform"), Style::default().fg(COLOR_TEXT))
+                ]),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled(format!("(c)"), Style::default().fg(COLOR_GREY_500)),
+                    Span::styled(format!("heckout "), Style::default().fg(COLOR_TEXT)),
+                    Span::styled(format!("(n)"), Style::default().fg(COLOR_GREY_500)),
+                    Span::styled(format!("ew "), Style::default().fg(COLOR_TEXT)),
+                    Span::styled(format!("(r)"), Style::default().fg(COLOR_GREY_500)),
+                    Span::styled(format!("eset "), Style::default().fg(COLOR_TEXT)),
+                    Span::styled(format!("(d)"), Style::default().fg(COLOR_GREY_500)),
+                    Span::styled(format!("elete "), Style::default().fg(COLOR_TEXT))
+                ]),
+            ]; 
+        } 
             
         let bg_block = Block::default().style(Style::default().fg(COLOR_BORDER));
         bg_block.render(frame.area(), frame.buffer_mut());

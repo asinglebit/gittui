@@ -44,7 +44,8 @@ pub enum Focus {
     StatusTop,
     StatusBottom,
     ModalActions,
-    ModalCheckout
+    ModalCheckout,
+    ModalCommit,
 }
 
 pub struct App {
@@ -115,7 +116,7 @@ impl App {
         // Compute the layout
         self.layout(frame);
 
-        // Main app
+        // Main layout
         self.draw_title(frame);
         self.draw_graph(frame);
         if self.is_status {self.draw_status(frame);}
@@ -123,8 +124,18 @@ impl App {
         self.draw_statusbar(frame);
 
         // Modals
-        if self.focus == Focus::ModalActions {self.draw_modal_actions(frame);}
-        if self.focus == Focus::ModalCheckout {self.draw_modal_checkout(frame);}
+        match self.focus {
+            Focus::ModalActions => {
+                self.draw_modal_actions(frame);
+            }
+            Focus::ModalCheckout => {
+                self.draw_modal_checkout(frame);
+            }
+            Focus::ModalCommit => {
+                self.draw_modal_commit(frame);
+            }
+            _ => {}
+        }
     }
 
     pub fn reload(&mut self) {

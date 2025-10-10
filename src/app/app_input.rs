@@ -131,7 +131,7 @@ impl App {
             }
             KeyCode::Char('x') => {
                 match self.focus {
-                    Focus::ModalActions => {
+                    Focus::ModalActions | Focus::ModalCommit => {
                         self.focus = Focus::Graph;
                     }
                     Focus::ModalCheckout => {
@@ -144,6 +144,10 @@ impl App {
             KeyCode::Char('c') => {
                 match self.focus {
                     Focus::Graph | Focus::ModalActions => {
+                        if self.graph_selected == 0 {
+                            self.focus = Focus::ModalCommit;
+                            return;
+                        }
                         let branches = self
                             .tips
                             .entry(*self.oids.get(self.graph_selected).unwrap())
@@ -162,6 +166,7 @@ impl App {
                             self.reload();
                         } else {
                             self.focus = Focus::ModalCheckout;
+                            return;
                         }
                     }
                     _ => {}
@@ -300,7 +305,7 @@ impl App {
             }
             KeyCode::Esc => {
                 match self.focus {
-                    Focus::ModalActions => {
+                    Focus::ModalActions | Focus::ModalCommit => {
                         self.focus = Focus::Graph;
                     }
                     Focus::ModalCheckout => {
