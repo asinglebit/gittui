@@ -1,7 +1,12 @@
+use ratatui::layout::Position;
 #[rustfmt::skip]
 use ratatui::{
     Frame,
-    style::Style,
+    prelude::StatefulWidget,
+    style::{
+        Style,
+        Stylize
+    },
     layout::{
         Alignment,
         Rect
@@ -19,6 +24,8 @@ use ratatui::{
         Widget
     },
 };
+#[rustfmt::skip]
+use rat_text::text_input::TextInput;
 #[rustfmt::skip]
 use crate::{
     utils::{
@@ -42,9 +49,11 @@ impl App {
                 Span::styled("commit message:", Style::default().fg(COLOR_TEXT)),
             ]),
             Line::from(""),
+            Line::from(""),
+            Line::from(""),
             Line::from(vec![
-                Span::styled(format!("(c)"), Style::default().fg(COLOR_GREY_500)),
-                Span::styled(format!("ommit "), Style::default().fg(COLOR_TEXT)),
+                Span::styled(format!("(enter)"), Style::default().fg(COLOR_GREY_500)),
+                Span::styled(format!("commit "), Style::default().fg(COLOR_TEXT)),
             ]),
         ];
             
@@ -66,22 +75,41 @@ impl App {
             top: 1,
             bottom: 1,
         };
-
+        
         // Modal block
         let modal_block = Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(COLOR_GREY_600))
-            .title(Span::styled(" (x) ", Style::default().fg(COLOR_GREY_500)))
+            .title(Span::styled(" (esc) ", Style::default().fg(COLOR_GREY_500)))
             .title_alignment(Alignment::Right)
             .padding(padding)
             .border_type(ratatui::widgets::BorderType::Rounded);
 
         // Modal content
-
         let paragraph = Paragraph::new(Text::from(lines))
             .block(modal_block)
             .alignment(Alignment::Center);
-
+        
+        // Render the paragraph
         paragraph.render(modal_area, frame.buffer_mut());
+        
+        // Create the input field
+        let text_input = TextInput::new()
+            .style(Style::default().bg(COLOR_GREY_800))
+            .select_style(Style::default().black().on_yellow());
+        let input_area = Rect {
+            x: modal_area.x + modal_area.width / 2 - 20,
+            y: modal_area.y + 4,
+            width: 40,
+            height: 1,
+        };
+        text_input.render(input_area, frame.buffer_mut(), &mut self.commit_message_input);
+
+        // Render the cursor
+        let position = Position {
+            x: input_area.x + self.commit_message_input_cursor as u16,
+            y: input_area.y
+        };
+        frame.set_cursor_position(position);
     }
 }

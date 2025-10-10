@@ -9,7 +9,7 @@ use git2::{
     Oid,
     Repository
 };
-use ratatui::{text::Span, widgets::Clear};
+use rat_text::text_input::TextInputState;
 #[rustfmt::skip]
 use ratatui::{
     DefaultTerminal,
@@ -18,6 +18,7 @@ use ratatui::{
     style::Color,
     text::{
         Line,
+        Span
     },
 };
 #[rustfmt::skip]
@@ -93,8 +94,12 @@ pub struct App {
     pub status_bottom_selected: usize,
     pub status_bottom_scroll: Cell<usize>,
 
-    // Modal branch
+    // Modal checkout
     pub modal_checkout_selected: i32,
+
+    // Modal commit
+    pub commit_message_input: TextInputState,
+    pub commit_message_input_cursor: usize,
 
     // Exit
     pub is_exit: bool,    

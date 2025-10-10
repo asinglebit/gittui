@@ -6,6 +6,7 @@ use std::{
 };
 #[rustfmt::skip]
 use git2::Repository;
+use rat_text::text_input::TextInputState;
 use ratatui::{
     style::Style,
     text::{
@@ -89,6 +90,10 @@ impl Default for App {
 
             // Modal branch
             modal_checkout_selected: 0,
+
+            // Modal commit
+            commit_message_input: TextInputState::new(),
+            commit_message_input_cursor: 0,
 
             // Exit
             is_exit: false,   

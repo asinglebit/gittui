@@ -12,6 +12,7 @@ use crossterm::event::{
     KeyEventKind,
     KeyModifiers
 };
+use rat_text::{event::TextOutcome, text_input};
 use crate::git::{actions::reset_hard, queries::get_current_branch};
 #[rustfmt::skip]
 use crate::{
@@ -41,6 +42,43 @@ impl App {
     }
 
     pub fn handle_key_event(&mut self, key_event: KeyEvent) {
+        if self.focus == Focus::ModalCommit {
+            // Instead of calling self.commit_message_input.handle_key_event(...)
+            // use rat_text's event handler:
+            let outcome = text_input::handle_events(
+                &mut self.commit_message_input, // TextInputState
+                true,                           // focused
+                &Event::Key(key_event),          // pass the Event
+            );
+
+            match outcome {
+                TextOutcome::Continue => {} // event ignored
+                TextOutcome::Unchanged => {} // handled but no changes
+                TextOutcome::Changed | TextOutcome::TextChanged => {
+                    // Mark UI for re-render if needed
+                    // self.should_redraw = true;
+                }
+            }
+
+            match key_event.code {
+                KeyCode::Esc | KeyCode::Char('x') => {
+                    self.focus = Focus::Graph;
+                }
+                KeyCode::Enter => {
+                    self.focus = Focus::Graph;
+                }
+                KeyCode::Backspace => {
+                    if self.commit_message_input_cursor > 0 {self.commit_message_input_cursor -= 1};
+                }
+                _ => {
+                    if self.commit_message_input_cursor < 39 {self.commit_message_input_cursor += 1};
+                    return;
+                }
+            }
+
+            return;
+        }
+
         match key_event.code {
             KeyCode::Char('q') => self.exit(),
             KeyCode::Char('r') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
