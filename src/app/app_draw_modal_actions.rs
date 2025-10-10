@@ -39,24 +39,87 @@ impl App {
         let mut lines: Vec<Line> = Vec::new();
 
         if self.graph_selected == 0 {
-            lines = vec![
-                Line::from(vec![
-                    Span::styled("uncommited changes", Style::default().fg(COLOR_TEXT)),
-                ]),
-                Line::from(""),
-                Line::from(vec![
-                    Span::styled(format!("select an operation to perform"), Style::default().fg(COLOR_TEXT))
-                ]),
-                Line::from(""),
-                Line::from(vec![
-                    Span::styled(format!("(c)"), Style::default().fg(COLOR_GREY_500)),
-                    Span::styled(format!("ommit "), Style::default().fg(COLOR_TEXT)),
-                    Span::styled(format!("(r)"), Style::default().fg(COLOR_GREY_500)),
-                    Span::styled(format!("eset "), Style::default().fg(COLOR_TEXT)),
-                    Span::styled(format!("(a)"), Style::default().fg(COLOR_GREY_500)),
-                    Span::styled(format!("dd "), Style::default().fg(COLOR_TEXT))
-                ]),
-            ]; 
+            if self.uncommitted.is_clean {
+                lines = vec![
+                    Line::from(vec![
+                        Span::styled(format!("⊘ no uncommitted changes"), Style::default().fg(COLOR_TEXT))
+                    ]),
+                ];
+            } else {
+                let mut line_status = Line::default();
+
+                if self.uncommitted.is_staged {
+                    line_status.extend(vec![
+                        Span::styled("staged: ", Style::default().fg(COLOR_TEXT)),
+                    ].into_iter());
+                }
+                if self.uncommitted.staged.modified.len() > 0 {
+                    line_status.extend(vec![
+                        Span::styled("~", Style::default().fg(COLOR_BLUE)),
+                        Span::styled(format!("{} ", self.uncommitted.staged.modified.len()), Style::default().fg(COLOR_TEXT)),
+                    ].into_iter());
+                }
+                if self.uncommitted.staged.added.len() > 0 {
+                    line_status.extend(vec![
+                        Span::styled("+", Style::default().fg(COLOR_GREEN)),
+                        Span::styled(format!("{} ", self.uncommitted.staged.added.len()), Style::default().fg(COLOR_TEXT)),
+                    ].into_iter());
+                }
+                if self.uncommitted.staged.deleted.len() > 0 {
+                    line_status.extend(vec![
+                        Span::styled("-", Style::default().fg(COLOR_RED)),
+                        Span::styled(format!("{} ", self.uncommitted.staged.deleted.len()), Style::default().fg(COLOR_TEXT)),
+                    ].into_iter());
+                }
+                if self.uncommitted.is_staged && self.uncommitted.is_unstaged {
+                    line_status.extend(vec![
+                        Span::styled(" | ", Style::default().fg(COLOR_TEXT)),
+                    ].into_iter());
+                }
+                if self.uncommitted.is_unstaged {
+                    line_status.extend(vec![
+                        Span::styled("unstaged: ", Style::default().fg(COLOR_TEXT)),
+                    ].into_iter());
+                }
+                if self.uncommitted.unstaged.modified.len() > 0 {
+                    line_status.extend(vec![
+                        Span::styled("~", Style::default().fg(COLOR_BLUE)),
+                        Span::styled(format!("{} ", self.uncommitted.unstaged.modified.len()), Style::default().fg(COLOR_TEXT)),
+                    ].into_iter());
+                }
+                if self.uncommitted.unstaged.added.len() > 0 {
+                    line_status.extend(vec![
+                        Span::styled("+", Style::default().fg(COLOR_GREEN)),
+                        Span::styled(format!("{} ", self.uncommitted.unstaged.added.len()), Style::default().fg(COLOR_TEXT)),
+                    ].into_iter());
+                }
+                if self.uncommitted.unstaged.deleted.len() > 0 {
+                    line_status.extend(vec![
+                        Span::styled("-", Style::default().fg(COLOR_RED)),
+                        Span::styled(format!("{} ", self.uncommitted.unstaged.deleted.len()), Style::default().fg(COLOR_TEXT)),
+                    ].into_iter());
+                }
+
+                let mut line_operations = Line::default();
+                if self.uncommitted.is_staged {
+                    line_operations.push_span(Span::styled("(c)", Style::default().fg(COLOR_GREY_500)));
+                    line_operations.push_span(Span::styled("ommit ", Style::default().fg(COLOR_TEXT)));
+                    line_operations.push_span(Span::styled("(r)", Style::default().fg(COLOR_GREY_500)));
+                    line_operations.push_span(Span::styled("eset ", Style::default().fg(COLOR_TEXT)));
+                }
+                if self.uncommitted.is_unstaged {
+                    line_operations.push_span(Span::styled("(a)", Style::default().fg(COLOR_GREY_500)));
+                    line_operations.push_span(Span::styled("dd ", Style::default().fg(COLOR_TEXT)));
+                }
+
+                lines = vec![
+                    line_status,
+                    Line::from(""),
+                    Line::from(vec![Span::styled("select an operation to perform", Style::default().fg(COLOR_TEXT))]),
+                    Line::from(""),
+                    line_operations,
+                ];
+            }
         } else {
             let oid = *self.oids.get(self.graph_selected).unwrap();      
             lines = vec![

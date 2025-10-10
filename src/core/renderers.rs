@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 #[rustfmt::skip]
 use std::{
     cell::RefCell,
@@ -23,6 +24,7 @@ use ratatui::{
 #[rustfmt::skip]
 use crate::{
     core::buffer::Buffer,
+    git::queries::UncommittedChanges,
     utils::{
         colors::*,
         symbols::SYM_UNCOMMITED
@@ -31,7 +33,7 @@ use crate::{
 
 pub fn render_uncommitted(
     head_oid: Oid,
-    (new_count, modified_count, deleted_count): &(usize, usize, usize),
+    uncommitted: &UncommittedChanges,
     lines_graph: &mut Vec<Line>,
     lines_branches: &mut Vec<Line>,
     lines_messages: &mut Vec<Line>,
@@ -41,24 +43,25 @@ pub fn render_uncommitted(
         format!("{} ", SYM_UNCOMMITED),
         Style::default().fg(COLOR_GREY_400),
     )];
-    if *modified_count > 0 {
+
+    if uncommitted.modified_count > 0 {
         uncommited_line_spans.push(Span::styled("~ ", Style::default().fg(COLOR_BLUE)));
         uncommited_line_spans.push(Span::styled(
-            format!("{} ", modified_count),
+            format!("{} ", uncommitted.modified_count),
             Style::default().fg(COLOR_GREY_600),
         ));
     }
-    if *new_count > 0 {
+    if uncommitted.added_count > 0 {
         uncommited_line_spans.push(Span::styled("+ ", Style::default().fg(COLOR_GREEN)));
         uncommited_line_spans.push(Span::styled(
-            format!("{} ", new_count),
+            format!("{} ", uncommitted.added_count),
             Style::default().fg(COLOR_GREY_600),
         ));
     }
-    if *deleted_count > 0 {
+    if uncommitted.deleted_count > 0 {
         uncommited_line_spans.push(Span::styled("- ", Style::default().fg(COLOR_RED)));
         uncommited_line_spans.push(Span::styled(
-            format!("{} ", deleted_count),
+            format!("{} ", uncommitted.deleted_count),
             Style::default().fg(COLOR_GREY_600),
         ));
     }

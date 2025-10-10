@@ -4,9 +4,9 @@ use std::{
     env,
     path::PathBuf
 };
-use edtui::{EditorEventHandler, EditorState};
 #[rustfmt::skip]
 use git2::Repository;
+#[rustfmt::skip]
 use ratatui::{
     style::Style,
     text::{
@@ -14,10 +14,20 @@ use ratatui::{
     }
 };
 #[rustfmt::skip]
-use crate::app::app::{
-    App,
-    Layout,
-    Focus
+use edtui::{
+    EditorEventHandler,
+    EditorState
+};
+#[rustfmt::skip]
+use crate::{
+    app::app::{
+        App,
+        Layout,
+        Focus
+    },
+    git::{
+        queries::UncommittedChanges
+    }
 };
 #[rustfmt::skip]
 use crate::utils::colors::{
@@ -58,6 +68,7 @@ impl Default for App {
             tip_colors: HashMap::new(),
             branch_oid_map: HashMap::new(),
             oid_branch_map: HashMap::new(),
+            uncommitted: UncommittedChanges::default(),
             lines_graph: Vec::new(),
             lines_branches: Vec::new(),
             lines_messages: Vec::new(),

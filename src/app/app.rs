@@ -4,7 +4,11 @@ use std::{
     collections::HashMap,
     io,
 };
-use edtui::{EditorEventHandler, EditorState};
+#[rustfmt::skip]
+use edtui::{
+    EditorEventHandler,
+    EditorState
+};
 #[rustfmt::skip]
 use git2::{
     Oid,
@@ -24,6 +28,7 @@ use ratatui::{
 #[rustfmt::skip]
 use crate::{
     core::walker::walk,
+    git::queries::UncommittedChanges
 };
 
 #[derive(Default)]
@@ -62,6 +67,10 @@ pub struct App {
     pub tip_colors: HashMap<Oid, Color>,
     pub branch_oid_map: HashMap<String, Oid>,
     pub oid_branch_map: HashMap<Oid, Vec<String>>,
+    pub uncommitted: UncommittedChanges,
+
+    // Cache
+    // pub changesets: HashMap<>
 
     // Lines
     pub lines_graph: Vec<Line<'static>>,
@@ -151,6 +160,7 @@ impl App {
         self.tip_colors = walked.tip_colors;
         self.branch_oid_map = walked.branch_oid_map;
         self.oid_branch_map = walked.oid_branch_map;
+        self.uncommitted = walked.uncommitted;
         self.lines_graph = walked.lines_graph;
         self.lines_branches = walked.lines_branches;
         self.lines_messages = walked.lines_messages;

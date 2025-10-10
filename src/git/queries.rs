@@ -1,36 +1,26 @@
 #[rustfmt::skip]
 use std::collections::HashMap;
+use std::collections::HashSet;
+use git2::DiffOptions;
 #[rustfmt::skip]
 use git2::{
     BranchType,
     Delta,
     Oid,
     Repository,
-    Status,
     StatusOptions,
     Time
 };
-#[rustfmt::skip]
-use ratatui::{
-    style::Style,
-    text::{
-        Line,
-        Span,
-        Text
-    },
-};
-#[rustfmt::skip]
-use crate::utils::colors::{
-    COLOR_GREEN,
-    COLOR_GREY_400,
-    COLOR_RED,
-    COLOR_TEXT
-};
-
 #[derive(Debug, Default)]
 pub struct UncommittedChanges {
     pub unstaged: FileChanges,
     pub staged: FileChanges,
+    pub modified_count: usize,
+    pub added_count: usize,
+    pub deleted_count: usize,
+    pub is_clean: bool,
+    pub is_staged: bool,
+    pub is_unstaged: bool
 }
 
 #[derive(Debug, Default)]
@@ -53,88 +43,6 @@ pub enum FileStatus {
     Deleted,
     Renamed,
     Other,
-}
-
-pub fn get_uncommitted_changes_count(repo: &Repository) -> (usize, usize, usize) {
-    let mut options = StatusOptions::new();
-    options.include_untracked(true); // include untracked files
-    options.include_ignored(false); // skip ignored files
-    options.recurse_untracked_dirs(true);
-
-    let statuses = repo.statuses(Some(&mut options)).unwrap();
-
-    let mut new_count = 0;
-    let mut modified_count = 0;
-    let mut deleted_count = 0;
-
-    for entry in statuses.iter() {
-        let status = entry.status();
-        if status.contains(Status::WT_NEW) || status.contains(Status::INDEX_NEW) {
-            new_count += 1;
-        }
-        if status.contains(Status::WT_MODIFIED) || status.contains(Status::INDEX_MODIFIED) {
-            modified_count += 1;
-        }
-        if status.contains(Status::WT_DELETED) || status.contains(Status::INDEX_DELETED) {
-            deleted_count += 1;
-        }
-    }
-
-    (new_count, modified_count, deleted_count)
-}
-
-pub fn get_changed_filenames_as_text(repo: &Repository, oid: Oid) -> Text<'_> {
-    let commit = repo.find_commit(oid).unwrap();
-    let tree = commit.tree().unwrap();
-
-    let mut lines = Vec::new();
-
-    if commit.parent_count() == 0 {
-        // Initial commit — list all files
-        tree.walk(git2::TreeWalkMode::PreOrder, |_, entry| {
-            if let Some(name) = entry.name() {
-                lines.push(Line::from(Span::styled(
-                    name.to_string(),
-                    Style::default().fg(COLOR_GREY_400),
-                )));
-            }
-            git2::TreeWalkResult::Ok
-        })
-        .unwrap();
-    } else {
-        // Normal commits — diff against first parent
-        let parent = commit.parent(0).unwrap();
-        let parent_tree = parent.tree().unwrap();
-        let diff = repo
-            .diff_tree_to_tree(Some(&parent_tree), Some(&tree), None)
-            .unwrap();
-
-        diff.foreach(
-            &mut |delta, _| {
-                if let Some(path) = delta.new_file().path() {
-                    lines.push(Line::from(Span::styled(
-                        path.display().to_string(),
-                        Style::default().fg(match delta.status() {
-                            Delta::Added => COLOR_GREEN,
-                            Delta::Deleted => COLOR_RED,
-                            Delta::Modified => COLOR_TEXT,
-                            Delta::Renamed => COLOR_TEXT,
-                            Delta::Copied => COLOR_TEXT,
-                            Delta::Untracked => COLOR_TEXT,
-                            _ => COLOR_TEXT,
-                        }),
-                    )));
-                }
-                true
-            },
-            None,
-            None,
-            None,
-        )
-        .unwrap();
-    }
-
-    Text::from(lines)
 }
 
 pub fn get_sorted_commits(repo: &Repository) -> Vec<Oid> {
@@ -236,21 +144,58 @@ pub fn get_uncommitted_changes(repo: &Repository) -> Result<UncommittedChanges, 
         // Check staged changes (INDEX vs HEAD)
         if status.is_index_modified() {
             changes.staged.modified.push(path.clone());
-        } else if status.is_index_new() {
+        }
+        if status.is_index_new() {
             changes.staged.added.push(path.clone());
-        } else if status.is_index_deleted() {
+        }
+        if status.is_index_deleted() {
             changes.staged.deleted.push(path.clone());
         }
 
         // Check unstaged changes (WORKDIR vs INDEX)
         if status.is_wt_modified() {
             changes.unstaged.modified.push(path.clone());
-        } else if status.is_wt_new() {
-            changes.unstaged.added.push(path);
-        } else if status.is_wt_deleted() {
-            changes.unstaged.deleted.push(path);
+        }
+        if status.is_wt_new() {
+            changes.unstaged.added.push(path.clone());
+        }
+        if status.is_wt_deleted() {
+            changes.unstaged.deleted.push(path.clone());
         }
     }
+
+    // Deduplicate filenames across staged + unstaged
+    let modified: HashSet<_> = changes
+        .staged
+        .modified
+        .iter()
+        .chain(&changes.unstaged.modified)
+        .cloned()
+        .collect();
+
+    let added: HashSet<_> = changes
+        .staged
+        .added
+        .iter()
+        .chain(&changes.unstaged.added)
+        .cloned()
+        .collect();
+
+    let deleted: HashSet<_> = changes
+        .staged
+        .deleted
+        .iter()
+        .chain(&changes.unstaged.deleted)
+        .cloned()
+        .collect();
+
+    // Counts after deduplication
+    changes.modified_count = modified.len();
+    changes.added_count = added.len();
+    changes.deleted_count = deleted.len();
+    changes.is_staged = changes.staged.modified.len() > 0 || changes.staged.added.len() > 0 || changes.staged.deleted.len() > 0;
+    changes.is_unstaged = changes.unstaged.modified.len() > 0 || changes.unstaged.added.len() > 0 || changes.unstaged.deleted.len() > 0;
+    changes.is_clean = !changes.is_staged && !changes.is_unstaged;
 
     Ok(changes)
 }
@@ -261,48 +206,54 @@ pub fn get_changed_filenames(repo: &Repository, oid: Oid) -> Vec<FileChange> {
     let mut changes = Vec::new();
 
     if commit.parent_count() == 0 {
-        // Initial commit — list all files as "added"
-        tree.walk(git2::TreeWalkMode::PreOrder, |_, entry| {
+        // Initial commit — mark all files as Added
+        for entry in tree.iter() {
             if let Some(name) = entry.name() {
                 changes.push(FileChange {
                     filename: name.to_string(),
                     status: FileStatus::Added,
                 });
             }
-            git2::TreeWalkResult::Ok
-        })
+        }
+        return changes;
+    }
+
+    let parent_tree = commit.parent(0).unwrap().tree().unwrap();
+
+    let mut opts = DiffOptions::new();
+    opts
+        .include_untracked(false)
+        .recurse_untracked_dirs(false)
+        .include_typechange(false)
+        .ignore_submodules(true)
+        .show_binary(false)
+        .minimal(false)
+        .skip_binary_check(true);
+
+    let diff = repo
+        .diff_tree_to_tree(Some(&parent_tree), Some(&tree), Some(&mut opts))
         .unwrap();
-    } else {
-        // Normal commits — diff against first parent
-        let parent = commit.parent(0).unwrap();
-        let parent_tree = parent.tree().unwrap();
-        let diff = repo
-            .diff_tree_to_tree(Some(&parent_tree), Some(&tree), None)
+
+    // Only gather filenames + statuses, skip all other callbacks
+    for delta in diff.deltas() {
+        let path = delta
+            .new_file()
+            .path()
+            .or_else(|| delta.old_file().path())
             .unwrap();
 
-        diff.foreach(
-            &mut |delta, _| {
-                if let Some(path) = delta.new_file().path().or_else(|| delta.old_file().path()) {
-                    let status = match delta.status() {
-                        Delta::Added => FileStatus::Added,
-                        Delta::Deleted => FileStatus::Deleted,
-                        Delta::Modified => FileStatus::Modified,
-                        Delta::Renamed => FileStatus::Renamed,
-                        _ => FileStatus::Other,
-                    };
+        let status = match delta.status() {
+            Delta::Added => FileStatus::Added,
+            Delta::Modified => FileStatus::Modified,
+            Delta::Deleted => FileStatus::Deleted,
+            Delta::Renamed => FileStatus::Renamed,
+            _ => FileStatus::Other,
+        };
 
-                    changes.push(FileChange {
-                        filename: path.display().to_string(),
-                        status,
-                    });
-                }
-                true
-            },
-            None,
-            None,
-            None,
-        )
-        .unwrap();
+        changes.push(FileChange {
+            filename: path.display().to_string(),
+            status,
+        });
     }
 
     changes

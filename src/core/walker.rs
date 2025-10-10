@@ -18,7 +18,6 @@ use ratatui::{
         Line,
     },
 };
-use crate::core::renderers::render_uncommitted;
 #[rustfmt::skip]
 use crate::{
     core::{
@@ -29,7 +28,8 @@ use crate::{
             render_branches,
             render_buffer,
             render_graph,
-            render_messages
+            render_messages,
+            render_uncommitted
         },
     },
     git::queries::{
@@ -37,7 +37,8 @@ use crate::{
         get_sorted_commits,
         // get_timestamps,
         get_tips,
-        get_uncommitted_changes_count,
+        get_uncommitted_changes,
+        UncommittedChanges
     },
     utils::{
         colors::*,
@@ -53,6 +54,7 @@ pub struct Walked<'a> {
     pub tip_colors: HashMap<Oid, Color>,
     pub branch_oid_map: HashMap<String, Oid>,
     pub oid_branch_map: HashMap<Oid, Vec<String>>,
+    pub uncommitted: UncommittedChanges,
     pub lines_graph: Vec<Line<'a>>,
     pub lines_branches: Vec<Line<'a>>,
     pub lines_messages: Vec<Line<'a>>,
@@ -88,7 +90,7 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
     // Topologically sorted list of oids including the uncommited
     let sorted: Vec<Oid> = get_sorted_commits(repo);
     // Get uncomitted changes info
-    let uncommitted = get_uncommitted_changes_count(repo);
+    let uncommitted = get_uncommitted_changes(repo).expect("Error");
     // Get current head oid
     let head_oid = repo.head().unwrap().target().unwrap();
 
@@ -348,6 +350,7 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
         tip_colors,
         branch_oid_map,
         oid_branch_map,
+        uncommitted,
         lines_graph,
         lines_branches,
         lines_messages,
