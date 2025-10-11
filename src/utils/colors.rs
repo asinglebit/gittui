@@ -99,7 +99,7 @@ pub fn random_color() -> Color {
         // COLOR_INDIGO,
         COLOR_CYAN,
         COLOR_GREEN,
-        COLOR_LIME,
+        // COLOR_LIME,
         // COLOR_AMBER,
         // COLOR_GRAPEFRUIT,
         // COLOR_RED,

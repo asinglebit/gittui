@@ -177,7 +177,7 @@ impl App {
         let modal_block = Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(COLOR_GREY_600))
-            .title(Span::styled(" (x) ", Style::default().fg(COLOR_GREY_500)))
+            .title(Span::styled(" (esc) ", Style::default().fg(COLOR_GREY_500)))
             .title_alignment(Alignment::Right)
             .padding(padding)
             .border_type(ratatui::widgets::BorderType::Rounded);

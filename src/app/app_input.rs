@@ -259,8 +259,15 @@ impl App {
 
         // Handle the application
         match key_event.code {
-            KeyCode::Char('q') => self.exit(),
-            KeyCode::Char('r') => self.reload(),
+            KeyCode::Char('r') => {
+                self.reload();
+                match self.focus {
+                    Focus::ModalCheckout | Focus::ModalActions | Focus::ModalCommit => {
+                        self.focus = Focus::Viewport;
+                    }
+                    _ => {}
+                }
+            }
             KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.exit()
             }
