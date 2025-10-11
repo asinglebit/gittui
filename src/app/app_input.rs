@@ -208,7 +208,7 @@ impl App {
                         KeyCode::Esc => {
                             self.focus = Focus::Viewport;
                         }
-                        KeyCode::Char('c') => {
+                        KeyCode::Enter => {
                             commit_staged(
                                 &self.repo,
                                 &editor_state_to_string(&self.commit_editor),
@@ -399,6 +399,7 @@ impl App {
 
                         if self.graph_selected == 0 && self.uncommitted.is_staged {
                             self.focus = Focus::ModalCommit;
+                            self.commit_editor.mode = EditorMode::Insert;
                             return;
                         }
                         let branches = self
