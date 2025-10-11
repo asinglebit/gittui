@@ -44,7 +44,11 @@ impl App {
                     Line::default(),
                     Line::default(),
                     Line::from(vec![
-                        Span::styled(format!("⊘ no actions"), Style::default().fg(COLOR_TEXT))
+                        Span::styled(format!("all is up-to-date"), Style::default().fg(COLOR_TEXT))
+                    ]),
+                    Line::from(vec![
+                        Span::styled(format!("(r)"), Style::default().fg(COLOR_GREY_500)),
+                        Span::styled(format!("eload"), Style::default().fg(COLOR_TEXT)),
                     ]),
                 ];
             } else {
@@ -106,16 +110,16 @@ impl App {
                 if self.uncommitted.is_staged {
                     line_operations.push_span(Span::styled("(c)", Style::default().fg(COLOR_GREY_500)));
                     line_operations.push_span(Span::styled("ommit ", Style::default().fg(COLOR_TEXT)));
-                    line_operations.push_span(Span::styled("(r)", Style::default().fg(COLOR_GREY_500)));
-                    line_operations.push_span(Span::styled("eset ", Style::default().fg(COLOR_TEXT)));
                     line_operations.push_span(Span::styled("(u)", Style::default().fg(COLOR_GREY_500)));
                     line_operations.push_span(Span::styled("nstage ", Style::default().fg(COLOR_TEXT)));
                 }
                 if self.uncommitted.is_unstaged {
-                    line_operations.push_span(Span::styled("st", Style::default().fg(COLOR_TEXT)));
                     line_operations.push_span(Span::styled("(a)", Style::default().fg(COLOR_GREY_500)));
-                    line_operations.push_span(Span::styled("ge ", Style::default().fg(COLOR_TEXT)));
+                    line_operations.push_span(Span::styled("dd ", Style::default().fg(COLOR_TEXT)));
                 }
+
+                line_operations.push_span(Span::styled("(r)", Style::default().fg(COLOR_GREY_500)));
+                line_operations.push_span(Span::styled("eload ", Style::default().fg(COLOR_TEXT)));
 
                 lines = vec![
                     line_status,
@@ -141,9 +145,11 @@ impl App {
                     Span::styled(format!("(c)"), Style::default().fg(COLOR_GREY_500)),
                     Span::styled(format!("heckout "), Style::default().fg(COLOR_TEXT)),
                     Span::styled(format!("(h)"), Style::default().fg(COLOR_GREY_500)),
-                    Span::styled(format!("ard-eset "), Style::default().fg(COLOR_TEXT)),
+                    Span::styled(format!("ardreset "), Style::default().fg(COLOR_TEXT)),
                     Span::styled(format!("(m)"), Style::default().fg(COLOR_GREY_500)),
-                    Span::styled(format!("ixed-reset"), Style::default().fg(COLOR_TEXT)),
+                    Span::styled(format!("ixedreset "), Style::default().fg(COLOR_TEXT)),
+                    Span::styled(format!("(r)"), Style::default().fg(COLOR_GREY_500)),
+                    Span::styled(format!("eload"), Style::default().fg(COLOR_TEXT)),
                 ]),
             ]; 
         } 
