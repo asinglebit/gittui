@@ -182,15 +182,15 @@ impl App {
             self.trap_selection(self.status_top_selected, &self.status_top_scroll, total_lines, visible_height);
 
             // Calculate scroll
-            let scroll_offset = self.status_top_scroll.get().min(total_lines.saturating_sub(visible_height));
-            let end = (scroll_offset + visible_height).min(total_lines);
+            let start = self.status_top_scroll.get().min(total_lines.saturating_sub(visible_height));
+            let end = (start + visible_height).min(total_lines);
 
             // Setup list items
-            let list_items: Vec<ListItem> = lines_status_top[scroll_offset..end]
+            let list_items: Vec<ListItem> = lines_status_top[start..end]
                 .iter()
                 .enumerate()
                 .map(|(i, line)| {
-                    let absolute_idx = scroll_offset + i;
+                    let absolute_idx = start + i;
                     let mut item = ListItem::new(line.clone());
                     if absolute_idx == self.status_top_selected && self.focus == Focus::StatusTop && is_staged_changes {
                         item = item.style(Style::default().bg(COLOR_GREY_800));
@@ -262,15 +262,15 @@ impl App {
                 self.trap_selection(self.status_bottom_selected, &self.status_bottom_scroll, total_lines, visible_height);
                 
                 // Calculate scroll
-                let scroll_offset = self.status_bottom_scroll.get().min(total_lines.saturating_sub(visible_height));
-                let end = (scroll_offset + visible_height).min(total_lines);
+                let start = self.status_bottom_scroll.get().min(total_lines.saturating_sub(visible_height));
+                let end = (start + visible_height).min(total_lines);
 
                 // Setup list items
-                let list_items: Vec<ListItem> = lines_status_bottom[scroll_offset..end]
+                let list_items: Vec<ListItem> = lines_status_bottom[start..end]
                     .iter()
                     .enumerate()
                     .map(|(i, line)| {
-                        let absolute_idx = scroll_offset + i;
+                        let absolute_idx = start + i;
                         let mut item = ListItem::new(line.clone());
                         if absolute_idx == self.status_bottom_selected && self.focus == Focus::StatusBottom && total_lines > 0 && is_unstaged_changes {
                             item = item.style(Style::default().bg(COLOR_GREY_800));

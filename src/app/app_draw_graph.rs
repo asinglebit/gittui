@@ -30,19 +30,23 @@ impl App {
 
     pub fn draw_graph(&mut self, frame: &mut Frame) {
 
-        let table_height = self.layout.graph.height as usize - 2;
-        let total_rows = self.lines_graph.len();
+        // Get vertical dimensions
+        let total_lines = self.oids.len();
+        let visible_height = self.layout.graph.height as usize - 2;
 
-        // Make sure selected row is visible
-        if self.graph_selected < self.graph_scroll.get() {
-            self.graph_scroll.set(self.graph_selected);
-        } else if self.graph_selected >= self.graph_scroll.get() + table_height {
-            self.graph_scroll
-                .set(self.graph_selected.saturating_sub(table_height - 1));
+        // Clamp selection
+        if total_lines == 0 {
+            self.graph_selected = 0;
+        } else if self.graph_selected >= total_lines {
+            self.graph_selected = total_lines - 1;
         }
 
-        let start = self.graph_scroll.get();
-        let end = (self.graph_scroll.get() + table_height).min(total_rows);
+        // Trap selection
+        self.trap_selection(self.graph_selected, &self.graph_scroll, total_lines, visible_height);
+
+        // Calculate scroll
+        let start = self.graph_scroll.get().min(total_lines.saturating_sub(visible_height));
+        let end = (start + visible_height).min(total_lines);
 
         // Start with fake commit row
         let mut rows = Vec::with_capacity(end - start + 1); // preallocate for efficiency
@@ -67,36 +71,31 @@ impl App {
             rows.push(row);
         }
 
-        let table = Table::new(
-            rows,
-            [
+        // Setup the table
+        let table = Table::new(rows, [
                 ratatui::layout::Constraint::Length(25),
                 ratatui::layout::Constraint::Percentage(70),
-            ],
-        )
-        .block(
-            Block::default()
-                .title(vec![
-                    Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                    Span::styled(" graph ", Style::default().fg(if self.focus == Focus::Viewport { COLOR_GREY_500 } else { COLOR_TEXT } )),
-                    Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                ])
-                .title_alignment(ratatui::layout::Alignment::Right)
-                .title_style(Style::default().fg(COLOR_GREY_400))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(COLOR_BORDER))
-                .border_type(ratatui::widgets::BorderType::Rounded),
-        )
-        .row_highlight_style(Style::default().bg(COLOR_SELECTION).fg(COLOR_TEXT_SELECTED))
-        .column_spacing(2);
+            ]).block(
+                Block::default()
+                    .title(vec![
+                        Span::styled("─", Style::default().fg(COLOR_BORDER)),
+                        Span::styled(" graph ", Style::default().fg(if self.focus == Focus::Viewport { COLOR_GREY_500 } else { COLOR_TEXT } )),
+                        Span::styled("─", Style::default().fg(COLOR_BORDER)),
+                    ])
+                    .title_alignment(ratatui::layout::Alignment::Right)
+                    .title_style(Style::default().fg(COLOR_GREY_400))
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(COLOR_BORDER))
+                    .border_type(ratatui::widgets::BorderType::Rounded),
+            )
+            .row_highlight_style(Style::default().bg(COLOR_SELECTION).fg(COLOR_TEXT_SELECTED))
+            .column_spacing(2);
 
+        // Render the table
         frame.render_widget(table, self.layout.graph);
 
-        // Render the scrollbar
-        let total_lines = self.oids.len();
-        let visible_height = self.layout.graph.height as usize;
         if total_lines > visible_height {
-            let mut scrollbar_state = ScrollbarState::new(total_lines).position(self.graph_scroll.get());
+            let mut scrollbar_state = ScrollbarState::new(total_lines.saturating_sub(visible_height)).position(self.graph_scroll.get());
             let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
                 .begin_symbol(if self.is_inspector || self.is_status { Some("─") } else { Some("╮") })
                 .end_symbol(if self.is_inspector || self.is_status { Some("─") } else { Some("╯") })
@@ -108,6 +107,7 @@ impl App {
                     COLOR_BORDER
                 }));
 
+            // Render the scrollbar
             frame.render_stateful_widget(scrollbar, self.layout.graph, &mut scrollbar_state);
         }
     }

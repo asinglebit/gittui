@@ -37,7 +37,8 @@ use crate::{
             checkout_branch,
             commit_staged,
             git_add_all,
-            reset_to_commit
+            reset_to_commit,
+            unstage_all
         },
         queries::{
             get_changed_filenames,
@@ -392,7 +393,7 @@ impl App {
             KeyCode::Char('c') => {
                 match self.focus {
                     Focus::Viewport | Focus::ModalActions => {
-                        if self.focus == Focus::Viewport && self.viewport == Viewport::Editor {
+                        if self.focus == Focus::Viewport && self.viewport != Viewport::Graph {
                             return;
                         }
 
@@ -426,7 +427,7 @@ impl App {
             }
             KeyCode::Char('h') => match self.focus {
                 Focus::Viewport | Focus::ModalActions => {
-                    if self.focus == Focus::Viewport && self.viewport == Viewport::Editor {
+                    if self.focus == Focus::Viewport && self.viewport != Viewport::Graph {
                         return;
                     }
                     let oid = self.oids.get(self.graph_selected).unwrap();
@@ -438,7 +439,7 @@ impl App {
             },
             KeyCode::Char('m') => match self.focus {
                 Focus::Viewport | Focus::ModalActions => {
-                    if self.focus == Focus::Viewport && self.viewport == Viewport::Editor {
+                    if self.focus == Focus::Viewport && self.viewport != Viewport::Graph {
                         return;
                     }
                     let oid = self.oids.get(self.graph_selected).unwrap();
@@ -450,11 +451,23 @@ impl App {
             },
             KeyCode::Char('a') => match self.focus {
                 Focus::Viewport | Focus::ModalActions => {
-                    if self.focus == Focus::Viewport && self.viewport == Viewport::Editor {
+                    if self.focus == Focus::Viewport && self.viewport != Viewport::Graph {
                         return;
                     }
                     if self.uncommitted.is_unstaged {
                         git_add_all(&self.repo).expect("Error");
+                        self.reload();
+                    }
+                }
+                _ => {}
+            },
+            KeyCode::Char('u') => match self.focus {
+                Focus::Viewport | Focus::ModalActions => {
+                    if self.focus == Focus::Viewport && self.viewport != Viewport::Graph {
+                        return;
+                    }
+                    if self.uncommitted.is_staged {
+                        unstage_all(&self.repo).expect("Error");
                         self.reload();
                     }
                 }
@@ -556,7 +569,7 @@ impl App {
                         }
                         Viewport::Viewer => {
                             if !self.viewer_lines.is_empty() {
-                                self.viewer_selected = self.lines_branches.len() - 1;
+                                self.viewer_selected = self.viewer_lines.len() - 1;
                             }
                         }
                         _ => {}
@@ -678,6 +691,7 @@ impl App {
                     _ => {
                         self.viewport = Viewport::Graph;
                         self.focus = Focus::Viewport;
+                        self.file_name = None;
                     }
                 };
             }

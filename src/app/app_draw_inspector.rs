@@ -185,15 +185,15 @@ impl App {
         self.trap_selection(self.inspector_selected, &self.inspector_scroll, total_lines, visible_height);
 
         // Calculate scroll
-        let scroll_offset = self.inspector_scroll.get().min(total_lines.saturating_sub(visible_height));
-        let end = (scroll_offset + visible_height).min(total_lines);
+        let start = self.inspector_scroll.get().min(total_lines.saturating_sub(visible_height));
+        let end = (start + visible_height).min(total_lines);
 
         // Setup list items
-        let list_items: Vec<ListItem> = lines[scroll_offset..end]
+        let list_items: Vec<ListItem> = lines[start..end]
             .iter()
             .enumerate()
             .map(|(i, line)| {
-                let absolute_idx = scroll_offset + i;
+                let absolute_idx = start + i;
                 let mut item = ListItem::new(line.clone());
                 if absolute_idx == self.inspector_selected && self.focus == Focus::Inspector {
                     item = item.style(Style::default().bg(COLOR_GREY_800));

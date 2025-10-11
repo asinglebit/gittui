@@ -167,3 +167,19 @@ pub fn reset_to_commit(repo: &Repository, target: Oid, reset_type: ResetType) ->
 
     Ok(())
 }
+
+pub fn unstage_all(repo: &Repository) -> Result<(), git2::Error> {
+    // Get HEAD commit
+    let head = match repo.head() {
+        Ok(head) => head.peel_to_commit()?,
+        Err(_) => {
+            // If no HEAD exists (fresh repo), there's nothing to unstage
+            return Ok(());
+        }
+    };
+    
+    // Perform mixed reset - keeps working directory changes but resets index to HEAD
+    repo.reset(&head.into_object(), ResetType::Mixed, None)?;
+    
+    Ok(())
+}

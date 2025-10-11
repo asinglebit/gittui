@@ -6,6 +6,7 @@ use std::{
     },
     path::Path
 };
+use git2::ResetType;
 #[rustfmt::skip]
 use git2::{
     DiffOptions,
@@ -431,4 +432,3 @@ pub fn get_uncommitted_file_diff(
 
     Ok(hunks_result)
 }
-

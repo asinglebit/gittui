@@ -108,10 +108,13 @@ impl App {
                     line_operations.push_span(Span::styled("ommit ", Style::default().fg(COLOR_TEXT)));
                     line_operations.push_span(Span::styled("(r)", Style::default().fg(COLOR_GREY_500)));
                     line_operations.push_span(Span::styled("eset ", Style::default().fg(COLOR_TEXT)));
+                    line_operations.push_span(Span::styled("(u)", Style::default().fg(COLOR_GREY_500)));
+                    line_operations.push_span(Span::styled("nstage ", Style::default().fg(COLOR_TEXT)));
                 }
                 if self.uncommitted.is_unstaged {
+                    line_operations.push_span(Span::styled("st", Style::default().fg(COLOR_TEXT)));
                     line_operations.push_span(Span::styled("(a)", Style::default().fg(COLOR_GREY_500)));
-                    line_operations.push_span(Span::styled("dd ", Style::default().fg(COLOR_TEXT)));
+                    line_operations.push_span(Span::styled("ge ", Style::default().fg(COLOR_TEXT)));
                 }
 
                 lines = vec![

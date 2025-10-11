@@ -56,15 +56,15 @@ impl App {
         self.trap_selection(self.viewer_selected, &self.viewer_scroll, total_lines, visible_height);
 
         // Calculate scroll
-        let scroll_offset = self.viewer_scroll.get().min(total_lines.saturating_sub(visible_height));
-        let end = (scroll_offset + visible_height).min(total_lines);
+        let start = self.viewer_scroll.get().min(total_lines.saturating_sub(visible_height));
+        let end = (start + visible_height).min(total_lines);
 
         // Setup list items
-        let list_items: Vec<ListItem> = self.viewer_lines[scroll_offset..end]
+        let list_items: Vec<ListItem> = self.viewer_lines[start..end]
             .iter()
             .enumerate()
             .map(|(i, line)| {
-                let absolute_idx = scroll_offset + i;
+                let absolute_idx = start + i;
                 let mut item = line.clone();
                 if absolute_idx == self.viewer_selected && self.focus == Focus::Viewport {
                     item = item.style(Style::default().bg(COLOR_GREY_800));
@@ -90,6 +90,7 @@ impl App {
                     .border_type(ratatui::widgets::BorderType::Rounded),
             );
 
+        // Render the list
         frame.render_widget(list, self.layout.graph);
 
         // Setup the scrollbar

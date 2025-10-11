@@ -26,17 +26,16 @@ impl App {
 
     pub fn draw_title(&mut self, frame: &mut Frame) {
 
-        let sha_paragraph = ratatui::widgets::Paragraph::new(Text::from(Line::from([
-            self.logo.clone(), vec![
+        let path = if let Some(file_name) = self.file_name.clone() { format!("{}/{}", self.path.clone(), file_name) } else { self.path.clone() };
 
+        let paragraph = ratatui::widgets::Paragraph::new(Text::from(Line::from([
+            self.logo.clone(), vec![
             Span::styled(" |", Style::default().fg(COLOR_TEXT)),
-            Span::styled(
-                format!(" 🖿  {}", self.path),
-                Style::default().fg(COLOR_TEXT),
-            ),
+            Span::styled(format!(" 🖿  {}", path), Style::default().fg(COLOR_TEXT)),
+            
         ]].concat())))
         .left_aligned()
         .block(Block::default());
-        frame.render_widget(sha_paragraph, self.layout.title_left);
+        frame.render_widget(paragraph, self.layout.title_left);
     }
 }
