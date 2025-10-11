@@ -42,7 +42,6 @@ impl App {
             if self.uncommitted.is_clean {
                 lines = vec![
                     Line::default(),
-                    Line::default(),
                     Line::from(vec![
                         Span::styled(format!("all is up-to-date"), Style::default().fg(COLOR_TEXT))
                     ]),
