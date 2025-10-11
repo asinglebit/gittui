@@ -20,7 +20,10 @@ use edtui::{
 #[rustfmt::skip]
 use ratatui::{
     style::Style,
-    text::Line,
+    text::{
+        Line,
+        Span
+    },
     widgets::ListItem
 };
 #[rustfmt::skip]
@@ -48,7 +51,10 @@ use crate::{
             get_uncommitted_file_diff
         }
     },
-    utils::symbols::editor_state_to_string
+    utils::symbols::{
+        editor_state_to_string,
+        wrap_words
+    }
 };
 
 impl App {
@@ -80,6 +86,7 @@ impl App {
 
         self.viewer_lines.clear();
         let mut current_line: usize = 0;
+        let mut current_line_old: usize = 0;
 
         for hunk in hunks.iter() {
             // Parse hunk header to extract start line and length for the old file.
@@ -104,37 +111,133 @@ impl App {
 
             // Add unchanged lines before this hunk
             while current_line < old_start_idx && current_line < original_lines.len() {
-                self.viewer_lines.push(
-                    ListItem::new(Line::from(original_lines[current_line].clone()))
-                        .style(Style::default().fg(COLOR_GREY_500)),
+                let wrapped = wrap_words(
+                    original_lines[current_line].clone(),
+                    (self.layout.graph.width as usize).saturating_sub(8),
                 );
+                let mut i = 0;
+                for line in wrapped {
+                    self.viewer_lines.push(ListItem::new(
+                        Line::from(vec![
+                            Span::styled(
+                                format!(
+                                    "{}",
+                                    if i == 0 {
+                                        format!("{:3}  ", current_line + 1)
+                                    } else {
+                                        format!("     ")
+                                    }
+                                ),
+                                Style::default().fg(COLOR_BORDER),
+                            ),
+                            Span::styled(format!("{}", line), Style::default().fg(COLOR_GREY_500)),
+                        ])
+                        .style(Style::default()),
+                    ));
+                    i += 1;
+                }
                 current_line += 1;
+                current_line_old += 1;
             }
-
+            
             // Process lines in the hunk
             for line in hunk.lines.iter().filter(|l| l.origin != 'H') {
                 let text = line.content.trim_end_matches('\n');
 
                 match line.origin {
                     '-' => {
-                        self.viewer_lines.push(
-                            ListItem::new(Line::from(format!("- {}", text)))
-                                .style(Style::default().bg(COLOR_DARK_RED).fg(COLOR_RED)),
+                        let wrapped = wrap_words(
+                            format!("- {}", text),
+                            (self.layout.graph.width as usize).saturating_sub(9),
                         );
+                        let mut i = 0;
+                        for line in wrapped {
+                            self.viewer_lines.push(
+                                ListItem::new(Line::from(vec![
+                                    Span::styled(
+                                        format!(
+                                            "{}",
+                                            if i == 0 {
+                                                format!("{:3}  ", current_line_old + 1)
+                                            } else {
+                                                format!("     ")
+                                            }
+                                        ),
+                                        Style::default().fg(COLOR_RED),
+                                    ),
+                                    Span::styled(
+                                        format!("{}", line),
+                                        Style::default().fg(COLOR_RED),
+                                    ),
+                                ]))
+                                .style(Style::default().bg(COLOR_DARK_RED).fg(COLOR_RED)),
+                            );
+                            i += 1;
+                        }
+                        current_line_old += 1;
                     }
                     '+' => {
-                        self.viewer_lines.push(
-                            ListItem::new(Line::from(format!("+ {}", text)))
-                                .style(Style::default().bg(COLOR_LIGHT_GREEN_900).fg(COLOR_GREEN)),
+                        let wrapped = wrap_words(
+                            format!("+ {}", text),
+                            (self.layout.graph.width as usize).saturating_sub(9),
                         );
+                        let mut i = 0;
+                        for line in wrapped {
+                            self.viewer_lines.push(
+                                ListItem::new(Line::from(vec![
+                                    Span::styled(
+                                        format!(
+                                            "{}",
+                                            if i == 0 {
+                                                format!("{:3}  ", current_line + 1)
+                                            } else {
+                                                format!("     ")
+                                            }
+                                        ),
+                                        Style::default().fg(COLOR_GREEN),
+                                    ),
+                                    Span::styled(
+                                        format!("{}", line),
+                                        Style::default().fg(COLOR_GREEN),
+                                    ),
+                                ]))
+                                .style(Style::default().bg(COLOR_LIGHT_GREEN_900).fg(COLOR_GREEN)),
+                            );
+                            i += 1;
+                        }
                         current_line += 1;
                     }
                     ' ' => {
-                        self.viewer_lines.push(
-                            ListItem::new(Line::from(text.to_string()))
-                                .style(Style::default().fg(COLOR_GREY_500)),
+                        let wrapped = wrap_words(
+                            text.to_string(),
+                            (self.layout.graph.width as usize).saturating_sub(9),
                         );
+                        let mut i = 0;
+                        for line in wrapped {
+                            self.viewer_lines.push(
+                                ListItem::new(Line::from(vec![
+                                    Span::styled(
+                                        format!(
+                                            "{}",
+                                            if i == 0 {
+                                                format!("{:3}  ", current_line + 1)
+                                            } else {
+                                                format!("     ")
+                                            }
+                                        ),
+                                        Style::default().fg(COLOR_BORDER),
+                                    ),
+                                    Span::styled(
+                                        format!("{}", line),
+                                        Style::default().fg(COLOR_GREY_500),
+                                    ),
+                                ]))
+                                .style(Style::default()),
+                            );
+                            i += 1;
+                        }
                         current_line += 1;
+                        current_line_old += 1;
                     }
                     _ => {}
                 }
@@ -143,11 +246,33 @@ impl App {
 
         // Add remaining lines after the last hunk
         while current_line < original_lines.len() {
-            self.viewer_lines.push(
-                ListItem::new(Line::from(original_lines[current_line].clone()))
-                    .style(Style::default().fg(COLOR_GREY_500)),
+            let wrapped = wrap_words(
+                original_lines[current_line].clone(),
+                (self.layout.graph.width as usize).saturating_sub(8),
             );
+            let mut i = 0;
+            for line in wrapped {
+                self.viewer_lines.push(
+                    ListItem::new(Line::from(vec![
+                        Span::styled(
+                            format!(
+                                "{}",
+                                if i == 0 {
+                                    format!("{:3}  ", current_line + 1)
+                                } else {
+                                    format!("     ")
+                                }
+                            ),
+                            Style::default().fg(COLOR_BORDER),
+                        ),
+                        Span::styled(format!("{}", line), Style::default().fg(COLOR_GREY_500)),
+                    ]))
+                    .style(Style::default()),
+                );
+                i += 1;
+            }
             current_line += 1;
+            current_line_old += 1;
         }
     }
 
@@ -171,9 +296,17 @@ impl App {
                     self.file_name = if index < modified_len {
                         self.uncommitted.staged.modified.get(index).cloned()
                     } else if index < modified_len + added_len {
-                        self.uncommitted.staged.added.get(index - modified_len).cloned()
+                        self.uncommitted
+                            .staged
+                            .added
+                            .get(index - modified_len)
+                            .cloned()
                     } else {
-                        self.uncommitted.staged.deleted.get(index - modified_len - added_len).cloned()
+                        self.uncommitted
+                            .staged
+                            .deleted
+                            .get(index - modified_len - added_len)
+                            .cloned()
                     };
                     self.update_viewer(Oid::zero());
                     self.viewport = Viewport::Viewer;
@@ -187,9 +320,17 @@ impl App {
                     self.file_name = if index < modified_len {
                         self.uncommitted.unstaged.modified.get(index).cloned()
                     } else if index < modified_len + added_len {
-                        self.uncommitted.unstaged.added.get(index - modified_len).cloned()
+                        self.uncommitted
+                            .unstaged
+                            .added
+                            .get(index - modified_len)
+                            .cloned()
                     } else {
-                        self.uncommitted.unstaged.deleted.get(index - modified_len - added_len).cloned()
+                        self.uncommitted
+                            .unstaged
+                            .deleted
+                            .get(index - modified_len - added_len)
+                            .cloned()
                     };
                     self.update_viewer(Oid::zero());
                     self.viewport = Viewport::Viewer;

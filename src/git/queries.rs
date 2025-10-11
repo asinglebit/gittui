@@ -344,7 +344,7 @@ pub fn get_file_diff(
     let mut hunks_result = Vec::new();
 
     // Use diff.print() to iterate hunks and lines sequentially
-    diff.print(git2::DiffFormat::Patch, |delta, hunk_opt, line| {
+    diff.print(git2::DiffFormat::Patch, |_, hunk_opt, line| {
         // Only create a new Hunk when hunk_opt is Some
         if let Some(hunk) = hunk_opt {
             hunks_result.push(Hunk {
@@ -412,7 +412,7 @@ pub fn get_uncommitted_file_diff(
     let mut hunks_result = Vec::new();
 
     // Use diff.print() to iterate hunks and lines sequentially
-    diff.print(git2::DiffFormat::Patch, |delta, hunk_opt, line| {
+    diff.print(git2::DiffFormat::Patch, |_, hunk_opt, line| {
         if let Some(hunk) = hunk_opt {
             hunks_result.push(Hunk {
                 header: String::from_utf8_lossy(hunk.header()).to_string(),

@@ -29,52 +29,89 @@ pub fn truncate_with_ellipsis(text: &str, max_width: usize) -> String {
 
 pub fn wrap_chars(content: String, max_width: usize) -> Vec<String> {
     let mut wrapped_lines = Vec::new();
-    let mut start = 0;
-    while start < content.len() {
-        let end = (start + max_width).min(content.len());
-        wrapped_lines.push(content[start..end].to_string());
-        start = end;
+
+    for line in content.split('\n') {
+        if line.is_empty() {
+            // Preserve completely empty lines
+            wrapped_lines.push(String::new());
+            continue;
+        }
+
+        let mut start = 0;
+        while start < line.len() {
+            // Calculate end safely
+            let end = (start + max_width).min(line.len());
+            wrapped_lines.push(line[start..end].to_string());
+            start = end;
+        }
     }
+
     wrapped_lines
 }
-
 pub fn wrap_words(content: String, max_width: usize) -> Vec<String> {
     if max_width == 0 {
-        return vec![content];
+        return vec![content.to_string()];
     }
 
     let mut wrapped_lines = Vec::new();
-    let mut current_line = String::new();
 
-    for word in content.split_whitespace() {
-        // If adding this word exceeds max_width
-        if !current_line.is_empty() && current_line.len() + 1 + word.len() > max_width {
-            wrapped_lines.push(current_line.clone());
-            current_line.clear();
+    for line in content.split('\n') {
+        if line.is_empty() {
+            // Preserve empty lines
+            wrapped_lines.push(String::new());
+            continue;
         }
 
-        // If word itself is too long, split it directly
-        if word.len() > max_width {
-            if !current_line.is_empty() {
-                wrapped_lines.push(current_line.clone());
-                current_line.clear();
-            }
+        let mut current_line = String::new();
+        let mut current_width = 0;
 
-            let mut start = 0;
-            while start < word.len() {
-                let end = (start + max_width).min(word.len());
-                wrapped_lines.push(word[start..end].to_string());
-                start = end;
+        // Split line into words **but keep spaces**
+        let mut chars = line.chars().peekable();
+        while let Some(c) = chars.next() {
+            if c.is_whitespace() {
+                // Accumulate consecutive spaces
+                let mut space = String::from(c);
+                while let Some(&next_c) = chars.peek() {
+                    if next_c.is_whitespace() {
+                        space.push(chars.next().unwrap());
+                    } else {
+                        break;
+                    }
+                }
+
+                if current_width + space.len() > max_width {
+                    wrapped_lines.push(current_line);
+                    current_line = space.clone(); // preserve indentation/spaces
+                    current_width = space.len();
+                } else {
+                    current_line.push_str(&space);
+                    current_width += space.len();
+                }
+            } else {
+                // Accumulate a word
+                let mut word = String::from(c);
+                while let Some(&next_c) = chars.peek() {
+                    if !next_c.is_whitespace() {
+                        word.push(chars.next().unwrap());
+                    } else {
+                        break;
+                    }
+                }
+
+                if current_width + word.len() > max_width {
+                    // Word doesn't fit on current line
+                    if !current_line.is_empty() {
+                        wrapped_lines.push(current_line);
+                    }
+                    current_line = word.clone();
+                    current_width = word.len();
+                } else {
+                    current_line.push_str(&word);
+                    current_width += word.len();
+                }
             }
-        } else {
-            if !current_line.is_empty() {
-                current_line.push(' ');
-            }
-            current_line.push_str(word);
         }
-    }
 
-    if !current_line.is_empty() {
         wrapped_lines.push(current_line);
     }
 

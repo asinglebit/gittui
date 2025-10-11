@@ -1,4 +1,3 @@
-use git2::ObjectType;
 #[rustfmt::skip]
 use git2::{
     Oid,
@@ -177,9 +176,9 @@ pub fn unstage_all(repo: &Repository) -> Result<(), git2::Error> {
             return Ok(());
         }
     };
-    
+
     // Perform mixed reset - keeps working directory changes but resets index to HEAD
     repo.reset(&head.into_object(), ResetType::Mixed, None)?;
-    
+
     Ok(())
 }
