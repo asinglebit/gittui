@@ -14,6 +14,7 @@ use git2::{
     Oid,
     Repository
 };
+use ratatui::widgets::ListItem;
 #[rustfmt::skip]
 use ratatui::{
     DefaultTerminal,
@@ -47,8 +48,15 @@ pub struct Layout {
 }
 
 #[derive(PartialEq, Eq)]
-pub enum Focus {
+pub enum Viewport {
     Graph,
+    Viewer,
+    Editor
+}
+
+#[derive(PartialEq, Eq)]
+pub enum Focus {
+    Viewport,
     Inspector,
     StatusTop,
     StatusBottom,
@@ -84,6 +92,8 @@ pub struct App {
 
     // Cache
     pub current_diff: Vec<FileChange>,
+    pub file_name: Option<String>,
+    pub viewer_lines: Vec<ListItem<'static>>,
 
     // Interface
     pub layout: Layout,
@@ -92,11 +102,20 @@ pub struct App {
     pub is_minimal: bool,
     pub is_status: bool,
     pub is_inspector: bool,
+    pub viewport: Viewport,
     pub focus: Focus,
     
     // Graph
     pub graph_selected: usize,
     pub graph_scroll: Cell<usize>,
+    
+    // Viewer
+    pub viewer_selected: usize,
+    pub viewer_scroll: Cell<usize>,
+
+    // Editor
+    pub file_editor: EditorState,
+    pub file_editor_event_handler: EditorEventHandler,
     
     // Inspector
     pub inspector_selected: usize,
@@ -115,7 +134,7 @@ pub struct App {
 
     // Modal commit
     pub commit_editor: EditorState,
-    pub editor_event_handler: EditorEventHandler,
+    pub commit_editor_event_handler: EditorEventHandler,
 
     // Exit
     pub is_exit: bool,    
@@ -137,9 +156,22 @@ impl App {
         // Compute the layout
         self.layout(frame);
 
+        // Viewport
+        match self.viewport {
+            Viewport::Graph => {
+                self.draw_graph(frame);
+            }
+            Viewport::Viewer => {
+                self.draw_viewer(frame);
+            }
+            Viewport::Editor => {
+                self.draw_editor(frame);
+            }
+            _ => {}
+        }
+
         // Main layout
         self.draw_title(frame);
-        self.draw_graph(frame);
         if self.is_status {self.draw_status(frame);}
         if self.is_inspector && self.graph_selected != 0 {self.draw_inspector(frame);}
         self.draw_statusbar(frame);

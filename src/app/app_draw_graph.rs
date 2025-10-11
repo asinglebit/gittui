@@ -78,7 +78,7 @@ impl App {
             Block::default()
                 .title(vec![
                     Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                    Span::styled(" (g)raph ", Style::default().fg(if self.focus == Focus::Graph { COLOR_GREY_500 } else { COLOR_TEXT } )),
+                    Span::styled(" graph ", Style::default().fg(if self.focus == Focus::Viewport { COLOR_GREY_500 } else { COLOR_TEXT } )),
                     Span::styled("─", Style::default().fg(COLOR_BORDER)),
                 ])
                 .title_alignment(ratatui::layout::Alignment::Right)
@@ -102,7 +102,7 @@ impl App {
                 .end_symbol(if self.is_inspector || self.is_status { Some("─") } else { Some("╯") })
                 .track_symbol(Some("│"))
                 .thumb_symbol("▌")
-                .thumb_style(Style::default().fg(if self.focus == Focus::Graph {
+                .thumb_style(Style::default().fg(if self.focus == Focus::Viewport {
                     COLOR_GREY_600
                 } else {
                     COLOR_BORDER

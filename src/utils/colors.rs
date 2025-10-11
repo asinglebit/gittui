@@ -21,6 +21,9 @@ pub const COLOR_ORANGE: Color = Color::Rgb(255, 167, 38);
 pub const COLOR_GRAPEFRUIT: Color = Color::Rgb(255, 112, 67);
 pub const COLOR_BROWN: Color = Color::Rgb(141, 110, 99);
 
+pub const COLOR_DARK_RED: Color = Color::Rgb(82, 31, 31);
+pub const COLOR_LIGHT_GREEN_900: Color = Color::Rgb(34, 57, 37);
+
 pub const COLOR_GREY_50: Color = Color::Rgb(250, 250, 250);
 pub const COLOR_GREY_100: Color = Color::Rgb(245, 245, 245);
 pub const COLOR_GREY_200: Color = Color::Rgb(238, 238, 238);

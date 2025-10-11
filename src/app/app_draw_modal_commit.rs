@@ -1,4 +1,3 @@
-use edtui::EditorMode;
 #[rustfmt::skip]
 use ratatui::{
     Frame,
@@ -27,7 +26,8 @@ use ratatui::{
 use edtui::{
     EditorStatusLine,
     EditorTheme,
-    EditorView
+    EditorView,
+    EditorMode
 };
 #[rustfmt::skip]
 use crate::{
@@ -44,10 +44,10 @@ impl App {
 
     pub fn draw_modal_commit(&mut self, frame: &mut Frame) {
         
-        let mut length = 60;
-        let mut height = 14;
+        let length = 60;
+        let height = 14;
 
-        let mut lines: Vec<Line> = vec![
+        let lines: Vec<Line> = vec![
             Line::from(vec![
                 Span::styled("commit message:", Style::default().fg(COLOR_TEXT)),
             ]),
@@ -137,7 +137,6 @@ impl App {
 
         // Render the editor in the modal area
         editor_view.render(input_area, frame.buffer_mut());
-
         
         // Modal block
         Block::default()

@@ -12,12 +12,22 @@ use crossterm::event::{
     KeyModifiers
 };
 #[rustfmt::skip]
-use edtui::EditorMode;
+use edtui::{
+    EditorMode,
+};
+#[rustfmt::skip]
+use ratatui::{
+    style::Style,
+    text::Line,
+    widgets::ListItem
+};
 #[rustfmt::skip]
 use crate::{
+    utils::colors::*,
     app::app::{
         App,
-        Focus
+        Focus,
+        Viewport
     },
     git::{
         actions::{
@@ -28,14 +38,15 @@ use crate::{
             reset_to_commit
         },
         queries::{
-            get_changed_filenames
+            get_changed_filenames,
+            get_file_diff,
+            get_file_lines_at_commit
         }
     },
     utils::symbols::editor_state_to_string
 };
 
 impl App {
-
     pub fn handle_events(&mut self) -> io::Result<()> {
         match event::read()? {
             Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
@@ -46,40 +57,194 @@ impl App {
         Ok(())
     }
 
+    pub fn open_viewer(&mut self) {
+        match self.focus {
+            Focus::StatusTop => {
+                if self.graph_selected != 0 && self.current_diff.len() > 0 {
+                    let oid = self.oids.get(self.graph_selected).unwrap();
+                    self.file_name = Some(
+                        self.current_diff
+                            .get(self.status_top_selected)
+                            .unwrap()
+                            .filename
+                            .to_string(),
+                    );
+
+                    let original_lines = get_file_lines_at_commit(
+                        &self.repo,
+                        *oid,
+                        &self.file_name.clone().unwrap(),
+                    );
+                    let hunks =
+                        get_file_diff(&self.repo, *oid, &self.file_name.clone().unwrap()).unwrap();
+
+                    self.viewer_lines.clear();
+                    let mut current_line = 0usize;
+
+                    for hunk in hunks.iter() {
+                        // Parse hunk header to extract start line and length for the old file.
+                        // Example header: "@@ -22,8 +22,14 @@"
+                        let header = &hunk.header;
+                        let (old_start, _old_len) = header
+                            .split_whitespace()
+                            .nth(1) // "-22,8"
+                            .and_then(|s| s.strip_prefix('-'))
+                            .and_then(|s| {
+                                let mut parts = s.split(',');
+                                Some((
+                                    parts.next()?.parse::<usize>().ok()?,
+                                    parts
+                                        .next()
+                                        .and_then(|n| n.parse::<usize>().ok())
+                                        .unwrap_or(0),
+                                ))
+                            })
+                            .unwrap_or((1, 0));
+                        let old_start_idx = old_start.saturating_sub(1);
+
+                        // Add unchanged lines before this hunk
+                        while current_line < old_start_idx && current_line < original_lines.len() {
+                            self.viewer_lines.push(
+                                ListItem::new(Line::from(original_lines[current_line].clone()))
+                                    .style(Style::default().fg(COLOR_GREY_500)),
+                            );
+                            current_line += 1;
+                        }
+
+                        // Process lines in the hunk
+                        for line in hunk.lines.iter().filter(|l| l.origin != 'H')
+                        // skip @@ header lines
+                        {
+                            let text = line.content.trim_end_matches('\n');
+
+                            match line.origin {
+                                '-' => {
+                                    // Line removed from original
+                                    if current_line < original_lines.len() {
+                                        current_line += 1;
+                                    }
+                                    self.viewer_lines.push(
+                                        ListItem::new(Line::from(format!("- {}", text))).style(
+                                            Style::default().bg(COLOR_DARK_RED).fg(COLOR_RED),
+                                        ),
+                                    );
+                                }
+                                '+' => {
+                                    // New line added
+                                    self.viewer_lines.push(
+                                        ListItem::new(Line::from(format!("+ {}", text))).style(
+                                            Style::default()
+                                                .bg(COLOR_LIGHT_GREEN_900)
+                                                .fg(COLOR_GREEN),
+                                        ),
+                                    );
+                                }
+                                ' ' => {
+                                    // Context (unchanged) line in diff
+                                    self.viewer_lines.push(
+                                        ListItem::new(Line::from(text.to_string()))
+                                            .style(Style::default().fg(COLOR_GREY_500)),
+                                    );
+                                    if current_line < original_lines.len() {
+                                        current_line += 1;
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+
+                    // Add remaining lines after the last hunk
+                    while current_line < original_lines.len() {
+                        self.viewer_lines.push(
+                            ListItem::new(Line::from(original_lines[current_line].clone()))
+                                .style(Style::default().fg(COLOR_GREY_500)),
+                        );
+                        current_line += 1;
+                    }
+
+                    self.viewport = Viewport::Viewer;
+                } else if self.graph_selected == 0 && self.uncommitted.is_staged {
+                    self.viewport = Viewport::Viewer;
+                }
+            }
+            Focus::StatusBottom => {
+                if self.graph_selected == 0 && self.uncommitted.is_unstaged {
+                    self.viewport = Viewport::Viewer;
+                }
+            }
+            _ => {}
+        }
+    }
+
     pub fn handle_key_event(&mut self, key_event: KeyEvent) {
-        if self.focus == Focus::ModalCommit {
-            if self.commit_editor.mode == EditorMode::Normal {
-                match key_event.code {
-                    KeyCode::Esc => {
-                        self.focus = Focus::Graph;
+        // Handle text editing
+        match self.focus {
+            Focus::ModalCommit => {
+                if self.commit_editor.mode == EditorMode::Normal {
+                    match key_event.code {
+                        KeyCode::Esc => {
+                            self.focus = Focus::Viewport;
+                        }
+                        KeyCode::Char('c') => {
+                            commit_staged(
+                                &self.repo,
+                                &editor_state_to_string(&self.commit_editor),
+                                &self.name,
+                                &self.email,
+                            )
+                            .expect("Error");
+                            self.reload();
+                            self.focus = Focus::Viewport;
+                        }
+                        _ => {
+                            self.commit_editor_event_handler
+                                .on_key_event(key_event, &mut self.commit_editor);
+                        }
                     }
-                    KeyCode::Char('c') => {
-                        commit_staged(&self.repo, &editor_state_to_string(&self.commit_editor), &self.name, &self.email).expect("Error");
-                        self.reload();
-                        self.focus = Focus::Graph;
-                    }
-                    _ => {
-                        self.editor_event_handler.on_key_event(key_event, &mut self.commit_editor);
+                } else {
+                    self.commit_editor_event_handler
+                        .on_key_event(key_event, &mut self.commit_editor);
+                }
+                return;
+            }
+            Focus::Viewport => {
+                if self.viewport == Viewport::Editor {
+                    if self.file_editor.mode == EditorMode::Normal {
+                        match key_event.code {
+                            KeyCode::Char('c')
+                                if key_event.modifiers.contains(KeyModifiers::CONTROL) => {}
+                            KeyCode::Char('f') => {}
+                            KeyCode::Char('s') => {}
+                            KeyCode::Char('i') => {}
+                            KeyCode::Esc => {
+                                self.viewport = Viewport::Graph;
+                            }
+                            _ => {
+                                self.file_editor_event_handler
+                                    .on_key_event(key_event, &mut self.file_editor);
+                            }
+                        }
+                    } else {
+                        self.file_editor_event_handler
+                            .on_key_event(key_event, &mut self.file_editor);
+                        return;
                     }
                 }
-            } else {
-                self.editor_event_handler.on_key_event(key_event, &mut self.commit_editor);
-                
             }
-            return;
+            _ => {}
         }
 
+        // Handle the application
         match key_event.code {
             KeyCode::Char('q') => self.exit(),
-            KeyCode::Char('r') => {
-                self.reload()
-            },
+            KeyCode::Char('r') => self.reload(),
             KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.exit()
             }
-            KeyCode::Char('j') | KeyCode::Down => {
-                match self.focus {
-                    Focus::Graph => {
+            KeyCode::Char('j') | KeyCode::Down => match self.focus {
+                Focus::Viewport => match self.viewport {
+                    Viewport::Graph => {
                         if self.graph_selected + 1 < self.lines_branches.len() {
                             self.graph_selected += 1;
                         }
@@ -88,71 +253,97 @@ impl App {
                             self.current_diff = get_changed_filenames(&self.repo, *oid);
                         }
                     }
-                    Focus::Inspector => {
-                        self.inspector_selected += 1;
-                    }
-                    Focus::StatusTop => {
-                        self.status_top_selected += 1;
-                    }
-                    Focus::StatusBottom => {
-                        self.status_bottom_selected += 1;
-                    }
-                    Focus::ModalCheckout => {
-                        let branches = self
-                            .tips
-                            .entry(*self.oids.get(self.graph_selected).unwrap())
-                            .or_default();
-                        self.modal_checkout_selected = if self.modal_checkout_selected + 1 > branches.len() as i32 - 1 { 0 } else { self.modal_checkout_selected + 1 };
+                    Viewport::Viewer => {
+                        if self.viewer_selected + 1 < self.viewer_lines.len() {
+                            self.viewer_selected += 1;
+                        }
                     }
                     _ => {}
+                },
+                Focus::Inspector => {
+                    self.inspector_selected += 1;
                 }
-            }
-            KeyCode::Char('k') | KeyCode::Up => {
-                match self.focus {
-                    Focus::Graph => {
-                        if self.graph_selected > 0 {
-                            self.graph_selected -= 1;
-                            if self.graph_selected == 0 && self.focus == Focus::Inspector {
-                                self.focus = Focus::Graph;
+                Focus::StatusTop => {
+                    self.status_top_selected += 1;
+                }
+                Focus::StatusBottom => {
+                    self.status_bottom_selected += 1;
+                }
+                Focus::ModalCheckout => {
+                    let branches = self
+                        .tips
+                        .entry(*self.oids.get(self.graph_selected).unwrap())
+                        .or_default();
+                    self.modal_checkout_selected =
+                        if self.modal_checkout_selected + 1 > branches.len() as i32 - 1 {
+                            0
+                        } else {
+                            self.modal_checkout_selected + 1
+                        };
+                }
+                _ => {}
+            },
+            KeyCode::Char('k') | KeyCode::Up => match self.focus {
+                Focus::Viewport => {
+                    match self.viewport {
+                        Viewport::Graph => {
+                            if self.graph_selected > 0 {
+                                self.graph_selected -= 1;
+                                if self.graph_selected == 0 && self.focus == Focus::Inspector {
+                                    self.focus = Focus::Viewport;
+                                }
+                            }
+                            if self.graph_selected != 0 {
+                                let oid = self.oids.get(self.graph_selected).unwrap();
+                                self.current_diff = get_changed_filenames(&self.repo, *oid);
                             }
                         }
-                        if self.graph_selected != 0 {
-                            let oid = self.oids.get(self.graph_selected).unwrap();
-                            self.current_diff = get_changed_filenames(&self.repo, *oid);
+                        Viewport::Viewer => {
+                            if self.viewer_selected > 0 {
+                                self.viewer_selected -= 1;
+                            }
                         }
+                        _ => {}
                     }
-                    Focus::Inspector => {
-                        if self.inspector_selected > 0 {
-                            self.inspector_selected -= 1;
-                        }
-                    }
-                    Focus::StatusTop => {
-                        if self.status_top_selected > 0 {
-                            self.status_top_selected -= 1;
-                        }
-                    }
-                    Focus::StatusBottom => {
-                        if self.status_bottom_selected > 0 {
-                            self.status_bottom_selected -= 1;
-                        }
-                    }
-                    Focus::ModalCheckout => {
-                        let branches = self
-                            .tips
-                            .entry(*self.oids.get(self.graph_selected).unwrap())
-                            .or_default();
-                        self.modal_checkout_selected = if self.modal_checkout_selected - 1 < 0 { branches.len() as i32 - 1 } else { self.modal_checkout_selected - 1 };
-                    }
-                    _ => {}
+                    if self.viewport == Viewport::Graph {}
                 }
-            }
+                Focus::Inspector => {
+                    if self.inspector_selected > 0 {
+                        self.inspector_selected -= 1;
+                    }
+                }
+                Focus::StatusTop => {
+                    if self.status_top_selected > 0 {
+                        self.status_top_selected -= 1;
+                    }
+                }
+                Focus::StatusBottom => {
+                    if self.status_bottom_selected > 0 {
+                        self.status_bottom_selected -= 1;
+                    }
+                }
+                Focus::ModalCheckout => {
+                    let branches = self
+                        .tips
+                        .entry(*self.oids.get(self.graph_selected).unwrap())
+                        .or_default();
+                    self.modal_checkout_selected = if self.modal_checkout_selected - 1 < 0 {
+                        branches.len() as i32 - 1
+                    } else {
+                        self.modal_checkout_selected - 1
+                    };
+                }
+                _ => {}
+            },
             KeyCode::Char('f') => {
                 self.is_minimal = !self.is_minimal;
             }
             KeyCode::Char('s') => {
                 self.is_status = !self.is_status;
-                if !self.is_status && (self.focus == Focus::StatusTop || self.focus == Focus::StatusBottom) {
-                    self.focus = Focus::Graph;
+                if !self.is_status
+                    && (self.focus == Focus::StatusTop || self.focus == Focus::StatusBottom)
+                {
+                    self.focus = Focus::Viewport;
                 }
             }
             KeyCode::Char('i') => {
@@ -161,25 +352,29 @@ impl App {
                     if self.is_status {
                         self.focus = Focus::StatusTop;
                     } else {
-                        self.focus = Focus::Graph;
+                        self.focus = Focus::Viewport;
                     }
                 }
             }
             KeyCode::Char('x') => {
                 match self.focus {
                     Focus::ModalActions | Focus::ModalCommit => {
-                        self.focus = Focus::Graph;
+                        self.focus = Focus::Viewport;
                     }
                     Focus::ModalCheckout => {
                         self.modal_checkout_selected = 0;
-                        self.focus = Focus::Graph;
+                        self.focus = Focus::Viewport;
                     }
-                    _ => {},
+                    _ => {}
                 };
             }
             KeyCode::Char('c') => {
                 match self.focus {
-                    Focus::Graph | Focus::ModalActions => {
+                    Focus::Viewport | Focus::ModalActions => {
+                        if self.focus == Focus::Viewport && self.viewport == Viewport::Editor {
+                            return;
+                        }
+
                         if self.graph_selected == 0 && self.uncommitted.is_staged {
                             self.focus = Focus::ModalCommit;
                             return;
@@ -189,16 +384,16 @@ impl App {
                             .entry(*self.oids.get(self.graph_selected).unwrap())
                             .or_default();
                         if self.graph_selected == 0 {
-                            self.focus = Focus::Graph;
+                            self.focus = Focus::Viewport;
                             return;
                         }
                         if branches.is_empty() {
                             checkout_head(&self.repo, *self.oids.get(self.graph_selected).unwrap());
-                            self.focus = Focus::Graph;
+                            self.focus = Focus::Viewport;
                             self.reload();
                         } else if branches.len() == 1 {
                             checkout_branch(&self.repo, branches.first().unwrap()).expect("Error");
-                            self.focus = Focus::Graph;
+                            self.focus = Focus::Viewport;
                             self.reload();
                         } else {
                             self.focus = Focus::ModalCheckout;
@@ -208,42 +403,48 @@ impl App {
                     _ => {}
                 };
             }
-            KeyCode::Char('h') => {
-                match self.focus {
-                    Focus::Graph | Focus::ModalActions => {
-                        let oid = self.oids.get(self.graph_selected).unwrap();
-                        reset_to_commit(&self.repo, *oid, git2::ResetType::Hard).expect("Error");
+            KeyCode::Char('h') => match self.focus {
+                Focus::Viewport | Focus::ModalActions => {
+                    if self.focus == Focus::Viewport && self.viewport == Viewport::Editor {
+                        return;
+                    }
+                    let oid = self.oids.get(self.graph_selected).unwrap();
+                    reset_to_commit(&self.repo, *oid, git2::ResetType::Hard).expect("Error");
+                    self.reload();
+                    self.focus = Focus::Viewport;
+                }
+                _ => {}
+            },
+            KeyCode::Char('m') => match self.focus {
+                Focus::Viewport | Focus::ModalActions => {
+                    if self.focus == Focus::Viewport && self.viewport == Viewport::Editor {
+                        return;
+                    }
+                    let oid = self.oids.get(self.graph_selected).unwrap();
+                    reset_to_commit(&self.repo, *oid, git2::ResetType::Mixed).expect("Error");
+                    self.reload();
+                    self.focus = Focus::Viewport;
+                }
+                _ => {}
+            },
+            KeyCode::Char('a') => match self.focus {
+                Focus::Viewport | Focus::ModalActions => {
+                    if self.focus == Focus::Viewport && self.viewport == Viewport::Editor {
+                        return;
+                    }
+                    if self.uncommitted.is_unstaged {
+                        git_add_all(&self.repo).expect("Error");
                         self.reload();
-                        self.focus = Focus::Graph;
                     }
-                    _ => {}
                 }
-            }
-            KeyCode::Char('m') => {
-                match self.focus {
-                    Focus::Graph | Focus::ModalActions => {
-                        let oid = self.oids.get(self.graph_selected).unwrap();
-                        reset_to_commit(&self.repo, *oid, git2::ResetType::Mixed).expect("Error");
-                        self.reload();
-                        self.focus = Focus::Graph;
-                    }
-                    _ => {}
-                }
-            }
-            KeyCode::Char('a') => {
-                match self.focus {
-                    Focus::Graph | Focus::ModalActions => {
-                        if self.uncommitted.is_unstaged {
-                            git_add_all(&self.repo).expect("Error");
-                            self.reload();
-                        }
-                    }
-                    _ => {}
-                }
-            }
+                _ => {}
+            },
             KeyCode::Enter => {
                 match self.focus {
-                    Focus::Graph => {
+                    Focus::Viewport => {
+                        if self.focus == Focus::Viewport && self.viewport == Viewport::Editor {
+                            return;
+                        }
                         self.focus = Focus::ModalActions;
                     }
                     Focus::ModalCheckout => {
@@ -251,38 +452,64 @@ impl App {
                             .tips
                             .entry(*self.oids.get(self.graph_selected).unwrap())
                             .or_default();
-                        checkout_branch(&self.repo, branches.get(self.modal_checkout_selected as usize).unwrap()).expect("Error");
+                        checkout_branch(
+                            &self.repo,
+                            branches.get(self.modal_checkout_selected as usize).unwrap(),
+                        )
+                        .expect("Error");
                         self.modal_checkout_selected = 0;
-                        self.focus = Focus::Graph;
+                        self.focus = Focus::Viewport;
                         self.reload();
+                    }
+                    Focus::StatusTop | Focus::StatusBottom => {
+                        self.open_viewer();
                     }
                     _ => {}
                 };
             }
             KeyCode::Tab => {
                 self.focus = match self.focus {
-                    Focus::Graph => {
-                        if self.is_inspector && self.graph_selected != 0 { Focus::Inspector }
-                        else if self.is_status { Focus::StatusTop }
-                        else { Focus::Graph }
+                    Focus::Viewport => {
+                        if self.focus == Focus::Viewport && self.viewport == Viewport::Editor {
+                            return;
+                        }
+                        if self.is_inspector && self.graph_selected != 0 {
+                            Focus::Inspector
+                        } else if self.is_status {
+                            Focus::StatusTop
+                        } else {
+                            Focus::Viewport
+                        }
                     }
                     Focus::Inspector => {
-                        if self.is_status { Focus::StatusTop }
-                        else { Focus::Graph }
+                        if self.is_status {
+                            Focus::StatusTop
+                        } else {
+                            Focus::Viewport
+                        }
                     }
                     Focus::StatusTop => {
-                        if self.graph_selected == 0 { Focus::StatusBottom }
-                        else { Focus::Graph }
+                        if self.graph_selected == 0 {
+                            Focus::StatusBottom
+                        } else {
+                            Focus::Viewport
+                        }
                     }
-                    Focus::StatusBottom => { Focus::Graph }
-                    _ => Focus::Graph,
+                    Focus::StatusBottom => Focus::Viewport,
+                    _ => Focus::Viewport,
                 };
             }
             KeyCode::Home => {
                 match self.focus {
-                    Focus::Graph => {
-                        self.graph_selected = 0;
-                    }
+                    Focus::Viewport => match self.viewport {
+                        Viewport::Graph => {
+                            self.graph_selected = 0;
+                        }
+                        Viewport::Viewer => {
+                            self.viewer_selected = 0;
+                        }
+                        _ => {}
+                    },
                     Focus::Inspector => {
                         self.inspector_selected = 0;
                     }
@@ -292,18 +519,26 @@ impl App {
                     Focus::StatusBottom => {
                         self.status_bottom_selected = 0;
                     }
-                    _ => {},
+                    _ => {}
                 };
             }
             KeyCode::End => {
                 match self.focus {
-                    Focus::Graph => {
-                        if !self.lines_branches.is_empty() {
-                            self.graph_selected = self.lines_branches.len() - 1;
+                    Focus::Viewport => match self.viewport {
+                        Viewport::Graph => {
+                            if !self.lines_branches.is_empty() {
+                                self.graph_selected = self.lines_branches.len() - 1;
+                            }
+                            let oid = self.oids.get(self.graph_selected).unwrap();
+                            self.current_diff = get_changed_filenames(&self.repo, *oid);
                         }
-                        let oid = self.oids.get(self.graph_selected).unwrap();
-                        self.current_diff = get_changed_filenames(&self.repo, *oid);
-                    }
+                        Viewport::Viewer => {
+                            if !self.viewer_lines.is_empty() {
+                                self.viewer_selected = self.lines_branches.len() - 1;
+                            }
+                        }
+                        _ => {}
+                    },
                     Focus::Inspector => {
                         self.inspector_selected = usize::MAX;
                     }
@@ -313,33 +548,49 @@ impl App {
                     Focus::StatusBottom => {
                         self.status_bottom_selected = usize::MAX;
                     }
-                    _ => {},
+                    _ => {}
                 };
             }
             KeyCode::PageUp => {
-                let page = 20;
                 match self.focus {
-                    Focus::Graph => {
-                        if self.graph_selected >= page {
-                            self.graph_selected -= page;
-                        } else {
-                            self.graph_selected = 0;
-                        }
-                        if self.graph_selected != 0 {
-                            let oid = self.oids.get(self.graph_selected).unwrap();
-                            self.current_diff = get_changed_filenames(&self.repo, *oid);
+                    Focus::Viewport => {
+                        let page = self.layout.graph.height as usize - 3;
+                        match self.viewport {
+                            Viewport::Graph => {
+                                if self.graph_selected >= page {
+                                    self.graph_selected -= page;
+                                } else {
+                                    self.graph_selected = 0;
+                                }
+                                if self.graph_selected != 0 {
+                                    let oid = self.oids.get(self.graph_selected).unwrap();
+                                    self.current_diff = get_changed_filenames(&self.repo, *oid);
+                                }
+                            }
+                            Viewport::Viewer => {
+                                if self.viewer_selected >= page {
+                                    self.viewer_selected -= page;
+                                } else {
+                                    self.viewer_selected = 0;
+                                }
+                            }
+                            _ => {}
                         }
                     }
                     Focus::Inspector => {
+                        let page = self.layout.inspector.height as usize - 3;
                         self.inspector_selected = self.inspector_selected.saturating_sub(page);
                     }
                     Focus::StatusTop => {
+                        let page = self.layout.status_top.height as usize - 3;
                         self.status_top_selected = self.status_top_selected.saturating_sub(page);
                     }
                     Focus::StatusBottom => {
-                        self.status_bottom_selected = self.status_bottom_selected.saturating_sub(page);
+                        let page = self.layout.status_bottom.height as usize - 3;
+                        self.status_bottom_selected =
+                            self.status_bottom_selected.saturating_sub(page);
                     }
-                    _ => {},
+                    _ => {}
                 };
 
                 if self.graph_selected != 0 {
@@ -348,29 +599,44 @@ impl App {
                 }
             }
             KeyCode::PageDown => {
-                let page = 20;
                 match self.focus {
-                    Focus::Graph => {
-                        if self.graph_selected + page < self.lines_branches.len() {
-                            self.graph_selected += page;
-                        } else {
-                            self.graph_selected = self.lines_branches.len() - 1;
-                        }
-                        if self.graph_selected != 0 {
-                            let oid = self.oids.get(self.graph_selected).unwrap();
-                            self.current_diff = get_changed_filenames(&self.repo, *oid);
+                    Focus::Viewport => {
+                        let page = self.layout.graph.height as usize - 3;
+                        match self.viewport {
+                            Viewport::Graph => {
+                                if self.graph_selected + page < self.lines_branches.len() {
+                                    self.graph_selected += page;
+                                } else {
+                                    self.graph_selected = self.lines_branches.len() - 1;
+                                }
+                                if self.graph_selected != 0 {
+                                    let oid = self.oids.get(self.graph_selected).unwrap();
+                                    self.current_diff = get_changed_filenames(&self.repo, *oid);
+                                }
+                            }
+                            Viewport::Viewer => {
+                                if self.viewer_selected + page < self.viewer_lines.len() {
+                                    self.viewer_selected += page;
+                                } else {
+                                    self.viewer_selected = self.viewer_lines.len() - 1;
+                                }
+                            }
+                            _ => {}
                         }
                     }
                     Focus::Inspector => {
+                        let page = self.layout.inspector.height as usize - 3;
                         self.inspector_selected += page;
                     }
                     Focus::StatusTop => {
+                        let page = self.layout.status_top.height as usize - 3;
                         self.status_top_selected += page;
                     }
                     Focus::StatusBottom => {
+                        let page = self.layout.status_bottom.height as usize - 3;
                         self.status_bottom_selected += page;
                     }
-                    _ => {},
+                    _ => {}
                 };
 
                 if self.graph_selected != 0 {
@@ -381,13 +647,16 @@ impl App {
             KeyCode::Esc => {
                 match self.focus {
                     Focus::ModalActions | Focus::ModalCommit => {
-                        self.focus = Focus::Graph;
+                        self.focus = Focus::Viewport;
                     }
                     Focus::ModalCheckout => {
                         self.modal_checkout_selected = 0;
-                        self.focus = Focus::Graph;
+                        self.focus = Focus::Viewport;
                     }
-                    _ => {},
+                    _ => {
+                        self.viewport = Viewport::Graph;
+                        self.focus = Focus::Viewport;
+                    }
                 };
             }
             _ => {}

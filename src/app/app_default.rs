@@ -18,6 +18,7 @@ use edtui::{
     EditorEventHandler,
     EditorState
 };
+use crate::app::app::Viewport;
 #[rustfmt::skip]
 use crate::{
     app::app::{
@@ -82,6 +83,8 @@ impl Default for App {
 
             // Cache
             current_diff: Vec::new(),
+            file_name: None,
+            viewer_lines: Vec::new(),
 
             // Interface
             layout: Layout::default(),
@@ -90,11 +93,20 @@ impl Default for App {
             is_minimal: false,
             is_status: true,
             is_inspector: true,
-            focus: Focus::Graph,
+            viewport: Viewport::Graph,
+            focus: Focus::Viewport,
             
             // Graph
             graph_selected: 0,
             graph_scroll: 0.into(),
+    
+            // Viewer
+            viewer_selected: 0,
+            viewer_scroll: 0.into(),
+
+            // Editor
+            file_editor: EditorState::default(),
+            file_editor_event_handler: EditorEventHandler::default(),
     
             // Inspector
             inspector_selected: 0,
@@ -113,7 +125,7 @@ impl Default for App {
 
             // Modal commit
             commit_editor: EditorState::default(),
-            editor_event_handler: EditorEventHandler::default(),
+            commit_editor_event_handler: EditorEventHandler::default(),
 
             // Exit
             is_exit: false,   

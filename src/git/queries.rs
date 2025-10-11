@@ -1,9 +1,15 @@
 #[rustfmt::skip]
-use std::collections::HashMap;
-use git2::{DiffOptions, ObjectType};
-use std::collections::HashSet;
+use std::{
+    collections::{
+        HashSet,
+        HashMap
+    },
+    path::Path
+};
 #[rustfmt::skip]
 use git2::{
+    DiffOptions,
+    ObjectType,
     BranchType,
     Delta,
     Oid,
@@ -301,4 +307,78 @@ pub fn get_changed_filenames(repo: &Repository, oid: Oid) -> Vec<FileChange> {
     }
 
     changes
+}
+
+#[derive(Debug)]
+pub struct LineChange {
+    pub origin: char,    // '+', '-', ' ' for added, removed, context
+    pub content: String, // line content
+}
+
+#[derive(Debug)]
+pub struct Hunk {
+    pub header: String, // hunk header, e.g. @@ -1,3 +1,4 @@
+    pub lines: Vec<LineChange>,
+}
+
+// Get the changes (hunks + lines) for a single file in a specific commit
+pub fn get_file_diff(
+    repo: &Repository,
+    commit_oid: Oid,
+    filename: &str,
+) -> std::result::Result<Vec<Hunk>, git2::Error> {
+    let commit = repo.find_commit(commit_oid)?;
+    let tree = commit.tree()?;
+    let parent_tree = if commit.parent_count() > 0 {
+        Some(commit.parent(0)?.tree()?)
+    } else {
+        None
+    };
+
+    let mut diff_opts = DiffOptions::new();
+    diff_opts.pathspec(filename);
+
+    let diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), Some(&mut diff_opts))?;
+
+    let mut hunks_result = Vec::new();
+
+    // Use diff.print() to iterate hunks and lines sequentially
+    diff.print(git2::DiffFormat::Patch, |delta, hunk_opt, line| {
+        // Only create a new Hunk when hunk_opt is Some
+        if let Some(hunk) = hunk_opt {
+            hunks_result.push(Hunk {
+                header: String::from_utf8_lossy(hunk.header()).to_string(),
+                lines: Vec::new(),
+            });
+        }
+
+        // Add line to the last hunk
+        if let Some(last_hunk) = hunks_result.last_mut() {
+            last_hunk.lines.push(LineChange {
+                origin: line.origin() as char,
+                content: String::from_utf8_lossy(line.content()).to_string(),
+            });
+        }
+
+        true
+    })?;
+
+    Ok(hunks_result)
+}
+
+// Get the original file lines from the commit
+pub fn get_file_lines_at_commit(repo: &Repository, commit_oid: Oid, filename: &str) -> Vec<String> {
+    let commit = repo.find_commit(commit_oid).unwrap();
+    let tree = commit.tree().unwrap();
+
+    if let Ok(entry) = tree.get_path(Path::new(filename)) {
+        if let Ok(blob) = repo.find_blob(entry.id()) {
+            return String::from_utf8_lossy(blob.content())
+                .lines()
+                .map(|s| s.to_string())
+                .collect();
+        }
+    }
+
+    Vec::new()
 }
