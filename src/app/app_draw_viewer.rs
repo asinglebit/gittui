@@ -80,7 +80,7 @@ impl App {
                     .padding(padding)
                     .title(vec![
                         Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                        Span::styled(" (v)iewer ", Style::default().fg(if self.focus == Focus::Viewport { COLOR_GREY_500 } else { COLOR_TEXT } )),
+                        Span::styled(" viewer ", Style::default().fg(if self.focus == Focus::Viewport { COLOR_GREY_500 } else { COLOR_TEXT } )),
                         Span::styled("─", Style::default().fg(COLOR_BORDER)),
                     ])
                     .title_alignment(ratatui::layout::Alignment::Right)

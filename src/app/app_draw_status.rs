@@ -190,12 +190,12 @@ impl App {
                 .iter()
                 .enumerate()
                 .map(|(i, line)| {
-                    let absolute_idx = start + i;
-                    let mut item = ListItem::new(line.clone());
-                    if absolute_idx == self.status_top_selected && self.focus == Focus::StatusTop && is_staged_changes {
-                        item = item.style(Style::default().bg(COLOR_GREY_800));
+                    if is_staged_changes && start + i == self.status_top_selected && self.focus == Focus::StatusTop {
+                        let spans: Vec<Span> = line.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GREY_400)) }).collect();
+                        ListItem::new(Line::from(spans)).style(Style::default().bg(COLOR_GREY_800).fg(COLOR_GREY_400))
+                    } else {
+                        ListItem::new(line.clone())
                     }
-                    item
                 })
                 .collect();
 
@@ -270,12 +270,12 @@ impl App {
                     .iter()
                     .enumerate()
                     .map(|(i, line)| {
-                        let absolute_idx = start + i;
-                        let mut item = ListItem::new(line.clone());
-                        if absolute_idx == self.status_bottom_selected && self.focus == Focus::StatusBottom && total_lines > 0 && is_unstaged_changes {
-                            item = item.style(Style::default().bg(COLOR_GREY_800));
+                        if is_unstaged_changes && start + i == self.status_bottom_selected && self.focus == Focus::StatusBottom {
+                            let spans: Vec<Span> = line.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GREY_400)) }).collect();
+                            ListItem::new(Line::from(spans)).style(Style::default().bg(COLOR_GREY_800).fg(COLOR_GREY_400))
+                        } else {
+                            ListItem::new(line.clone())
                         }
-                        item
                     })
                     .collect();
         

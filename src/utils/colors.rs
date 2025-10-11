@@ -35,10 +35,7 @@ pub const COLOR_GREY_700: Color = Color::Rgb(97, 97, 97);
 pub const COLOR_GREY_800: Color = Color::Rgb(66, 66, 66);
 pub const COLOR_GREY_900: Color = Color::Rgb(33, 33, 33);
 
-pub const COLOR_STEEL_700: Color = Color::Rgb(69, 90, 100);
-
 pub const COLOR_BORDER: Color = COLOR_GREY_800;
-pub const COLOR_SELECTION: Color = COLOR_STEEL_700;
 pub const COLOR_TEXT: Color = COLOR_GREY_700;
 pub const COLOR_TEXT_SELECTED: Color = COLOR_GREY_300;
 

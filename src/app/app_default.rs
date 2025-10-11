@@ -31,9 +31,7 @@ use crate::{
     }
 };
 #[rustfmt::skip]
-use crate::utils::colors::{
-    random_color
-};
+use crate::utils::colors::*;
 
 impl Default for App {
     fn default() -> Self {
@@ -48,12 +46,12 @@ impl Default for App {
         let repo = Repository::open(absolute_path.clone()).expect("Could not open repo");
 
         let logo = vec![
-            Span::styled(" g", Style::default().fg(random_color())),
-            Span::styled("u", Style::default().fg(random_color())),
-            Span::styled("i", Style::default().fg(random_color())),
-            Span::styled("t", Style::default().fg(random_color())),
-            Span::styled("a", Style::default().fg(random_color())),
-            Span::styled("╭", Style::default().fg(random_color()))
+            Span::styled(" g", Style::default().fg(COLOR_GRASS)),
+            Span::styled("u", Style::default().fg(COLOR_GRASS)),
+            Span::styled("i", Style::default().fg(COLOR_GRASS)),
+            Span::styled("t", Style::default().fg(COLOR_GRASS)),
+            Span::styled("a", Style::default().fg(COLOR_GRASS)),
+            Span::styled("╭", Style::default().fg(COLOR_GREEN))
         ];
 
         App {

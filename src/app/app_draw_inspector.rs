@@ -193,12 +193,12 @@ impl App {
             .iter()
             .enumerate()
             .map(|(i, line)| {
-                let absolute_idx = start + i;
-                let mut item = ListItem::new(line.clone());
-                if absolute_idx == self.inspector_selected && self.focus == Focus::Inspector {
-                    item = item.style(Style::default().bg(COLOR_GREY_800));
+                if start + i == self.inspector_selected && self.focus == Focus::Inspector {
+                    let spans: Vec<Span> = line.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GREY_400)) }).collect();
+                    ListItem::new(Line::from(spans)).style(Style::default().bg(COLOR_GREY_800).fg(COLOR_GREY_400))
+                } else {
+                    ListItem::new(line.clone())
                 }
-                item
             })
             .collect();
         
