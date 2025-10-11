@@ -60,7 +60,7 @@ impl App {
             Line::from(""),
             Line::from(""),
             Line::from(vec![
-                Span::styled(if self.commit_editor.mode == EditorMode::Normal {"(c)".to_string()} else { "".to_string() }, Style::default().fg(COLOR_GREY_500)),
+                Span::styled(if self.commit_editor.mode == EditorMode::Normal {"(⏎)".to_string()} else { "".to_string() }, Style::default().fg(COLOR_GREY_500)),
                 Span::styled(if self.commit_editor.mode == EditorMode::Normal {"ommit".to_string()} else { "commit".to_string() }, Style::default().fg(COLOR_TEXT)),
             ]),
         ];
