@@ -46,6 +46,7 @@ impl App {
                     Line::from(vec![
                         Span::styled(format!("all is up-to-date"), Style::default().fg(COLOR_TEXT))
                     ]),
+                    Line::default(),
                     Line::from(vec![
                         Span::styled(format!("(r)"), Style::default().fg(COLOR_GREY_500)),
                         Span::styled(format!("eload"), Style::default().fg(COLOR_TEXT)),
@@ -123,9 +124,9 @@ impl App {
 
                 lines = vec![
                     line_status,
-                    Line::from(""),
+                    Line::default(),
                     Line::from(vec![Span::styled("select an operation to perform", Style::default().fg(COLOR_TEXT))]),
-                    Line::from(""),
+                    Line::default(),
                     line_operations,
                 ];
             }
@@ -136,11 +137,11 @@ impl App {
                     Span::styled("you are here: ", Style::default().fg(COLOR_TEXT)),
                     Span::styled(format!("#{:.6}", oid), Style::default().fg(*self.oid_colors.get(&oid).unwrap()))
                 ]),
-                Line::from(""),
+                Line::default(),
                 Line::from(vec![
                     Span::styled(format!("select an operation to perform"), Style::default().fg(COLOR_TEXT))
                 ]),
-                Line::from(""),
+                Line::default(),
                 Line::from(vec![
                     Span::styled(format!("(c)"), Style::default().fg(COLOR_GREY_500)),
                     Span::styled(format!("heckout "), Style::default().fg(COLOR_TEXT)),
