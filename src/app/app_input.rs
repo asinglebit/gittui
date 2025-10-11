@@ -69,6 +69,7 @@ impl App {
     }
 
     pub fn update_viewer(&mut self, oid: Oid) {
+        
         let filename = self.file_name.clone().unwrap();
 
         // Decide whether to use committed or uncommitted version

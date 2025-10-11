@@ -154,3 +154,44 @@ pub fn editor_state_to_string(state: &EditorState) -> String {
         .filter_map(|(c, _)| c.copied())
         .collect::<String>()
 }
+
+pub fn decode_bytes(bytes: &[u8]) -> String {
+    // Check BOM for UTF-16
+    let decoded = if bytes.starts_with(&[0xFF, 0xFE]) {
+        let utf16: Vec<u16> = bytes[2..]
+            .chunks(2)
+            .map(|c| u16::from_le_bytes([c[0], *c.get(1).unwrap_or(&0)]))
+            .collect();
+        String::from_utf16(&utf16).unwrap_or_default()
+    } else if bytes.starts_with(&[0xFE, 0xFF]) {
+        let utf16: Vec<u16> = bytes[2..]
+            .chunks(2)
+            .map(|c| u16::from_be_bytes([c[0], *c.get(1).unwrap_or(&0)]))
+            .collect();
+        String::from_utf16(&utf16).unwrap_or_default()
+    } else if bytes.len() > 1 && bytes[1] == 0 {
+        // Likely UTF-16 LE without BOM
+        let utf16: Vec<u16> = bytes
+            .chunks(2)
+            .map(|c| u16::from_le_bytes([c[0], *c.get(1).unwrap_or(&0)]))
+            .collect();
+        String::from_utf16(&utf16).unwrap_or_default()
+    } else {
+        // Default UTF-8 fallback
+        String::from_utf8_lossy(bytes).to_string()
+    };
+
+    // Step 2: normalize line endings to \n
+    let decoded = decoded.replace("\r\n", "\n").replace("\r", "\n");
+
+    // Step 3: sanitize characters and expand tabs to 4 spaces
+    decoded
+        .chars()
+        .flat_map(|c| match c {
+            '\t' => "    ".chars().collect::<Vec<_>>(), // expand tabs
+            '\n' => vec!['\n'],
+            c if c.is_control() => vec![], // remove other control chars
+            _ => vec![c],
+        })
+        .collect()
+}

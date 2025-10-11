@@ -19,6 +19,8 @@ use git2::{
     Time
 };
 
+use crate::utils::symbols::decode_bytes;
+
 #[derive(Debug, Default)]
 pub struct UncommittedChanges {
     pub unstaged: FileChanges,
@@ -348,7 +350,7 @@ pub fn get_file_diff(
         // Only create a new Hunk when hunk_opt is Some
         if let Some(hunk) = hunk_opt {
             hunks_result.push(Hunk {
-                header: String::from_utf8_lossy(hunk.header()).to_string(),
+                header: decode_bytes(hunk.header()).to_string(),
                 lines: Vec::new(),
             });
         }
@@ -357,7 +359,7 @@ pub fn get_file_diff(
         if let Some(last_hunk) = hunks_result.last_mut() {
             last_hunk.lines.push(LineChange {
                 origin: line.origin() as char,
-                content: String::from_utf8_lossy(line.content()).to_string(),
+                content: decode_bytes(line.content()).to_string(),
             });
         }
 
@@ -367,6 +369,7 @@ pub fn get_file_diff(
     Ok(hunks_result)
 }
 
+
 // Get the original file lines from the commit
 pub fn get_file_lines_at_commit(repo: &Repository, commit_oid: Oid, filename: &str) -> Vec<String> {
     let commit = repo.find_commit(commit_oid).unwrap();
@@ -374,7 +377,7 @@ pub fn get_file_lines_at_commit(repo: &Repository, commit_oid: Oid, filename: &s
 
     if let Ok(entry) = tree.get_path(Path::new(filename)) {
         if let Ok(blob) = repo.find_blob(entry.id()) {
-            return String::from_utf8_lossy(blob.content())
+            return decode_bytes(blob.content())
                 .lines()
                 .map(|s| s.to_string())
                 .collect();
@@ -415,7 +418,7 @@ pub fn get_uncommitted_file_diff(
     diff.print(git2::DiffFormat::Patch, |_, hunk_opt, line| {
         if let Some(hunk) = hunk_opt {
             hunks_result.push(Hunk {
-                header: String::from_utf8_lossy(hunk.header()).to_string(),
+                header: decode_bytes(hunk.header()).to_string(),
                 lines: Vec::new(),
             });
         }
@@ -423,7 +426,7 @@ pub fn get_uncommitted_file_diff(
         if let Some(last_hunk) = hunks_result.last_mut() {
             last_hunk.lines.push(LineChange {
                 origin: line.origin() as char,
-                content: String::from_utf8_lossy(line.content()).to_string(),
+                content: decode_bytes(line.content()).to_string(),
             });
         }
 
