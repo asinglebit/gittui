@@ -61,9 +61,9 @@ impl App {
         {
             let actual_index = start + i;
             let (graph, branch, buffer) = if actual_index == self.graph_selected {
-                let graph_spans: Vec<Span> = graph.spans.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GREY_400)) }).collect();
-                let branch_spans: Vec<Span> = branch.spans.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GREY_400)) }).collect();
-                let buffer_spans: Vec<Span> = buffer.spans.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GREY_400)) }).collect();
+                let graph_spans: Vec<Span> = graph.spans.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GRASS)) }).collect();
+                let branch_spans: Vec<Span> = branch.spans.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GRASS)) }).collect();
+                let buffer_spans: Vec<Span> = buffer.spans.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GRASS)) }).collect();
                 (Line::from(graph_spans), Line::from(branch_spans), Line::from(buffer_spans))
             } else {
                 (graph.clone(), branch.clone(), buffer.clone())

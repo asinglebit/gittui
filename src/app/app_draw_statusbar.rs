@@ -33,7 +33,7 @@ impl App {
         let lines = match get_current_branch(&self.repo) {
             Some(branch) => Line::from(vec![Span::styled(
                 format!(" ● {}", branch),
-                Style::default().fg(COLOR_PURPLE),
+                Style::default().fg(COLOR_GRASS),
             )]),
             None => {
                 let oid = self.repo.head().unwrap().target().unwrap();
@@ -55,13 +55,6 @@ impl App {
                 Viewport::Viewer => self.viewer_lines.len(),
                 _ => 0,
             },
-            Focus::Inspector => {
-                if self.graph_selected == 0 {
-                    0
-                } else {
-                    self.viewer_lines.len()
-                }
-            }
             Focus::StatusTop => {
                 if self.graph_selected == 0 {
                     self.uncommitted.staged.modified.len()
@@ -88,7 +81,6 @@ impl App {
                     Viewport::Viewer => self.viewer_selected + 1,
                     _ => 0,
                 },
-                Focus::Inspector => self.inspector_selected + 1,
                 Focus::StatusTop => self.status_top_selected + 1,
                 Focus::StatusBottom => self.status_bottom_selected + 1,
                 _ => 0,

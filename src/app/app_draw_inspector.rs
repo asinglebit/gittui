@@ -194,7 +194,7 @@ impl App {
             .enumerate()
             .map(|(i, line)| {
                 if start + i == self.inspector_selected && self.focus == Focus::Inspector {
-                    let spans: Vec<Span> = line.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GREY_400)) }).collect();
+                    let spans: Vec<Span> = line.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GRASS)) }).collect();
                     ListItem::new(Line::from(spans)).style(Style::default().bg(COLOR_GREY_800).fg(COLOR_GREY_400))
                 } else {
                     ListItem::new(line.clone())
