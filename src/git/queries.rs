@@ -382,3 +382,53 @@ pub fn get_file_lines_at_commit(repo: &Repository, commit_oid: Oid, filename: &s
 
     Vec::new()
 }
+
+pub fn get_file_lines_in_workdir(repo: &Repository, filename: &str) -> Vec<String> {
+    // Build the full path relative to the repository root
+    let full_path = match repo.workdir() {
+        Some(root) => root.join(filename),
+        None => Path::new(filename).to_path_buf(),
+    };
+
+    // Try to read the working tree version
+    std::fs::read_to_string(&full_path)
+        .map(|s| s.lines().map(|l| l.to_string()).collect())
+        .unwrap_or_default()
+}
+
+// Get the changes (hunks + lines) for a single file in the working directory
+pub fn get_uncommitted_file_diff(
+    repo: &Repository,
+    filename: &str,
+) -> std::result::Result<Vec<Hunk>, git2::Error> {
+    let head_tree = repo.head().ok().and_then(|h| h.peel_to_tree().ok());
+
+    let mut diff_opts = DiffOptions::new();
+    diff_opts.pathspec(filename);
+
+    let diff = repo.diff_tree_to_workdir_with_index(head_tree.as_ref(), Some(&mut diff_opts))?;
+
+    let mut hunks_result = Vec::new();
+
+    // Use diff.print() to iterate hunks and lines sequentially
+    diff.print(git2::DiffFormat::Patch, |delta, hunk_opt, line| {
+        if let Some(hunk) = hunk_opt {
+            hunks_result.push(Hunk {
+                header: String::from_utf8_lossy(hunk.header()).to_string(),
+                lines: Vec::new(),
+            });
+        }
+
+        if let Some(last_hunk) = hunks_result.last_mut() {
+            last_hunk.lines.push(LineChange {
+                origin: line.origin() as char,
+                content: String::from_utf8_lossy(line.content()).to_string(),
+            });
+        }
+
+        true
+    })?;
+
+    Ok(hunks_result)
+}
+

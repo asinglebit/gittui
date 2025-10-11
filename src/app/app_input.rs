@@ -12,6 +12,8 @@ use crossterm::event::{
     KeyModifiers
 };
 #[rustfmt::skip]
+use git2::Oid;
+#[rustfmt::skip]
 use edtui::{
     EditorMode,
 };
@@ -40,7 +42,9 @@ use crate::{
         queries::{
             get_changed_filenames,
             get_file_diff,
-            get_file_lines_at_commit
+            get_file_lines_at_commit,
+            get_file_lines_in_workdir,
+            get_uncommitted_file_diff
         }
     },
     utils::symbols::editor_state_to_string
@@ -57,11 +61,99 @@ impl App {
         Ok(())
     }
 
+    pub fn update_viewer(&mut self, oid: Oid) {
+        let filename = self.file_name.clone().unwrap();
+
+        // Decide whether to use committed or uncommitted version
+        let (original_lines, hunks) = if oid == Oid::zero() {
+            (
+                get_file_lines_in_workdir(&self.repo, &filename),
+                get_uncommitted_file_diff(&self.repo, &filename).unwrap_or_default(),
+            )
+        } else {
+            (
+                get_file_lines_at_commit(&self.repo, oid, &filename),
+                get_file_diff(&self.repo, oid, &filename).unwrap_or_default(),
+            )
+        };
+
+        self.viewer_lines.clear();
+        let mut current_line: usize = 0;
+
+        for hunk in hunks.iter() {
+            // Parse hunk header to extract start line and length for the old file.
+            // Example header: "@@ -22,8 +22,14 @@"
+            let header = &hunk.header;
+            let (old_start, _old_len) = header
+                .split_whitespace()
+                .nth(1) // "-22,8"
+                .and_then(|s| s.strip_prefix('-'))
+                .and_then(|s| {
+                    let mut parts = s.split(',');
+                    Some((
+                        parts.next()?.parse::<usize>().ok()?,
+                        parts
+                            .next()
+                            .and_then(|n| n.parse::<usize>().ok())
+                            .unwrap_or(0),
+                    ))
+                })
+                .unwrap_or((1, 0));
+            let old_start_idx = old_start.saturating_sub(1);
+
+            // Add unchanged lines before this hunk
+            while current_line < old_start_idx && current_line < original_lines.len() {
+                self.viewer_lines.push(
+                    ListItem::new(Line::from(original_lines[current_line].clone()))
+                        .style(Style::default().fg(COLOR_GREY_500)),
+                );
+                current_line += 1;
+            }
+
+            // Process lines in the hunk
+            for line in hunk.lines.iter().filter(|l| l.origin != 'H') {
+                let text = line.content.trim_end_matches('\n');
+
+                match line.origin {
+                    '-' => {
+                        self.viewer_lines.push(
+                            ListItem::new(Line::from(format!("- {}", text)))
+                                .style(Style::default().bg(COLOR_DARK_RED).fg(COLOR_RED)),
+                        );
+                    }
+                    '+' => {
+                        self.viewer_lines.push(
+                            ListItem::new(Line::from(format!("+ {}", text)))
+                                .style(Style::default().bg(COLOR_LIGHT_GREEN_900).fg(COLOR_GREEN)),
+                        );
+                        current_line += 1;
+                    }
+                    ' ' => {
+                        self.viewer_lines.push(
+                            ListItem::new(Line::from(text.to_string()))
+                                .style(Style::default().fg(COLOR_GREY_500)),
+                        );
+                        current_line += 1;
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // Add remaining lines after the last hunk
+        while current_line < original_lines.len() {
+            self.viewer_lines.push(
+                ListItem::new(Line::from(original_lines[current_line].clone()))
+                    .style(Style::default().fg(COLOR_GREY_500)),
+            );
+            current_line += 1;
+        }
+    }
+
     pub fn open_viewer(&mut self) {
         match self.focus {
             Focus::StatusTop => {
                 if self.graph_selected != 0 && self.current_diff.len() > 0 {
-                    let oid = self.oids.get(self.graph_selected).unwrap();
                     self.file_name = Some(
                         self.current_diff
                             .get(self.status_top_selected)
@@ -69,107 +161,36 @@ impl App {
                             .filename
                             .to_string(),
                     );
-
-                    let original_lines = get_file_lines_at_commit(
-                        &self.repo,
-                        *oid,
-                        &self.file_name.clone().unwrap(),
-                    );
-                    let hunks =
-                        get_file_diff(&self.repo, *oid, &self.file_name.clone().unwrap()).unwrap();
-
-                    self.viewer_lines.clear();
-                    let mut current_line = 0usize;
-
-                    for hunk in hunks.iter() {
-                        // Parse hunk header to extract start line and length for the old file.
-                        // Example header: "@@ -22,8 +22,14 @@"
-                        let header = &hunk.header;
-                        let (old_start, _old_len) = header
-                            .split_whitespace()
-                            .nth(1) // "-22,8"
-                            .and_then(|s| s.strip_prefix('-'))
-                            .and_then(|s| {
-                                let mut parts = s.split(',');
-                                Some((
-                                    parts.next()?.parse::<usize>().ok()?,
-                                    parts
-                                        .next()
-                                        .and_then(|n| n.parse::<usize>().ok())
-                                        .unwrap_or(0),
-                                ))
-                            })
-                            .unwrap_or((1, 0));
-                        let old_start_idx = old_start.saturating_sub(1);
-
-                        // Add unchanged lines before this hunk
-                        while current_line < old_start_idx && current_line < original_lines.len() {
-                            self.viewer_lines.push(
-                                ListItem::new(Line::from(original_lines[current_line].clone()))
-                                    .style(Style::default().fg(COLOR_GREY_500)),
-                            );
-                            current_line += 1;
-                        }
-
-                        // Process lines in the hunk
-                        for line in hunk.lines.iter().filter(|l| l.origin != 'H')
-                        // skip @@ header lines
-                        {
-                            let text = line.content.trim_end_matches('\n');
-
-                            match line.origin {
-                                '-' => {
-                                    // Line removed from original
-                                    if current_line < original_lines.len() {
-                                        current_line += 1;
-                                    }
-                                    self.viewer_lines.push(
-                                        ListItem::new(Line::from(format!("- {}", text))).style(
-                                            Style::default().bg(COLOR_DARK_RED).fg(COLOR_RED),
-                                        ),
-                                    );
-                                }
-                                '+' => {
-                                    // New line added
-                                    self.viewer_lines.push(
-                                        ListItem::new(Line::from(format!("+ {}", text))).style(
-                                            Style::default()
-                                                .bg(COLOR_LIGHT_GREEN_900)
-                                                .fg(COLOR_GREEN),
-                                        ),
-                                    );
-                                }
-                                ' ' => {
-                                    // Context (unchanged) line in diff
-                                    self.viewer_lines.push(
-                                        ListItem::new(Line::from(text.to_string()))
-                                            .style(Style::default().fg(COLOR_GREY_500)),
-                                    );
-                                    if current_line < original_lines.len() {
-                                        current_line += 1;
-                                    }
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-
-                    // Add remaining lines after the last hunk
-                    while current_line < original_lines.len() {
-                        self.viewer_lines.push(
-                            ListItem::new(Line::from(original_lines[current_line].clone()))
-                                .style(Style::default().fg(COLOR_GREY_500)),
-                        );
-                        current_line += 1;
-                    }
-
+                    self.update_viewer(self.oids.get(self.graph_selected).unwrap().clone());
                     self.viewport = Viewport::Viewer;
                 } else if self.graph_selected == 0 && self.uncommitted.is_staged {
+                    let modified_len = self.uncommitted.staged.modified.len();
+                    let added_len = self.uncommitted.staged.added.len();
+                    let index = self.status_top_selected;
+                    self.file_name = if index < modified_len {
+                        self.uncommitted.staged.modified.get(index).cloned()
+                    } else if index < modified_len + added_len {
+                        self.uncommitted.staged.added.get(index - modified_len).cloned()
+                    } else {
+                        self.uncommitted.staged.deleted.get(index - modified_len - added_len).cloned()
+                    };
+                    self.update_viewer(Oid::zero());
                     self.viewport = Viewport::Viewer;
                 }
             }
             Focus::StatusBottom => {
                 if self.graph_selected == 0 && self.uncommitted.is_unstaged {
+                    let modified_len = self.uncommitted.unstaged.modified.len();
+                    let added_len = self.uncommitted.unstaged.added.len();
+                    let index = self.status_bottom_selected;
+                    self.file_name = if index < modified_len {
+                        self.uncommitted.unstaged.modified.get(index).cloned()
+                    } else if index < modified_len + added_len {
+                        self.uncommitted.unstaged.added.get(index - modified_len).cloned()
+                    } else {
+                        self.uncommitted.unstaged.deleted.get(index - modified_len - added_len).cloned()
+                    };
+                    self.update_viewer(Oid::zero());
                     self.viewport = Viewport::Viewer;
                 }
             }
@@ -463,6 +484,7 @@ impl App {
                     }
                     Focus::StatusTop | Focus::StatusBottom => {
                         self.open_viewer();
+                        self.focus = Focus::Viewport;
                     }
                     _ => {}
                 };
