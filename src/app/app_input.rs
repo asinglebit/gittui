@@ -36,19 +36,23 @@ use crate::{
     },
     git::{
         actions::{
-            checkout_head,
-            checkout_branch,
-            commit_staged,
-            git_add_all,
-            reset_to_commit,
-            unstage_all
+            commits::{
+                checkout_head,
+                checkout_branch,
+                commit_staged,
+                git_add_all,
+                reset_to_commit,
+                unstage_all
+            }
         },
         queries::{
-            get_changed_filenames,
-            get_file_diff,
-            get_file_lines_at_commit,
-            get_file_lines_in_workdir,
-            get_uncommitted_file_diff
+            diffs::{
+                get_filenames_diff_at_oid,
+                get_file_at_oid,
+                get_file_at_workdir,
+                get_file_diff_at_oid,
+                get_file_diff_at_workdir
+            }
         }
     },
     utils::symbols::{
@@ -75,13 +79,13 @@ impl App {
         // Decide whether to use committed or uncommitted version
         let (original_lines, hunks) = if oid == Oid::zero() {
             (
-                get_file_lines_in_workdir(&self.repo, &filename),
-                get_uncommitted_file_diff(&self.repo, &filename).unwrap_or_default(),
+                get_file_at_workdir(&self.repo, &filename),
+                get_file_diff_at_workdir(&self.repo, &filename).unwrap_or_default(),
             )
         } else {
             (
-                get_file_lines_at_commit(&self.repo, oid, &filename),
-                get_file_diff(&self.repo, oid, &filename).unwrap_or_default(),
+                get_file_at_oid(&self.repo, oid, &filename),
+                get_file_diff_at_oid(&self.repo, oid, &filename).unwrap_or_default(),
             )
         };
 
@@ -421,7 +425,7 @@ impl App {
                         }
                         if self.graph_selected != 0 {
                             let oid = self.oids.get(self.graph_selected).unwrap();
-                            self.current_diff = get_changed_filenames(&self.repo, *oid);
+                            self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                         }
                     }
                     Viewport::Viewer => {
@@ -466,7 +470,7 @@ impl App {
                             }
                             if self.graph_selected != 0 {
                                 let oid = self.oids.get(self.graph_selected).unwrap();
-                                self.current_diff = get_changed_filenames(&self.repo, *oid);
+                                self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                             }
                         }
                         Viewport::Viewer => {
@@ -715,7 +719,7 @@ impl App {
                                 self.graph_selected = self.lines_branches.len() - 1;
                             }
                             let oid = self.oids.get(self.graph_selected).unwrap();
-                            self.current_diff = get_changed_filenames(&self.repo, *oid);
+                            self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                         }
                         Viewport::Viewer => {
                             if !self.viewer_lines.is_empty() {
@@ -749,7 +753,7 @@ impl App {
                                 }
                                 if self.graph_selected != 0 {
                                     let oid = self.oids.get(self.graph_selected).unwrap();
-                                    self.current_diff = get_changed_filenames(&self.repo, *oid);
+                                    self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                                 }
                             }
                             Viewport::Viewer => {
@@ -780,7 +784,7 @@ impl App {
 
                 if self.graph_selected != 0 {
                     let oid = self.oids.get(self.graph_selected).unwrap();
-                    self.current_diff = get_changed_filenames(&self.repo, *oid);
+                    self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                 }
             }
             KeyCode::PageDown => {
@@ -796,7 +800,7 @@ impl App {
                                 }
                                 if self.graph_selected != 0 {
                                     let oid = self.oids.get(self.graph_selected).unwrap();
-                                    self.current_diff = get_changed_filenames(&self.repo, *oid);
+                                    self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                                 }
                             }
                             Viewport::Viewer => {
@@ -826,7 +830,7 @@ impl App {
 
                 if self.graph_selected != 0 {
                     let oid = self.oids.get(self.graph_selected).unwrap();
-                    self.current_diff = get_changed_filenames(&self.repo, *oid);
+                    self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                 }
             }
             KeyCode::Esc => {

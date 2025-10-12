@@ -6,8 +6,7 @@ use std::{
 #[rustfmt::skip]
 use git2::{
     Oid,
-    Repository,
-    // Time
+    Repository
 };
 #[rustfmt::skip]
 use ratatui::{
@@ -33,12 +32,16 @@ use crate::{
         },
     },
     git::queries::{
-        get_branches,
-        get_sorted_commits,
-        // get_timestamps,
-        get_tips,
-        get_uncommitted_changes,
-        UncommittedChanges
+        commits::{
+            get_branch_oids,
+            get_sorted_oids,
+            // get_timestamps,
+            get_tip_oids,
+        },
+        diffs::{
+            get_filenames_diff_at_workdir,
+            UncommittedChanges
+        }
     },
     utils::{
         colors::*,
@@ -78,19 +81,19 @@ pub fn walk(repo: &Repository) -> Walked<'static> {
     // Topologically sorted list of oids including the uncommited, for the sake of order
     let mut oids = vec![Oid::zero()];
     // Mapping of tip oids of the branches to the branch names
-    let tips: HashMap<Oid, Vec<String>> = get_tips(repo);
+    let tips: HashMap<Oid, Vec<String>> = get_tip_oids(repo);
     // Mapping of oids to lanes
     let mut oid_colors: HashMap<Oid, Color> = HashMap::new();
     // Mapping of tip oids of the branches to the colors
     let mut tip_colors: HashMap<Oid, Color> = HashMap::new();
     // Mapping of every oid to every branch it is a part of
-    let (oid_branch_map, branch_oid_map) = get_branches(repo, &tips);
+    let (oid_branch_map, branch_oid_map) = get_branch_oids(repo, &tips);
     // Timestamps of every oid
     // let timestamps: HashMap<Oid, (Time, Time, Time)> = get_timestamps(repo, &branches);
     // Topologically sorted list of oids including the uncommited
-    let sorted: Vec<Oid> = get_sorted_commits(repo);
+    let sorted: Vec<Oid> = get_sorted_oids(repo);
     // Get uncomitted changes info
-    let uncommitted = get_uncommitted_changes(repo).expect("Error");
+    let uncommitted = get_filenames_diff_at_workdir(repo).expect("Error");
     // Get current head oid
     let head_oid = repo.head().unwrap().target().unwrap();
 

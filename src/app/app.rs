@@ -30,8 +30,10 @@ use ratatui::{
 use crate::{
     core::walker::walk,
     git::queries::{
-        FileChange,
-        UncommittedChanges
+        diffs::{
+            FileChange,
+            UncommittedChanges
+        }
     }
 };
 

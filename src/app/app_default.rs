@@ -27,7 +27,11 @@ use crate::{
         Focus
     },
     git::{
-        queries::UncommittedChanges
+        queries::{
+            diffs::{
+                UncommittedChanges
+            }
+        }
     }
 };
 #[rustfmt::skip]

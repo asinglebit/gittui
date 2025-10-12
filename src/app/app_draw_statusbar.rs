@@ -25,7 +25,13 @@ use crate::{
         Focus,
         Viewport
     },
-    git::queries::get_current_branch
+    git::{
+        queries::{
+            commits::{
+                get_current_branch
+            }
+        }        
+    }
 };
 
 impl App {

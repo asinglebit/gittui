@@ -25,8 +25,13 @@ mod core {
     pub mod walker;
 }
 pub mod git {
-    pub mod actions;
-    pub mod queries;
+    pub mod actions {
+        pub mod commits;
+    }
+    pub mod queries {
+        pub mod commits;
+        pub mod diffs;
+    }
 }
 pub mod utils {
     pub mod colors;

@@ -21,8 +21,10 @@ use ratatui::{
 use crate::{
     git::{
         queries::{
-            FileStatus
-        },
+            diffs::{
+                FileStatus
+            }
+        }
     },
     utils::{
         colors::*,
