@@ -1,31 +1,36 @@
 #[rustfmt::skip]
 use edtui::EditorState;
 
+// Truncate a string to a maximum width and appends "..." if it was cut off
 pub fn truncate_with_ellipsis(text: &str, max_width: usize) -> String {
     if text.chars().count() <= max_width {
         return text.to_string();
     }
 
+    // If max width is very small, just fill with dots
     if max_width <= 3 {
         return ".".repeat(max_width);
     }
 
+    // Take first (max_width - 3) characters and append ellipsis
     let truncated: String = text.chars().take(max_width - 3).collect();
     format!("{truncated}...")
 }
 
+// Wrap text by character count without regard to word boundaries
 pub fn wrap_chars(content: String, max_width: usize) -> Vec<String> {
     let mut wrapped_lines = Vec::new();
 
     for line in content.split('\n') {
         if line.is_empty() {
-            // Preserve completely empty lines
+            // Preserve empty lines
             wrapped_lines.push(String::new());
             continue;
         }
 
         let mut start = 0;
         while start < line.len() {
+            // Slice line in chunks up to max_width
             let end = (start + max_width).min(line.len());
             wrapped_lines.push(line[start..end].to_string());
             start = end;
@@ -35,6 +40,8 @@ pub fn wrap_chars(content: String, max_width: usize) -> Vec<String> {
     wrapped_lines
 }
 
+// Wrap text by words, preserving spaces and indentation
+// Fall back to wrap_chars() when a word is longer than max_width
 pub fn wrap_words(content: String, max_width: usize) -> Vec<String> {
     if max_width == 0 {
         return vec![content.to_string()];
@@ -54,7 +61,7 @@ pub fn wrap_words(content: String, max_width: usize) -> Vec<String> {
 
         while let Some(c) = chars.next() {
             if c.is_whitespace() {
-                // Accumulate spaces
+                // Collect consecutive whitespace
                 let mut space = String::from(c);
                 while let Some(&next_c) = chars.peek() {
                     if next_c.is_whitespace() {
@@ -64,6 +71,7 @@ pub fn wrap_words(content: String, max_width: usize) -> Vec<String> {
                     }
                 }
 
+                // If spaces overflow line width, start new line
                 if current_width + space.len() > max_width {
                     wrapped_lines.push(current_line);
                     current_line = space.clone();
@@ -73,7 +81,7 @@ pub fn wrap_words(content: String, max_width: usize) -> Vec<String> {
                     current_width += space.len();
                 }
             } else {
-                // Accumulate a word
+                // Collect a word
                 let mut word = String::from(c);
                 while let Some(&next_c) = chars.peek() {
                     if !next_c.is_whitespace() {
@@ -83,8 +91,8 @@ pub fn wrap_words(content: String, max_width: usize) -> Vec<String> {
                     }
                 }
 
+                // Fallback: long word exceeds max_width → wrap by characters
                 if word.len() > max_width {
-                    // Fallback: word itself too long — wrap it by chars
                     if !current_line.is_empty() {
                         wrapped_lines.push(current_line);
                         current_line = String::new();
@@ -96,6 +104,7 @@ pub fn wrap_words(content: String, max_width: usize) -> Vec<String> {
                     continue;
                 }
 
+                // If word doesn't fit, push current line and start new one
                 if current_width + word.len() > max_width {
                     if !current_line.is_empty() {
                         wrapped_lines.push(current_line);
@@ -109,12 +118,14 @@ pub fn wrap_words(content: String, max_width: usize) -> Vec<String> {
             }
         }
 
+        // Push the final line
         wrapped_lines.push(current_line);
     }
 
     wrapped_lines
 }
 
+// Center a single line of text within a given width by adding leading spaces
 pub fn center_line(line: &str, width: usize) -> String {
     if line.len() >= width {
         line.to_string()
@@ -124,6 +135,7 @@ pub fn center_line(line: &str, width: usize) -> String {
     }
 }
 
+// Convert an edtui's line data into a single string
 pub fn editor_state_to_string(state: &EditorState) -> String {
     state
         .lines
@@ -132,41 +144,44 @@ pub fn editor_state_to_string(state: &EditorState) -> String {
         .collect::<String>()
 }
 
+// Attempt to decode raw byte data into a string, handling UTF-8 and UTF-16 (LE/BE)
 pub fn decode(bytes: &[u8]) -> String {
     if bytes.starts_with(&[0xFF, 0xFE]) {
+        // UTF-16 Little Endian with BOM
         let utf16: Vec<u16> = bytes[2..]
             .chunks(2)
             .map(|c| u16::from_le_bytes([c[0], *c.get(1).unwrap_or(&0)]))
             .collect();
         String::from_utf16(&utf16).unwrap_or_default()
     } else if bytes.starts_with(&[0xFE, 0xFF]) {
+        // UTF-16 Big Endian with BOM
         let utf16: Vec<u16> = bytes[2..]
             .chunks(2)
             .map(|c| u16::from_be_bytes([c[0], *c.get(1).unwrap_or(&0)]))
             .collect();
         String::from_utf16(&utf16).unwrap_or_default()
     } else if bytes.len() > 1 && bytes[1] == 0 {
+        // Likely UTF-16 LE without BOM
         let utf16: Vec<u16> = bytes
             .chunks(2)
             .map(|c| u16::from_le_bytes([c[0], *c.get(1).unwrap_or(&0)]))
             .collect();
         String::from_utf16(&utf16).unwrap_or_default()
     } else {
+        // Default: UTF-8 or fallback to lossy decode
         String::from_utf8_lossy(bytes).to_string()
     }
 }
 
+// Clean and normalizes a string
 pub fn sanitize(string: String) -> String {
-    let decoded = string.replace("\r\n", "\n").replace("\r", "\n");
-
-    // Sanitize characters and expand tabs to 4 spaces
-    decoded
-        .chars()
-        .flat_map(|c| match c {
-            '\t' => "    ".chars().collect::<Vec<_>>(), // expand tabs
-            '\n' => vec!['\n'],
-            c if c.is_control() => vec![], // remove other control chars
-            _ => vec![c],
+    string
+        .replace("\r\n", "\n").replace("\r", "\n")              // Convert Windows/Mac newlines to '\n'
+        .chars().flat_map(|character| match character {
+            '\t' => "    ".chars().collect::<Vec<_>>(),         // Expand tabs
+            '\n' => vec!['\n'],                                 // keep newlines
+            character if character.is_control() => vec![],      // remove other control chars
+            _ => vec![character],                               // Keep the rest of the characters
         })
         .collect()
 }
