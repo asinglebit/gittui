@@ -23,7 +23,13 @@ use ratatui::{
 #[rustfmt::skip]
 use crate::{
     core::buffer::Buffer,
-    git::queries::diffs::UncommittedChanges,
+    git::{
+        queries::{
+            helpers::{
+                UncommittedChanges
+            }
+        }
+    },
     utils::{
         colors::*,
         symbols::SYM_UNCOMMITED

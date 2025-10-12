@@ -21,7 +21,7 @@ use ratatui::{
 use crate::{
     git::{
         queries::{
-            diffs::{
+            helpers::{
                 FileStatus
             }
         }

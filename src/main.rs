@@ -31,6 +31,7 @@ pub mod git {
     pub mod queries {
         pub mod commits;
         pub mod diffs;
+        pub mod helpers;
     }
 }
 pub mod utils {

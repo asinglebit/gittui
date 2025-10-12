@@ -1,22 +1,15 @@
 #[rustfmt::skip]
 use std::{
-    collections::{
-        HashSet,
-    },
     path::Path
 };
 #[rustfmt::skip]
 use git2::{
+    Error,
     DiffOptions,
-    ObjectType,
     Delta,
     Oid,
-    Diff,
     Repository,
-    StatusOptions,
-    DiffFormat::{
-        Patch
-    }
+    StatusOptions
 };
 #[rustfmt::skip]
 use crate::{
@@ -27,53 +20,24 @@ use crate::{
     }
 };
 
-#[derive(Debug, Default)]
-pub struct UncommittedChanges {
-    pub unstaged: FileChanges,
-    pub staged: FileChanges,
-    pub modified_count: usize,
-    pub added_count: usize,
-    pub deleted_count: usize,
-    pub is_clean: bool,
-    pub is_staged: bool,
-    pub is_unstaged: bool,
-}
+use crate::{
+    git::{
+        queries::{
+            helpers::{
+                UncommittedChanges,
+                FileChange,
+                FileStatus,
+                Hunk,
+                deduplicate,
+                diff_to_hunks,
+                walk_tree
+            }
+        }
+    }
+};
 
-#[derive(Debug, Default)]
-pub struct FileChanges {
-    pub modified: Vec<String>,
-    pub added: Vec<String>,
-    pub deleted: Vec<String>,
-}
-
-#[derive(Debug)]
-pub struct FileChange {
-    pub filename: String,
-    pub status: FileStatus,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum FileStatus {
-    Added,
-    Modified,
-    Deleted,
-    Renamed,
-    Other,
-}
-
-#[derive(Debug)]
-pub struct LineChange {
-    pub origin: char, // '+', '-', ' ' for added, removed, context
-    pub content: String, // Line content
-}
-
-#[derive(Debug)]
-pub struct Hunk {
-    pub header: String, // Hunk header, e.g. @@ -X,Y +X,Y @@
-    pub lines: Vec<LineChange>,
-}
-
-pub fn get_filenames_diff_at_workdir(repo: &Repository) -> Result<UncommittedChanges, git2::Error> {
+// Collects and categorizes uncommitted changes in the working directory and index
+pub fn get_filenames_diff_at_workdir(repo: &Repository) -> Result<UncommittedChanges, Error> {
     let mut options = StatusOptions::new();
     options
         .include_untracked(true)
@@ -81,9 +45,11 @@ pub fn get_filenames_diff_at_workdir(repo: &Repository) -> Result<UncommittedCha
         .renames_head_to_index(false)
         .renames_index_to_workdir(false);
 
+    // Retrieve the current status of the working directory and index
     let statuses = repo.statuses(Some(&mut options))?;
     let mut changes = UncommittedChanges::default();
 
+    // Iterate through each file entry in the status list
     for entry in statuses.iter() {
         let status = entry.status();
         let path = entry.path().unwrap_or("").to_string();
@@ -93,7 +59,7 @@ pub fn get_filenames_diff_at_workdir(repo: &Repository) -> Result<UncommittedCha
             continue;
         }
 
-        // Check staged changes
+        // Record staged changes (index vs HEAD)
         if status.is_index_modified() {
             changes.staged.modified.push(path.clone());
         }
@@ -104,7 +70,7 @@ pub fn get_filenames_diff_at_workdir(repo: &Repository) -> Result<UncommittedCha
             changes.staged.deleted.push(path.clone());
         }
 
-        // Check unstaged changes
+        // Record unstaged changes (workdir vs index)
         if status.is_wt_modified() {
             changes.unstaged.modified.push(path.clone());
         }
@@ -116,31 +82,36 @@ pub fn get_filenames_diff_at_workdir(repo: &Repository) -> Result<UncommittedCha
         }
     }
 
-    // Count deduplicated
+    // Compute counts of deduplicated filenames
     changes.modified_count = deduplicate(&changes.staged.modified, &changes.unstaged.modified);
     changes.added_count = deduplicate(&changes.staged.added, &changes.unstaged.added);
     changes.deleted_count = deduplicate(&changes.staged.deleted, &changes.unstaged.deleted);
 
-    // Flags
-    changes.is_staged = !changes.staged.modified.is_empty() || !changes.staged.added.is_empty() || !changes.staged.deleted.is_empty();
-    changes.is_unstaged = !changes.unstaged.modified.is_empty() || !changes.unstaged.added.is_empty() || !changes.unstaged.deleted.is_empty();
+    // Set flags for change states
+    changes.is_staged = !changes.staged.modified.is_empty()
+        || !changes.staged.added.is_empty()
+        || !changes.staged.deleted.is_empty();
+    changes.is_unstaged = !changes.unstaged.modified.is_empty()
+        || !changes.unstaged.added.is_empty()
+        || !changes.unstaged.deleted.is_empty();
     changes.is_clean = !changes.is_staged && !changes.is_unstaged;
 
     Ok(changes)
 }
 
+// Lists all files changed in a given commit compared to its parent
 pub fn get_filenames_diff_at_oid(repo: &Repository, oid: Oid) -> Vec<FileChange> {
     let commit = repo.find_commit(oid).unwrap();
     let tree = commit.tree().unwrap();
     let mut changes = Vec::new();
 
-    // Handle initial commit with no parent
+    // Handle the initial commit (no parent)
     if commit.parent_count() == 0 {
         walk_tree(repo, &tree, "", &mut changes);
         return changes;
     }
 
-    // Handle rest of the commits, diffing against parents
+    // Diff current commit tree against its parent tree
     let parent_tree = commit.parent(0).unwrap().tree().unwrap();
     let mut opts = DiffOptions::new();
     opts.include_untracked(false)
@@ -155,6 +126,7 @@ pub fn get_filenames_diff_at_oid(repo: &Repository, oid: Oid) -> Vec<FileChange>
         .diff_tree_to_tree(Some(&parent_tree), Some(&tree), Some(&mut opts))
         .unwrap();
 
+    // Iterate through all deltas (changed files)
     for delta in diff.deltas() {
         let path = delta
             .new_file()
@@ -164,11 +136,10 @@ pub fn get_filenames_diff_at_oid(repo: &Repository, oid: Oid) -> Vec<FileChange>
             .display()
             .to_string();
 
-        // TODO: think of something better later.
-        // We want to make sure we only recurse through folders but we want it to be cheap
-        // Crude check: no '.' -> folder
+        // Rough check for folders (no '.' in name)
         let is_folder = !path.contains('.');
 
+        // Recursively collect folder contents if applicable
         if is_folder {
             if let Ok(tree_obj) = repo.find_tree(delta.new_file().id()) {
                 walk_tree(repo, &tree_obj, &path, &mut changes);
@@ -176,6 +147,7 @@ pub fn get_filenames_diff_at_oid(repo: &Repository, oid: Oid) -> Vec<FileChange>
             }
         }
 
+        // Record file and its change status
         changes.push(FileChange {
             filename: path,
             status: match delta.status() {
@@ -191,18 +163,23 @@ pub fn get_filenames_diff_at_oid(repo: &Repository, oid: Oid) -> Vec<FileChange>
     changes
 }
 
+// Generate a line-by-line diff for a file in the working directory
 pub fn get_file_diff_at_workdir(
     repo: &Repository,
     filename: &str,
 ) -> Result<Vec<Hunk>, git2::Error> {
+    // Get the current HEAD tree (if available)
     let head_tree = repo.head().ok().and_then(|h| h.peel_to_tree().ok());
 
+    // Set diff options to include only the target file
     let mut diff_options = DiffOptions::new();
     diff_options.pathspec(filename);
 
+    // Compare HEAD tree with workdir + index
     diff_to_hunks(repo.diff_tree_to_workdir_with_index(head_tree.as_ref(), Some(&mut diff_options))?)
 }
 
+// Generate a line-by-line diff for a file between a commit and its parent
 pub fn get_file_diff_at_oid(
     repo: &Repository,
     commit_oid: Oid,
@@ -216,12 +193,15 @@ pub fn get_file_diff_at_oid(
         None
     };
 
+    // Diff options limited to the specific file
     let mut diff_options = DiffOptions::new();
     diff_options.pathspec(filename);
 
+    // Compare parent tree with current commit tree
     diff_to_hunks(repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), Some(&mut diff_options))?)
 }
 
+// Retrieve the contents of a file at a specific commit
 pub fn get_file_at_oid(repo: &Repository, commit_oid: Oid, filename: &str) -> Vec<String> {
     let commit = repo.find_commit(commit_oid).unwrap();
     let tree = commit.tree().unwrap();
@@ -232,6 +212,7 @@ pub fn get_file_at_oid(repo: &Repository, commit_oid: Oid, filename: &str) -> Ve
         .unwrap_or_default()
 }
 
+// Retrieve the contents of a file from the working directory
 pub fn get_file_at_workdir(repo: &Repository, filename: &str) -> Vec<String> {
     let full_path = repo
         .workdir()
@@ -241,58 +222,3 @@ pub fn get_file_at_workdir(repo: &Repository, filename: &str) -> Vec<String> {
         .map(|s| s.lines().map(|l| l.to_string()).collect())
         .unwrap_or_default()
 }
-
-
-fn deduplicate(a: &[String], b: &[String]) -> usize {
-    a.iter().chain(b).collect::<HashSet<_>>().len()
-}
-
-fn walk_tree(repo: &Repository, tree: &git2::Tree, base: &str, changes: &mut Vec<FileChange>) {
-    for entry in tree.iter() {
-        if let Some(name) = entry.name() {
-            let path = if base.is_empty() {
-                name.to_string()
-            } else {
-                format!("{}/{}", base, name)
-            };
-
-            match entry.kind() {
-                Some(ObjectType::Blob) => {
-                    changes.push(FileChange {
-                        filename: path,
-                        status: FileStatus::Added,
-                    });
-                }
-                Some(ObjectType::Tree) => {
-                    if let Ok(subtree) = entry.to_object(repo).and_then(|o| o.peel_to_tree()) {
-                        walk_tree(repo, &subtree, &path, changes);
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-}
-
-fn diff_to_hunks(diff: Diff) -> Result<Vec<Hunk>, git2::Error> {
-    let mut hunks = Vec::new();
-    diff.print(Patch, |_, hunk_opt, line| {
-        if let Some(hunk) = hunk_opt {
-            hunks.push(Hunk {
-                header: decode_bytes(hunk.header()).to_string(),
-                lines: Vec::new(),
-            });
-        }
-
-        if let Some(last) = hunks.last_mut() {
-            last.lines.push(LineChange {
-                origin: line.origin() as char,
-                content: decode_bytes(line.content()).to_string(),
-            });
-        }
-
-        true
-    })?;
-    Ok(hunks)
-}
-

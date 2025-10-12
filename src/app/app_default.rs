@@ -28,7 +28,7 @@ use crate::{
     },
     git::{
         queries::{
-            diffs::{
+            helpers::{
                 UncommittedChanges
             }
         }

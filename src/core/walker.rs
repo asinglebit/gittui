@@ -40,6 +40,8 @@ use crate::{
         },
         diffs::{
             get_filenames_diff_at_workdir,
+        },
+        helpers::{
             UncommittedChanges
         }
     },

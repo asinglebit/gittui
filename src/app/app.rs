@@ -29,12 +29,14 @@ use ratatui::{
 #[rustfmt::skip]
 use crate::{
     core::walker::walk,
-    git::queries::{
-        diffs::{
-            FileChange,
-            UncommittedChanges
+    git::{
+        queries::{
+            helpers::{
+                FileChange,
+                UncommittedChanges
+            }
         }
-    }
+    },
 };
 
 #[derive(Default)]
