@@ -136,7 +136,11 @@ impl App {
     pub fn open_viewer(&mut self) {
         match self.focus {
             Focus::StatusTop => {
+
+                // If a commit is selected in the top graph view
                 if self.graph_selected != 0 && self.current_diff.len() > 0 {
+
+                    // Set the file_name to the currently selected file in the diff
                     self.file_name = Some(
                         self.current_diff
                             .get(self.status_top_selected)
@@ -144,12 +148,19 @@ impl App {
                             .filename
                             .to_string(),
                     );
+
+                    // Update the viewer to show the file at the selected commit OID
                     self.update_viewer(self.oids.get(self.graph_selected).unwrap().clone());
                     self.viewport = Viewport::Viewer;
+
                 } else if self.graph_selected == 0 && self.uncommitted.is_staged {
+                    
+                    // If HEAD is selected and staged uncommitted changes exist
                     let modified_len = self.uncommitted.staged.modified.len();
                     let added_len = self.uncommitted.staged.added.len();
                     let index = self.status_top_selected;
+
+                    // Select the file name from staged changes depending on index
                     self.file_name = if index < modified_len {
                         self.uncommitted.staged.modified.get(index).cloned()
                     } else if index < modified_len + added_len {
@@ -165,15 +176,21 @@ impl App {
                             .get(index - modified_len - added_len)
                             .cloned()
                     };
+
+                    // Update viewer for uncommitted file (Oid::zero indicates workdir)
                     self.update_viewer(Oid::zero());
                     self.viewport = Viewport::Viewer;
                 }
             }
             Focus::StatusBottom => {
+
+                // If uncommitted unstaged changes exist in bottom status view
                 if self.graph_selected == 0 && self.uncommitted.is_unstaged {
                     let modified_len = self.uncommitted.unstaged.modified.len();
                     let added_len = self.uncommitted.unstaged.added.len();
                     let index = self.status_bottom_selected;
+
+                    // Select the file name from unstaged changes depending on index
                     self.file_name = if index < modified_len {
                         self.uncommitted.unstaged.modified.get(index).cloned()
                     } else if index < modified_len + added_len {
@@ -189,6 +206,8 @@ impl App {
                             .get(index - modified_len - added_len)
                             .cloned()
                     };
+
+                    // Update viewer for uncommitted file
                     self.update_viewer(Oid::zero());
                     self.viewport = Viewport::Viewer;
                 }
@@ -196,31 +215,32 @@ impl App {
             _ => {}
         }
     }
-    
+
     pub fn update_viewer(&mut self, oid: Oid) {
-        
+
+        // Clone the current file name
         let filename = self.file_name.clone().unwrap();
 
-        // Decide whether to use committed or uncommitted version
+        // Decide whether to use committed version or uncommitted (workdir)
         let (original_lines, hunks) = if oid == Oid::zero() {(
-            get_file_at_workdir(&self.repo, &filename),
-            get_file_diff_at_workdir(&self.repo, &filename).unwrap_or_default(),
+            get_file_at_workdir(&self.repo, &filename), // get current file in workdir
+            get_file_diff_at_workdir(&self.repo, &filename).unwrap_or_default(), // get diff for workdir
         )} else {(
-            get_file_at_oid(&self.repo, oid, &filename),
-            get_file_diff_at_oid(&self.repo, oid, &filename).unwrap_or_default(),
+            get_file_at_oid(&self.repo, oid, &filename), // get file at commit
+            get_file_diff_at_oid(&self.repo, oid, &filename).unwrap_or_default(), // get diff for commit
         )};
 
-        self.viewer_lines.clear();
-        let mut current_line: usize = 0;
-        let mut current_line_old: usize = 0;
+        self.viewer_lines.clear(); // Clear current viewer lines
+        let mut current_line: usize = 0; // Current line in new file
+        let mut current_line_old: usize = 0; // Current line in old file
 
         for hunk in hunks.iter() {
-            // Parse hunk header to extract start line and length for the old file.
+            // Parse hunk header to extract old file start line and length
             // Example header: "@@ -22,8 +22,14 @@"
             let header = &hunk.header;
             let (old_start, _old_len) = header
                 .split_whitespace()
-                .nth(1) // "-22,8"
+                .nth(1) // get "-22,8"
                 .and_then(|s| s.strip_prefix('-'))
                 .and_then(|s| {
                     let mut parts = s.split(',');
@@ -233,16 +253,20 @@ impl App {
                     ))
                 })
                 .unwrap_or((1, 0));
-            let old_start_idx = old_start.saturating_sub(1);
+            let old_start_idx = old_start.saturating_sub(1); // Convert to 0-based index
 
             // Add unchanged lines before this hunk
             while current_line < old_start_idx && current_line < original_lines.len() {
+
+                // Wrap line to fit viewport width
                 let wrapped = wrap_words(
                     original_lines[current_line].clone(),
                     (self.layout.graph.width as usize).saturating_sub(8),
                 );
                 let mut idx = 0;
                 for line in wrapped {
+
+                    // Push each wrapped line into viewer with line numbers
                     self.viewer_lines.push(ListItem::new(
                         Line::from(vec![
                             Span::styled(
@@ -261,8 +285,9 @@ impl App {
             
             // Process lines in the hunk
             for line in hunk.lines.iter().filter(|l| l.origin != 'H') {
-                let text = line.content.trim_end_matches('\n');
+                let text = line.content.trim_end_matches('\n'); // remove trailing newline
 
+                // Determine styling, prefix, color, and line number based on line origin
                 let (style, prefix, side, fg, count) = match line.origin {
                     '-' => (Style::default().bg(COLOR_DARK_RED).fg(COLOR_RED), "- ".to_string(), COLOR_RED, COLOR_RED, current_line_old + 1),
                     '+' => (Style::default().bg(COLOR_LIGHT_GREEN_900).fg(COLOR_GREEN), "+ ".to_string(), COLOR_GREEN, COLOR_GREEN, current_line + 1),
@@ -270,10 +295,13 @@ impl App {
                     _ => (Style::default(), "".to_string(), COLOR_BORDER, COLOR_GREY_500, 0)
                 };
 
+                // Wrap the line to viewport width
                 let wrapped = wrap_words(format!("{}{}", prefix, text), (self.layout.graph.width as usize).saturating_sub(9));
                 let mut idx = 0;
 
                 for line in wrapped {
+                    
+                    // Push each wrapped line into the viewer
                     self.viewer_lines.push(
                         ListItem::new(Line::from(vec![
                             Span::styled(
@@ -287,6 +315,7 @@ impl App {
                     idx += 1;
                 }
 
+                // Update line counters depending on origin
                 match line.origin {
                     '-' => {
                         current_line_old += 1;
@@ -303,7 +332,7 @@ impl App {
             }
         }
 
-        // Add remaining lines after the last hunk
+        // Add remaining lines after the last hunk (if any)
         while current_line < original_lines.len() {
             let wrapped = wrap_words(
                 original_lines[current_line].clone(),
