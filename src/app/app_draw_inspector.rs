@@ -211,7 +211,7 @@ impl App {
                     .title(vec![
                         Span::styled("─", Style::default().fg(COLOR_BORDER)),
                         Span::styled(
-                            " inspec(t)or ",
+                            " (i)nspector ",
                             Style::default().fg(if self.focus == Focus::Inspector {
                                 COLOR_GREY_500
                             } else {

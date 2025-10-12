@@ -257,7 +257,7 @@ impl App {
                 }
                 _ => {}
             },
-            KeyCode::Char('i') => {
+            KeyCode::Char('.') => {
                 self.is_minimal = !self.is_minimal;
             }
             KeyCode::Char('s') => {
@@ -268,7 +268,7 @@ impl App {
                     self.focus = Focus::Viewport;
                 }
             }
-            KeyCode::Char('t') => {
+            KeyCode::Char('i') => {
                 self.is_inspector = !self.is_inspector;
                 if !self.is_inspector && self.focus == Focus::Inspector {
                     if self.is_status {

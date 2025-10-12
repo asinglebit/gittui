@@ -34,7 +34,7 @@ impl App {
     pub fn draw_modal_actions(&mut self, frame: &mut Frame) {
         
         let length = 60;
-        let height = 9;
+        let mut height = 9;
         let mut lines: Vec<Line> = Vec::new();
 
         if self.graph_selected == 0 {
@@ -117,6 +117,10 @@ impl App {
                     line_operations.push_span(Span::styled("dd ", Style::default().fg(COLOR_TEXT)));
                 }
 
+                line_operations.push_span(Span::styled("(f)", Style::default().fg(COLOR_GREY_500)));
+                line_operations.push_span(Span::styled("etch ", Style::default().fg(COLOR_TEXT)));
+                line_operations.push_span(Span::styled("(p)", Style::default().fg(COLOR_GREY_500)));
+                line_operations.push_span(Span::styled("ushforce ", Style::default().fg(COLOR_TEXT)));
                 line_operations.push_span(Span::styled("(r)", Style::default().fg(COLOR_GREY_500)));
                 line_operations.push_span(Span::styled("eload ", Style::default().fg(COLOR_TEXT)));
 
@@ -129,6 +133,7 @@ impl App {
                 ];
             }
         } else {
+            height = 11;
             let oid = *self.oids.get(self.graph_selected).unwrap();      
             lines = vec![
                 Line::from(vec![
@@ -147,6 +152,13 @@ impl App {
                     Span::styled(format!("ardreset "), Style::default().fg(COLOR_TEXT)),
                     Span::styled(format!("(m)"), Style::default().fg(COLOR_GREY_500)),
                     Span::styled(format!("ixedreset "), Style::default().fg(COLOR_TEXT)),
+                    Span::styled(format!("(f)"), Style::default().fg(COLOR_GREY_500)),
+                    Span::styled(format!("etch "), Style::default().fg(COLOR_TEXT)),
+                ]),
+                Line::default(),
+                Line::from(vec![
+                    Span::styled(format!("(p)"), Style::default().fg(COLOR_GREY_500)),
+                    Span::styled(format!("ushforce "), Style::default().fg(COLOR_TEXT)),
                     Span::styled(format!("(r)"), Style::default().fg(COLOR_GREY_500)),
                     Span::styled(format!("eload"), Style::default().fg(COLOR_TEXT)),
                 ]),

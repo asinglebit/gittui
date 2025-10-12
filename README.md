@@ -19,7 +19,6 @@
         - create branch
         - delete branch
         - rename branch
-        - push branch
         - pull branch
         - rebase branch
         - merge branch
@@ -28,7 +27,6 @@
         - show branch
         - solo branch
         - rename branch
-        - fetch
         - stash
         - pop
     - add tests
