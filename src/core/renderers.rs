@@ -30,9 +30,9 @@ use crate::{
             }
         }
     },
-    utils::{
-        colors::*,
-        symbols::SYM_UNCOMMITED
+    helpers::{
+        palette::*,
+        symbols::*
     }
 };
 

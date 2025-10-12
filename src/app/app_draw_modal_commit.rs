@@ -31,8 +31,8 @@ use edtui::{
 };
 #[rustfmt::skip]
 use crate::{
-    utils::{
-        colors::*
+    helpers::{
+        palette::*
     },
 };
 #[rustfmt::skip]

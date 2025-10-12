@@ -26,9 +26,9 @@ use crate::{
             }
         }
     },
-    utils::{
-        colors::*,
-        symbols::*
+    helpers::{
+        palette::*,
+        text::*
     },
     app::app::{
         App,

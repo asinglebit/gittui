@@ -18,7 +18,6 @@ use edtui::{
     EditorEventHandler,
     EditorState
 };
-use crate::app::app::Viewport;
 #[rustfmt::skip]
 use crate::{
     app::app::{
@@ -35,7 +34,14 @@ use crate::{
     }
 };
 #[rustfmt::skip]
-use crate::utils::colors::*;
+use crate::{
+    app::app::{
+        Viewport
+    },
+    helpers::{
+        palette::*
+    }
+};
 
 impl Default for App {
     fn default() -> Self {

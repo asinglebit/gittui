@@ -13,14 +13,12 @@ use git2::{
 };
 #[rustfmt::skip]
 use crate::{
-    utils::{
-        symbols::{
-            decode_bytes
+    helpers::{
+        text::{
+            decode,
+            sanitize
         }
-    }
-};
-
-use crate::{
+    },
     git::{
         queries::{
             helpers::{
@@ -208,7 +206,7 @@ pub fn get_file_at_oid(repo: &Repository, commit_oid: Oid, filename: &str) -> Ve
     tree.get_path(Path::new(filename))
         .ok()
         .and_then(|entry| repo.find_blob(entry.id()).ok())
-        .map(|blob| decode_bytes(blob.content()).lines().map(|s| s.to_string()).collect())
+        .map(|blob| sanitize(decode(blob.content())).lines().map(|s| s.to_string()).collect())
         .unwrap_or_default()
 }
 

@@ -28,7 +28,6 @@ use ratatui::{
 };
 #[rustfmt::skip]
 use crate::{
-    utils::colors::*,
     app::app::{
         App,
         Focus,
@@ -55,9 +54,12 @@ use crate::{
             }
         }
     },
-    utils::symbols::{
-        editor_state_to_string,
-        wrap_words
+    helpers::{
+        palette::*,
+        text::{
+            editor_state_to_string,
+            wrap_words
+        }
     }
 };
 

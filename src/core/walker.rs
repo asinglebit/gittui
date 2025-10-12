@@ -45,9 +45,12 @@ use crate::{
             UncommittedChanges
         }
     },
-    utils::{
-        colors::*,
-        symbols::*
+    helpers::{
+        palette::*,
+        symbols::*,
+        colors::{
+            ColorPicker
+        }
     },
     layers,
 };

@@ -12,7 +12,7 @@ use ratatui::{
     text::Span,
 };
 #[rustfmt::skip]
-use crate::utils::colors::ColorPicker;
+use crate::helpers::colors::ColorPicker;
 
 #[derive(Eq, Hash, PartialEq)]
 pub enum LayerTypes {

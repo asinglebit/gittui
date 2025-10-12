@@ -23,13 +23,14 @@ use ratatui::{
         ListItem
     },
 };
+use crate::helpers::text::wrap_words;
 #[rustfmt::skip]
 use crate::{
-    utils::{
-        colors::*,
-        symbols::{
+    helpers::{
+        palette::*,
+        text::{
             truncate_with_ellipsis,
-            clean_commit_text
+            sanitize
         },
         time::timestamp_to_utc
     },
@@ -145,10 +146,10 @@ impl App {
                 )])
             ]);
 
-            let wrapped = clean_commit_text(&summary, max_text_width);
-            for wrap in wrapped {
+            let wrapped = wrap_words(sanitize(summary), max_text_width);
+            for line in wrapped {
                 lines.push(Line::from(vec![Span::styled(
-                    wrap,
+                    line,
                     Style::default().fg(COLOR_TEXT),
                 )]));
             }
@@ -161,10 +162,10 @@ impl App {
                 )])
             ]);
 
-            let wrapped = clean_commit_text(&body, max_text_width);
-            for wrap in wrapped {
+            let wrapped = wrap_words(sanitize(body), max_text_width);
+            for line in wrapped {
                 lines.push(Line::from(vec![Span::styled(
-                    wrap,
+                    line,
                     Style::default().fg(COLOR_TEXT),
                 )]));
             }

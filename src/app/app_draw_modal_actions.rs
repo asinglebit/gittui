@@ -21,13 +21,12 @@ use ratatui::{
 };
 #[rustfmt::skip]
 use crate::{
-    utils::{
-        colors::*
+    app::app::{
+        App
     },
-};
-#[rustfmt::skip]
-use crate::app::app::{
-    App
+    helpers::{
+        palette::*
+    },
 };
 
 impl App {

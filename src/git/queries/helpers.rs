@@ -15,9 +15,10 @@ use git2::{
 };
 #[rustfmt::skip]
 use crate::{
-    utils::{
-        symbols::{
-            decode_bytes
+    helpers::{
+        text::{
+            decode,
+            sanitize
         }
     }
 };
@@ -116,7 +117,7 @@ pub fn diff_to_hunks(diff: Diff) -> Result<Vec<Hunk>, git2::Error> {
         // Start a new hunk if encountered
         if let Some(hunk) = hunk_opt {
             hunks.push(Hunk {
-                header: decode_bytes(hunk.header()).to_string(),
+                header: sanitize(decode(hunk.header())).to_string(),
                 lines: Vec::new(),
             });
         }
@@ -125,7 +126,7 @@ pub fn diff_to_hunks(diff: Diff) -> Result<Vec<Hunk>, git2::Error> {
         if let Some(last) = hunks.last_mut() {
             last.lines.push(LineChange {
                 origin: line.origin() as char,
-                content: decode_bytes(line.content()).to_string(),
+                content: sanitize(decode(line.content())).to_string(),
             });
         }
 
