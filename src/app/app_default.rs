@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 #[rustfmt::skip]
 use std::{
     collections::HashMap,
@@ -19,6 +20,7 @@ use edtui::{
     EditorEventHandler,
     EditorState
 };
+use crate::{core::buffer::Buffer, helpers::colors::ColorPicker, layers};
 #[rustfmt::skip]
 use crate::{
     app::app::{
@@ -83,6 +85,11 @@ impl Default for App {
             // User
             name: "rattleworks".to_string(),
             email: "gasimov.abdulali@gmail.com".to_string(),
+
+            // Walker utilities    
+            color: Arc::new(RefCell::new(ColorPicker::default())),
+            buffer: RefCell::new(Buffer::default()),
+            layers: layers!(Arc::new(RefCell::new(ColorPicker::default()))),
 
             // Walker data
             oids: Vec::new(),

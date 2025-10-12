@@ -122,6 +122,15 @@ impl App {
 
         // Handle the application
         match key_event.code {
+            KeyCode::Char('w') => {
+                match self.focus {
+                    Focus::Viewport => {
+                        if self.viewport != Viewport::Graph { return; }
+                        self.walk();
+                    }
+                    _ => {}
+                }
+            }
             KeyCode::Char('p') => {
                 match self.focus {
                     Focus::Viewport => {

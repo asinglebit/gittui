@@ -86,7 +86,7 @@ impl App {
             for parent_id in commit.parent_ids() {
                 lines.push(Line::from(vec![Span::styled(
                     truncate_with_ellipsis(&format!("#{}", parent_id), max_text_width),
-                    Style::default().fg(*self.oid_colors.get(&parent_id).unwrap()),
+                    Style::default().fg(*self.oid_colors.get(&parent_id).unwrap_or(&COLOR_TEXT)),
                 )]));
             }
 

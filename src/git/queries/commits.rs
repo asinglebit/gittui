@@ -54,13 +54,12 @@ pub fn get_branches_and_sorted_oids(
     branch_oid_map: &mut HashMap<String, Oid>,
     sorted: &mut Vec<Oid>,
 ) {
-
-    // Prepare revwalk with all branch tips
-    let mut revwalk = repo.revwalk().unwrap();
-    for tip_oid in tips.keys() {
-        revwalk.push(*tip_oid).unwrap();
+    // Get the next batch of commits
+    let chunk = walker.next_chunk(10000);
+    if chunk.is_empty() {
+        // No more commits left
+        return;
     }
-    revwalk.set_sorting(Sort::TOPOLOGICAL | Sort::TIME).unwrap();
 
     // Seed each tip with its branch names
     if oids.len() == 1 {
@@ -76,8 +75,7 @@ pub fn get_branches_and_sorted_oids(
     }
 
     // Walk all commits topologically and propagate branch membership backwards
-    for oid_result in revwalk {
-        let oid = oid_result.unwrap();
+    for oid in chunk {
         sorted.push(oid);
 
         // Get the branch names that currently reach this commit

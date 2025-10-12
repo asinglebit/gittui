@@ -1,3 +1,4 @@
+use std::sync::Arc;
 #[rustfmt::skip]
 use std::{
     cell::RefCell,
@@ -21,13 +22,13 @@ pub enum LayerTypes {
     Pipes = 2,
 }
 
-pub struct LayerBuilder<'a> {
+pub struct LayerBuilder {
     layers: HashMap<LayerTypes, Vec<(String, Color)>>,
-    color: &'a RefCell<ColorPicker>,
+    color: Arc<RefCell<ColorPicker>>,
 }
 
-impl<'a> LayerBuilder<'a> {
-    pub fn new(color: &'a RefCell<ColorPicker>) -> Self {
+impl LayerBuilder {
+    pub fn new(color: Arc<RefCell<ColorPicker>>) -> Self {
         Self {
             layers: HashMap::new(),
             color,
@@ -49,11 +50,11 @@ impl<'a> LayerBuilder<'a> {
 }
 
 // Context struct holding mutable reference to LayerBuilder
-pub struct LayersCtx<'a> {
-    pub builder: LayerBuilder<'a>,
+pub struct LayersContext {
+    pub builder: LayerBuilder,
 }
 
-impl<'a> LayersCtx<'a> {
+impl LayersContext {
     pub fn clear(&mut self) {
         self.builder.layers.clear();
     }
@@ -112,7 +113,7 @@ impl<'a> LayersCtx<'a> {
 macro_rules! layers {
     ($color:expr) => {{
         let builder = $crate::core::layers::LayerBuilder::new($color);
-        let ctx = $crate::core::layers::LayersCtx { builder };
+        let ctx = $crate::core::layers::LayersContext { builder };
         ctx
     }};
 }
