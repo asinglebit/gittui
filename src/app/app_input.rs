@@ -30,12 +30,17 @@ use crate::{
                 commit_staged,
                 git_add_all,
                 reset_to_commit,
-                unstage_all
+                unstage_all,
+                fetch_over_ssh,
+                push_over_ssh
             }
         },
         queries::{
             diffs::{
                 get_filenames_diff_at_oid,
+            },
+            commits::{
+                get_current_branch
             }
         }
     },
@@ -117,6 +122,36 @@ impl App {
 
         // Handle the application
         match key_event.code {
+            KeyCode::Char('p') => {
+                match self.focus {
+                    Focus::Viewport => {
+                        if self.viewport != Viewport::Graph { return; }
+                        let handle = push_over_ssh(&self.path, "origin", get_current_branch(&self.repo).unwrap().as_str(), true);
+                        match handle.join().expect("Thread panicked") {
+                            Ok(_) => {
+                                self.reload();
+                            },
+                            Err(e) => eprintln!("Fetch failed: {}", e),
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            KeyCode::Char('f') => {
+                match self.focus {
+                    Focus::Viewport => {
+                        if self.viewport != Viewport::Graph { return; }
+                        let handle = fetch_over_ssh(&self.path, "origin");
+                        match handle.join().expect("Thread panicked") {
+                            Ok(_) => {
+                                self.reload();
+                            },
+                            Err(e) => eprintln!("Fetch failed: {}", e),
+                        }
+                    }
+                    _ => {}
+                }
+            }
             KeyCode::Char('r') => {
                 self.reload();
                 match self.focus {
@@ -222,7 +257,7 @@ impl App {
                 }
                 _ => {}
             },
-            KeyCode::Char('f') => {
+            KeyCode::Char('i') => {
                 self.is_minimal = !self.is_minimal;
             }
             KeyCode::Char('s') => {
@@ -233,7 +268,7 @@ impl App {
                     self.focus = Focus::Viewport;
                 }
             }
-            KeyCode::Char('i') => {
+            KeyCode::Char('t') => {
                 self.is_inspector = !self.is_inspector;
                 if !self.is_inspector && self.focus == Focus::Inspector {
                     if self.is_status {

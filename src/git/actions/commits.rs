@@ -1,6 +1,10 @@
 #[rustfmt::skip]
+use std::thread;
+#[rustfmt::skip]
 use git2::{
     Oid,
+    Cred,
+    RemoteCallbacks,
     Error,
     ErrorCode,
     Signature,
@@ -8,6 +12,8 @@ use git2::{
     BranchType,
     ResetType,
     Repository,
+    FetchOptions,
+    PushOptions,
     build::CheckoutBuilder
 };
 
@@ -181,4 +187,80 @@ pub fn unstage_all(repo: &Repository) -> Result<(), git2::Error> {
     repo.reset(&head.into_object(), ResetType::Mixed, None)?;
 
     Ok(())
+}
+
+pub fn fetch_over_ssh(repo_path: &str, remote_name: &str) -> thread::JoinHandle<Result<(), git2::Error>> {
+    // Clone the strings so the thread owns them
+    let repo_path = repo_path.to_string();
+    let remote_name = remote_name.to_string();
+
+    thread::spawn(move || {
+        let repo = Repository::open(repo_path)?;
+        let mut remote = repo.find_remote(&remote_name)?;
+
+        let mut callbacks = RemoteCallbacks::new();
+        callbacks.credentials(|_url, username_from_url, _| {
+            Cred::ssh_key_from_agent(username_from_url.unwrap())
+        });
+
+        callbacks.transfer_progress(|stats| {
+            // println!("Received {}/{} objects", stats.received_objects(), stats.total_objects());
+            true
+        });
+
+        let mut fetch_options = FetchOptions::new();
+        fetch_options.remote_callbacks(callbacks);
+
+        remote.fetch(&["refs/heads/*:refs/remotes/origin/*"], Some(&mut fetch_options), None)?;
+        Ok(())
+    })
+}
+
+
+pub fn push_over_ssh(repo_path: &str, remote_name: &str, branch: &str, force: bool)
+    -> thread::JoinHandle<Result<(), git2::Error>>
+{
+    // Clone inputs so they can move into the thread safely
+    let repo_path = repo_path.to_string();
+    let remote_name = remote_name.to_string();
+    let branch = "main".to_string();
+
+    thread::spawn(move || {
+        // Open the repository
+        let repo = Repository::open(&repo_path)?;
+        let mut remote = repo.find_remote(&remote_name)?;
+
+        // Configure SSH authentication
+        let mut callbacks = RemoteCallbacks::new();
+        callbacks.credentials(|_url, username_from_url, _| {
+            Cred::ssh_key_from_agent("git")
+        });
+
+        // Track progress
+        callbacks.push_update_reference(|refname, status| {
+            if let Some(err) = status {
+                // eprintln!("Failed to update {refname}: {err}");
+            } else {
+                // println!("Updated {refname}");
+            }
+            Ok(())
+        });
+
+        // Configure push options
+        let mut push_options = PushOptions::new();
+        push_options.remote_callbacks(callbacks);
+
+        // The refspec tells Git what to push
+        let refspec = if force {
+            format!("+refs/heads/{0}:refs/heads/{0}", branch) // '+' means force
+        } else {
+            format!("refs/heads/{0}:refs/heads/{0}", branch)
+        };
+
+        // Perform the push
+        remote.push(&[&refspec], Some(&mut push_options))?;
+
+        // println!("Push complete for branch '{}'", branch);
+        Ok(())
+    })
 }

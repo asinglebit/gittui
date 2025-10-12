@@ -74,6 +74,7 @@ pub struct App {
     pub logo: Vec<Span<'static>>,
     pub path: String,
     pub repo: Repository,
+    pub log: Vec<String>,
     
     // User
     pub name: String,

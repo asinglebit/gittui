@@ -66,13 +66,14 @@ impl Default for App {
 
         App {
             // General
+            logo,
             path: absolute_path.display().to_string(),
             repo,
-            logo,
+            log: Vec::new(),
 
             // User
-            name: "Single Bit".to_string(),
-            email: "asinglebit@gmail.com".to_string(),
+            name: "rattleworks".to_string(),
+            email: "gasimov.abdulali@gmail.com".to_string(),
 
             // Walker data
             oids: Vec::new(),
