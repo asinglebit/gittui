@@ -1,7 +1,8 @@
 #[rustfmt::skip]
 use std::{
     collections::{
-        HashMap
+        HashMap,
+        HashSet
     }
 };
 #[rustfmt::skip]
@@ -9,29 +10,16 @@ use git2::{
     BranchType,
     Oid,
     Repository,
-    Time
+    Time,
+    Sort
 };
-
-// Returns a vector of all commit OIDs in the repository
-pub fn get_sorted_oids(repo: &Repository) -> Vec<Oid> {
-    let mut revwalk = repo.revwalk().unwrap();
-
-    // Push all branch tips (local and remote) into the revwalk
-    for branch in repo.branches(None).unwrap() {
-        let (branch, _) = branch.unwrap();
-        if let Some(oid) = branch.get().target() {
-            revwalk.push(oid).unwrap();
+use crate::{
+    core::{
+        walker::{
+            LazyWalker
         }
     }
-
-    // Configure sorting: topological and time-based
-    revwalk
-        .set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME)
-        .unwrap();
-
-    // Collect all OIDs from the revwalk
-    revwalk.filter_map(Result::ok).collect()
-}
+};
 
 // Returns a map of commit OIDs to the branch names that point to them
 pub fn get_tip_oids(repo: &Repository) -> HashMap<Oid, Vec<String>> {
@@ -41,11 +29,11 @@ pub fn get_tip_oids(repo: &Repository) -> HashMap<Oid, Vec<String>> {
     for branch_type in [BranchType::Local, BranchType::Remote] {
         for branch in repo.branches(Some(branch_type)).unwrap() {
             let (branch, _) = branch.unwrap();
-            if let Some(target) = branch.get().target() {
+            if let Some(oid) = branch.get().target() {
                 // Get branch name (or "unknown" if not available)
                 let name = branch.name().unwrap().unwrap_or("unknown").to_string();
                 // Map each OID to one or more branch names pointing to it
-                tips.entry(target).or_default().push(name);
+                tips.entry(oid).or_default().push(name);
             }
         }
     }
@@ -53,35 +41,61 @@ pub fn get_tip_oids(repo: &Repository) -> HashMap<Oid, Vec<String>> {
     tips
 }
 
-// Builds two maps:
-// 1. oid_branch_map: commit OIDs to the branch names that contain them
-// 2. branch_oid_map: branch names to their latest commit OID
-pub fn get_branch_oids(
+// Outcomes:
+// Update oid_branch_map: commit OIDs to the branch names that contain them
+// Update branch_oid_map: branch names to their latest commit OID
+// Update the oids vector
+pub fn get_branches_and_sorted_oids(
     repo: &Repository,
+    walker: &LazyWalker,
     tips: &HashMap<Oid, Vec<String>>,
-) -> (HashMap<Oid, Vec<String>>, HashMap<String, Oid>) {
-    let mut oid_branch_map: HashMap<Oid, Vec<String>> = HashMap::new();
-    let mut branch_oid_map: HashMap<String, Oid> = HashMap::new();
+    oids: &mut Vec<Oid>,
+    oid_branch_map: &mut HashMap<Oid, HashSet<String>>,
+    branch_oid_map: &mut HashMap<String, Oid>,
+    sorted: &mut Vec<Oid>,
+) {
 
-    // For each branch tip, traverse its history
-    for (oid_tip, names) in tips {
-        let mut revwalk = repo.revwalk().unwrap();
-        revwalk.push(*oid_tip).unwrap();
+    // Prepare revwalk with all branch tips
+    let mut revwalk = repo.revwalk().unwrap();
+    for tip_oid in tips.keys() {
+        revwalk.push(*tip_oid).unwrap();
+    }
+    revwalk.set_sorting(Sort::TOPOLOGICAL | Sort::TIME).unwrap();
 
-        // Walk through each commit reachable from the tip
-        for oid_step in revwalk {
-            let oid = oid_step.unwrap();
-
-            // Associate each commit with the branch names that reach it
-            for name in names {
-                oid_branch_map.entry(oid).or_default().push(name.clone());
-                // Associate each branch name with its tip commit (first seen)
-                branch_oid_map.entry(name.to_string()).or_insert(oid);
+    // Seed each tip with its branch names
+    if oids.len() == 1 {
+        for (oid, branches) in tips {
+            for name in branches {
+                branch_oid_map.entry(name.clone()).or_insert(*oid);
             }
+            oid_branch_map
+                .entry(*oid)
+                .or_default()
+                .extend(branches.iter().cloned());
         }
     }
 
-    (oid_branch_map, branch_oid_map)
+    // Walk all commits topologically and propagate branch membership backwards
+    for oid_result in revwalk {
+        let oid = oid_result.unwrap();
+        sorted.push(oid);
+
+        // Get the branch names that currently reach this commit
+        let branches_here = oid_branch_map
+            .get(&oid)
+            .cloned()
+            .unwrap_or_default();
+
+        // Propagate those branch names to parents
+        let commit = repo.find_commit(oid).unwrap();
+        for i in 0..commit.parent_count() {
+            let parent_oid = commit.parent_id(i).unwrap();
+            oid_branch_map
+                .entry(parent_oid)
+                .or_default()
+                .extend(branches_here.iter().cloned());
+        }
+    }
 }
 
 // Returns the name of the currently checked-out branch, or None if detached HEAD

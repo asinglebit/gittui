@@ -2,7 +2,8 @@
 use std::{
     collections::HashMap,
     env,
-    path::PathBuf
+    path::PathBuf,
+    sync::Arc
 };
 #[rustfmt::skip]
 use git2::Repository;
@@ -24,6 +25,11 @@ use crate::{
         App,
         Layout,
         Focus
+    },
+    core::{
+        walker::{
+            LazyWalker
+        }
     },
     git::{
         queries::{
@@ -53,7 +59,7 @@ impl Default for App {
         };
         let absolute_path: PathBuf = std::fs::canonicalize(path)
             .unwrap_or_else(|_| PathBuf::from(path));
-        let repo = Repository::open(absolute_path.clone()).expect("Could not open repo");
+        let repo = Arc::new(Repository::open(absolute_path.clone()).expect("Could not open repo"));
 
         let logo = vec![
             Span::styled(" g", Style::default().fg(COLOR_GRASS)),
@@ -64,11 +70,14 @@ impl Default for App {
             Span::styled("╭", Style::default().fg(COLOR_GREEN))
         ];
 
+        let walker = LazyWalker::new(repo.clone()).expect("Error");
+
         App {
             // General
             logo,
             path: absolute_path.display().to_string(),
             repo,
+            walker,
             log: Vec::new(),
 
             // User

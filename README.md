@@ -11,10 +11,15 @@
 <img width="1920" height="1080" alt="6" src="https://github.com/user-attachments/assets/93c4e948-e3f3-49dd-aa63-a6fef5f6c1c4" />
 <img width="1920" height="1080" alt="7" src="https://github.com/user-attachments/assets/b1534ac9-15a0-406d-97d4-8e15205b2d8d" />
 
-    TODO:
-    - lazy trversal
-    - async core
-    - tests
+    Some things I still need to implement
+
+    - lazy traversal with background threads
+    - logging window
+    - credential manager
+    - manage remotes
+    - shortcut manager
+    - theme manager
+    - add tests
     - features
         - create branch
         - delete branch
@@ -29,4 +34,5 @@
         - rename branch
         - stash
         - pop
-    - add tests
+    - some bugs left with graph rendering
+    

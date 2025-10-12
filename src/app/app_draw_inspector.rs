@@ -71,7 +71,6 @@ impl App {
             let committer = commit.committer();
             let summary = commit.summary().unwrap_or("⊘ no summary").to_string();
             let body = commit.body().unwrap_or("⊘ no body").to_string();
-            let branches = self.oid_branch_map.get(&oid).unwrap();
 
             // Assemble lines
             lines = vec![
@@ -100,14 +99,22 @@ impl App {
                 Style::default().fg(COLOR_GREY_500),
             )]));
 
-            for branch in branches {
-                let oid = self.branch_oid_map.get(branch).unwrap();
-                let color = self.tip_colors.get(oid).unwrap();
-                lines.push(Line::from(vec![Span::styled(
-                    truncate_with_ellipsis(&format!("● {}", branch), max_text_width),
-                    Style::default().fg(*color),
-                )]));
-            }
+            self.oid_branch_map
+                .get(&oid)
+                .into_iter() // turns Option<&HashSet<String>> into an iterator (empty if None)
+                .flat_map(|branches| branches.iter())
+                .for_each(|branch| {
+                    if let Some(oid_tip) = self.branch_oid_map.get(branch) {
+                        if let Some(color) = self.tip_colors.get(oid_tip) {
+                            lines.push(Line::from(vec![
+                                Span::styled(
+                                    truncate_with_ellipsis(&format!("● {}", branch), max_text_width),
+                                    Style::default().fg(*color),
+                                )
+                            ]));
+                        }
+                    }
+                });
 
             lines.extend(vec![
                 Line::from(""),
