@@ -7,7 +7,7 @@ use std::{
     rc::Rc,
     sync::{
         mpsc::{
-            channel,
+            channel
         }
     },
     collections::{
@@ -46,7 +46,6 @@ use ratatui::{
         Span
     },
 };
-use crate::core::walker::{Walker, WalkerOutput};
 #[rustfmt::skip]
 use crate::{
     layers,
@@ -55,7 +54,9 @@ use crate::{
             LayersContext,
         },
         walker::{
-            LazyWalker
+            LazyWalker,
+            Walker,
+            WalkerOutput
         },
         buffer::{
             Buffer
@@ -64,6 +65,9 @@ use crate::{
     helpers::{
         colors::{
             ColorPicker
+        },
+        spinner::{
+            Spinner
         }
     },
     git::{
@@ -119,6 +123,7 @@ pub struct App {
     pub repo: Rc<Repository>,
     pub walker: LazyWalker,
     pub hint: String,
+    pub spinner: Spinner,
 
     // User
     pub name: String,
@@ -197,6 +202,7 @@ pub struct App {
 
 impl App {
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
+    
         self.reload();
 
         // Main loop
@@ -218,6 +224,7 @@ impl App {
 
                     if !result.again {
                         self.walker_rx = None;
+                        self.spinner.stop();
                     }
                 }
 
@@ -279,6 +286,7 @@ impl App {
     }
 
     pub fn reload(&mut self) {
+        if self.spinner.is_running() { return; }
         // Reset the walker
         self.walker
             .reset(self.repo.clone())
@@ -305,6 +313,9 @@ impl App {
         self.lines_branches = Vec::new();
         self.lines_messages = Vec::new();
         self.lines_buffers = Vec::new();
+        // Restart the spinner
+        self.spinner.stop();
+        self.spinner.start();
         // First walk
         self.walk();
     }

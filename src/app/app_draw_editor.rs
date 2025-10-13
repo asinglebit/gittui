@@ -66,13 +66,13 @@ impl App {
                         top: 0,
                         bottom: 0,
                     })
-                    .title(vec![
-                        Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                        Span::styled(" editor ", Style::default().fg(if self.focus == Focus::Viewport { COLOR_GREY_500 } else { COLOR_TEXT } )),
-                        Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                    ])
-                    .title_alignment(ratatui::layout::Alignment::Right)
-                    .title_style(Style::default().fg(COLOR_GREY_400))
+                    // .title(vec![
+                    //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
+                    //     Span::styled(" editor ", Style::default().fg(if self.focus == Focus::Viewport { COLOR_GREY_500 } else { COLOR_TEXT } )),
+                    //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
+                    // ])
+                    // .title_alignment(ratatui::layout::Alignment::Right)
+                    // .title_style(Style::default().fg(COLOR_GREY_400))
                     .borders(Borders::ALL)
                     .border_type(ratatui::widgets::BorderType::Rounded)
                     .border_style(Style::default().fg(COLOR_GREY_800))

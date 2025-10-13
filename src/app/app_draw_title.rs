@@ -4,8 +4,7 @@ use ratatui::{
     style::Style,
     text::{
         Line,
-        Span,
-        Text
+        Span
     },
     widgets::{
         Block,

@@ -8,8 +8,7 @@ use ratatui::{
         Text
     },
     widgets::{
-        Block,
-        Clear
+        Block
     },
 };
 #[rustfmt::skip]
@@ -38,13 +37,13 @@ impl App {
     pub fn draw_statusbar(&mut self, frame: &mut Frame) {
         let lines = match get_current_branch(&self.repo) {
             Some(branch) => Line::from(vec![Span::styled(
-                format!(" ● {}", branch),
+                format!("  ● {}", branch),
                 Style::default().fg(COLOR_GRASS),
             )]),
             None => {
                 let oid = self.repo.head().unwrap().target().unwrap();
                 Line::from(vec![Span::styled(
-                    format!(" detached head: #{:.6}", oid),
+                    format!("  detached head: #{:.6}", oid),
                     Style::default().fg(COLOR_TEXT),
                 )])
             }
@@ -92,20 +91,19 @@ impl App {
                 _ => 0,
             }
         };
-
+        
+        let icon_spinner = if self.spinner.is_running() { format!(" {}", self.spinner.get_char()) } else { "".to_string() };
         let title_paragraph =
             ratatui::widgets::Paragraph::new(Text::from(Line::from(Span::styled(
                 if total == 0 {
                     "".to_string()
                 } else {
-                    format!("{}/{}", cursor, total)
+                    format!("{}/{}{}  ", cursor, total, icon_spinner)
                 },
                 Style::default().fg(COLOR_TEXT),
             ))))
             .right_aligned()
             .block(Block::default());
-
-        frame.render_widget(Clear, self.layout.statusbar_right);
         frame.render_widget(title_paragraph, self.layout.statusbar_right);
     }
 }

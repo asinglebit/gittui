@@ -251,7 +251,7 @@ impl App {
             if is_showing_uncommitted {
                 // Get vertical dimensions
                 let total_lines = lines_status_bottom.len();
-                let visible_height = self.layout.status_bottom.height as usize - 2;
+                let visible_height = self.layout.status_bottom.height.saturating_sub(2) as usize;
 
                 // Clamp selection
                 if total_lines == 0 {

@@ -1,10 +1,10 @@
-use std::cell::RefCell;
 #[rustfmt::skip]
 use std::{
     collections::HashMap,
     env,
     path::PathBuf,
-    rc::Rc
+    rc::Rc,
+    cell::RefCell
 };
 #[rustfmt::skip]
 use git2::Repository;
@@ -20,7 +20,7 @@ use edtui::{
     EditorEventHandler,
     EditorState
 };
-use crate::{core::buffer::Buffer, helpers::colors::ColorPicker, layers};
+use crate::{core::buffer::Buffer, helpers::{colors::ColorPicker, spinner::Spinner}, layers};
 #[rustfmt::skip]
 use crate::{
     app::app::{
@@ -64,7 +64,7 @@ impl Default for App {
         let repo = Rc::new(Repository::open(absolute_path.clone()).expect("Could not open repo"));
 
         let logo = vec![
-            Span::styled(" g", Style::default().fg(COLOR_GRASS)),
+            Span::styled("  g", Style::default().fg(COLOR_GRASS)),
             Span::styled("u", Style::default().fg(COLOR_GRASS)),
             Span::styled("i", Style::default().fg(COLOR_GRASS)),
             Span::styled("t", Style::default().fg(COLOR_GRASS)),
@@ -81,6 +81,7 @@ impl Default for App {
             repo,
             walker,
             hint: String::new(),
+            spinner: Spinner::new(),
 
             // User
             name: "rattleworks".to_string(),

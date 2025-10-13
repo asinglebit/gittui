@@ -76,9 +76,6 @@ impl App {
                 .enumerate()
             {
                 let actual_index = start + i;
-                
-                
-
                 let (graph, branch, buffer) = if actual_index == self.graph_selected {
                     let graph_spans: Vec<Span> = graph.spans.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GRASS)) }).collect();
                     let branch_spans: Vec<Span> = branch.spans.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GRASS)) }).collect();
@@ -105,13 +102,13 @@ impl App {
                 ratatui::layout::Constraint::Min(0),
             ]).block(
                 Block::default()
-                    .title(vec![
-                        Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                        Span::styled(" graph ", Style::default().fg(if self.focus == Focus::Viewport { COLOR_GREY_500 } else { COLOR_TEXT } )),
-                        Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                    ])
-                    .title_alignment(ratatui::layout::Alignment::Right)
-                    .title_style(Style::default().fg(COLOR_GREY_400))
+                    // .title(vec![
+                    //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
+                    //     Span::styled(" graph ", Style::default().fg(if self.focus == Focus::Viewport { COLOR_GREY_500 } else { COLOR_TEXT } )),
+                    //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
+                    // ])
+                    // .title_alignment(ratatui::layout::Alignment::Right)
+                    // .title_style(Style::default().fg(COLOR_GREY_400))
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(COLOR_BORDER))
                     .border_type(ratatui::widgets::BorderType::Rounded),
@@ -124,8 +121,8 @@ impl App {
         if total_lines > visible_height {
             let mut scrollbar_state = ScrollbarState::new(total_lines.saturating_sub(visible_height)).position(self.graph_scroll.get());
             let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .begin_symbol(if self.is_inspector || self.is_status { Some("─") } else { Some("╮") })
-                .end_symbol(if self.is_inspector || self.is_status { Some("─") } else { Some("╯") })
+                .begin_symbol(if (self.is_inspector && self.graph_selected != 0) || self.is_status { Some("─") } else { Some("╮") })
+                .end_symbol(if (self.is_inspector && self.graph_selected != 0) || self.is_status { Some("─") } else { Some("╯") })
                 .track_symbol(Some("│"))
                 .thumb_symbol("▌")
                 .thumb_style(Style::default().fg(if self.focus == Focus::Viewport {

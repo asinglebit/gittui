@@ -164,7 +164,7 @@ impl App {
                         if self.graph_selected + 1 < self.lines_branches.len() {
                             self.graph_selected += 1;
                         }
-                        if self.graph_selected != 0 {
+                        if self.graph_selected != 0 && self.graph_selected < self.oids.len() {
                             let oid = self.oids.get(self.graph_selected).unwrap();
                             self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                         }
@@ -209,7 +209,7 @@ impl App {
                                     self.focus = Focus::Viewport;
                                 }
                             }
-                            if self.graph_selected != 0 {
+                            if self.graph_selected != 0 && self.graph_selected < self.oids.len() {
                                 let oid = self.oids.get(self.graph_selected).unwrap();
                                 self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                             }
@@ -458,8 +458,10 @@ impl App {
                             if !self.lines_branches.is_empty() {
                                 self.graph_selected = self.lines_branches.len() - 1;
                             }
-                            let oid = self.oids.get(self.graph_selected).unwrap();
-                            self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
+                            if self.graph_selected != 0 && self.graph_selected < self.oids.len() {
+                                let oid = self.oids.get(self.graph_selected).unwrap();
+                                self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
+                            }
                         }
                         Viewport::Viewer => {
                             if !self.viewer_lines.is_empty() {
@@ -491,7 +493,8 @@ impl App {
                                 } else {
                                     self.graph_selected = 0;
                                 }
-                                if self.graph_selected != 0 {
+                                
+                                if self.graph_selected != 0 && self.graph_selected < self.oids.len() {
                                     let oid = self.oids.get(self.graph_selected).unwrap();
                                     self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                                 }
@@ -522,7 +525,7 @@ impl App {
                     _ => {}
                 };
 
-                if self.graph_selected != 0 {
+                if self.graph_selected != 0 && self.graph_selected < self.oids.len() {
                     let oid = self.oids.get(self.graph_selected).unwrap();
                     self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                 }
@@ -538,7 +541,7 @@ impl App {
                                 } else {
                                     self.graph_selected = self.lines_branches.len() - 1;
                                 }
-                                if self.graph_selected != 0 {
+                                if self.graph_selected != 0 && self.graph_selected < self.oids.len() {
                                     let oid = self.oids.get(self.graph_selected).unwrap();
                                     self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                                 }
@@ -568,7 +571,7 @@ impl App {
                     _ => {}
                 };
 
-                if self.graph_selected != 0 {
+                if self.graph_selected != 0 && self.graph_selected < self.oids.len() {
                     let oid = self.oids.get(self.graph_selected).unwrap();
                     self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                 }

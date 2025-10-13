@@ -74,15 +74,15 @@ pub fn render_uncommitted(
     lines_messages.push(Line::from(""));
     lines_buffer.push(Line::from(format!("UU({:.2},--)", head_oid)));
     lines_graph.push(Line::from(vec![
-        Span::styled("······ ", Style::default().fg(COLOR_TEXT)),
+        Span::styled(" ", Style::default().fg(COLOR_TEXT)),
         Span::styled(SYM_UNCOMMITED, Style::default().fg(COLOR_GREY_400)),
     ]));
 }
 
 pub fn render_graph(oid: &Oid, graph: &mut Vec<Line>, spans_graph: Vec<Span<'static>>) {
-    let span_oid = Span::styled(oid.to_string()[..6].to_string(), COLOR_TEXT);
+    // let span_oid = Span::styled(oid.to_string()[..6].to_string(), COLOR_TEXT);
     let mut spans = Vec::new();
-    spans.push(span_oid);
+    // spans.push(span_oid);
     spans.push(Span::raw(" ".to_string()));
     spans.extend(spans_graph);
     graph.push(Line::from(spans));
