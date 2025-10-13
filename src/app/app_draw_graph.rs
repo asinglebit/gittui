@@ -122,6 +122,9 @@ impl App {
                     message = Line::from(uncommited_line_spans);
                 }
 
+                // let a = self.lines_buffers.get(actual_index).unwrap();
+                // let message = Line::from(a.clone());
+
                 let mut row = Row::new(vec![
                     WidgetCell::from(graph),
                     WidgetCell::from(message)
