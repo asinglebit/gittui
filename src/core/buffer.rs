@@ -25,23 +25,23 @@ impl Buffer {
         if let Some(merger_idx) = self
             .curr
             .iter()
-            .position(|inner| self.mergers.iter().any(|oid| oid == &inner.oid))
+            .position(|inner| self.mergers.iter().any(|oid| Some(oid) == inner.oid.as_ref()))
         {
             // Find the index in `self.mergers` of the matching SHA
             if let Some(merger_pos) = self
                 .mergers
                 .iter()
-                .position(|oid| oid == &self.curr[merger_idx].oid)
+                .position(|oid| Some(oid) == self.curr[merger_idx].oid.as_ref())
             {
                 self.mergers.remove(merger_pos);
             }
 
             // Clone the element at merger_idx
             let mut clone = self.curr[merger_idx].clone();
-            clone.parents.remove(0);
+            clone.parent_a = None;
 
             // Remove second parent from the original
-            self.curr[merger_idx].parents.remove(1);
+            self.curr[merger_idx].parent_b = None;
 
             // Insert it right after the found index
             self.curr.push(clone);
@@ -51,22 +51,40 @@ impl Buffer {
         if let Some(first_idx) = self
             .curr
             .iter()
-            .position(|inner| inner.parents.contains(&metadata.oid))
+            .position(|inner| 
+                inner.parent_a.as_ref() == metadata.oid.as_ref() ||
+                inner.parent_b.as_ref() == metadata.oid.as_ref()
+            )
         {
             let old_oid = metadata.oid;
 
             // Replace metadata
             self.curr[first_idx] = metadata;
-            let keep_ptr = self.curr[first_idx].parents.as_ptr();
 
             // Place dummies in case of branching
             for inner in self.curr.iter_mut() {
-                if inner.parents.contains(&old_oid) && inner.parents.as_ptr() != keep_ptr {
-                    if inner.parents.len() > 1 {
-                        inner.parents.retain(|oid| *oid != old_oid);
-                    } else {
-                        *inner = Chunk::dummy();
-                    }
+                // Skip the newly replaced one
+                if inner.oid == old_oid {
+                    continue;
+                }
+
+                let mut parents_changed = false;
+
+                // Remove old_oid from parent_a
+                if inner.parent_a.as_ref() == old_oid.as_ref() {
+                    inner.parent_a = None;
+                    parents_changed = true;
+                }
+
+                // Remove old_oid from parent_b
+                if inner.parent_b.as_ref() == old_oid.as_ref() {
+                    inner.parent_b = None;
+                    parents_changed = true;
+                }
+
+                // If both parents are None, replace with dummy
+                if parents_changed && inner.parent_a.is_none() && inner.parent_b.is_none() {
+                    *inner = Chunk::dummy();
                 }
             }
         } else {

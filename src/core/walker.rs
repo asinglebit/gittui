@@ -35,10 +35,8 @@ use crate::{
         },
         renderers::{
             render_uncommitted,
-            render_branches,
             render_buffer,
             render_graph,
-            render_messages
         },
         buffer::{
             Buffer
@@ -205,6 +203,7 @@ impl Walker {
     pub fn walk(&mut self) -> bool {
         // Determine current HEAD oid
         let head_oid = self.repo.head().unwrap().target().unwrap();
+        self.oid_branch_map = HashMap::new();
 
         // Sort commits
         let mut sorted: Vec<Oid> = Vec::new();
@@ -231,17 +230,17 @@ impl Walker {
             );
             self.buffer
                 .borrow_mut()
-                .update(Chunk::uncommitted(vec![head_oid]));
+                .update(Chunk::uncommitted(Some(head_oid), None));
         }
 
         // Go through the commits, inferring the graph
         for &oid in sorted.iter() {
-            let mut merger_oid = None;
+            let mut merger_oid: Option<Oid> = None;
 
             self.layers.clear();
             let commit = self.repo.find_commit(oid).unwrap();
             let parents: Vec<Oid> = commit.parent_ids().collect();
-            let chunk = Chunk::commit(oid, parents);
+            let chunk = Chunk::commit(Some(oid), parents.get(0).cloned(), parents.get(1).cloned());
 
             let mut spans_graph = Vec::new();
 
@@ -252,190 +251,197 @@ impl Walker {
             let mut is_commit_found = false;
             let mut is_merged_before = false;
             let mut lane_idx = 0;
-            for chunk in &self.buffer.borrow().curr {
-                if chunk.is_dummy() {
-                    if let Some(prev) = self.buffer.borrow().prev.get(lane_idx) {
-                        if prev.parents.len() == 1 {
-                            self.layers.commit(SYM_EMPTY, lane_idx);
-                            self.layers.commit(SYM_EMPTY, lane_idx);
-                            self.layers.pipe(SYM_BRANCH_UP, lane_idx);
-                            self.layers.pipe(SYM_EMPTY, lane_idx);
-                        } else {
-                            self.layers.commit(SYM_EMPTY, lane_idx);
-                            self.layers.commit(SYM_EMPTY, lane_idx);
-                            self.layers.pipe(SYM_EMPTY, lane_idx);
-                            self.layers.pipe(SYM_EMPTY, lane_idx);
-                        }
-                    }
-                } else if oid == chunk.oid {
-                    is_commit_found = true;
-                    self.oid_colors
-                        .entry(oid)
-                        .or_insert(self.color.borrow().get(lane_idx));
+            // for chunk in &self.buffer.borrow().curr {
+            //     if chunk.is_dummy() {
+            //         if let Some(prev) = self.buffer.borrow().prev.get(lane_idx) {
+            //             if (prev.parent_a.is_some() && prev.parent_b.is_none()) ||
+            //                 (prev.parent_a.is_none() && prev.parent_b.is_some()) {
+            //                 self.layers.commit(SYM_EMPTY, lane_idx);
+            //                 self.layers.commit(SYM_EMPTY, lane_idx);
+            //                 self.layers.pipe(SYM_BRANCH_UP, lane_idx);
+            //                 self.layers.pipe(SYM_EMPTY, lane_idx);
+            //             } else {
+            //                 self.layers.commit(SYM_EMPTY, lane_idx);
+            //                 self.layers.commit(SYM_EMPTY, lane_idx);
+            //                 self.layers.pipe(SYM_EMPTY, lane_idx);
+            //                 self.layers.pipe(SYM_EMPTY, lane_idx);
+            //             }
+            //         }
+            //     } else if Some(&oid) == chunk.oid.as_ref() {
+            //         is_commit_found = true;
+            //         self.oid_colors
+            //             .entry(oid)
+            //             .or_insert(self.color.borrow().get(lane_idx));
 
-                    if chunk.parents.len() > 1 && !self.tips.contains_key(&oid) {
-                        self.layers.commit(SYM_MERGE, lane_idx);
-                    } else if self.tips.contains_key(&oid) {
-                        self.color.borrow_mut().alternate(lane_idx);
-                        self.tip_colors
-                            .insert(oid, self.color.borrow().get(lane_idx));
-                        self.layers.commit(SYM_COMMIT_BRANCH, lane_idx);
-                    } else {
-                        self.layers.commit(SYM_COMMIT, lane_idx);
-                    }
-                    self.layers.commit(SYM_EMPTY, lane_idx);
-                    self.layers.pipe(SYM_EMPTY, lane_idx);
-                    self.layers.pipe(SYM_EMPTY, lane_idx);
+            //         let is_two_parents = chunk.parent_a.is_some() && chunk.parent_b.is_some();
 
-                    // Check if commit is being merged into
-                    let mut is_mergee_found = false;
-                    let mut is_drawing = false;
-                    if chunk.parents.len() > 1 {
-                        let mut is_merger_found = false;
-                        let mut merger_idx: usize = 0;
-                        for chunk_nested in &self.buffer.borrow().curr {
-                            if chunk_nested.parents.len() == 1
-                                && chunk.parents.last().unwrap()
-                                    == chunk_nested.parents.first().unwrap()
-                            {
-                                is_merger_found = true;
-                                break;
-                            }
-                            merger_idx += 1;
-                        }
+            //         if is_two_parents && !self.tips.contains_key(&oid) {
+            //             self.layers.commit(SYM_MERGE, lane_idx);
+            //         } else if self.tips.contains_key(&oid) {
+            //             self.color.borrow_mut().alternate(lane_idx);
+            //             self.tip_colors
+            //                 .insert(oid, self.color.borrow().get(lane_idx));
+            //             self.layers.commit(SYM_COMMIT_BRANCH, lane_idx);
+            //         } else {
+            //             self.layers.commit(SYM_COMMIT, lane_idx);
+            //         }
+            //         self.layers.commit(SYM_EMPTY, lane_idx);
+            //         self.layers.pipe(SYM_EMPTY, lane_idx);
+            //         self.layers.pipe(SYM_EMPTY, lane_idx);
 
-                        let mut mergee_idx: usize = 0;
-                        for chunk_nested in &self.buffer.borrow().curr {
-                            if oid == chunk_nested.oid {
-                                break;
-                            }
-                            mergee_idx += 1;
-                        }
+            //         // Check if commit is being merged into
+            //         let mut is_mergee_found = false;
+            //         let mut is_drawing = false;
+            //         if is_two_parents {
+            //             let mut is_merger_found = false;
+            //             let mut merger_idx: usize = 0;
+            //             for chunk_nested in &self.buffer.borrow().curr {
+            //                 if ((chunk_nested.parent_a.is_some() && chunk_nested.parent_b.is_none()) ||
+            //                     (chunk_nested.parent_a.is_none() && chunk_nested.parent_b.is_some()))
+            //                     && chunk.parent_b.as_ref() == chunk_nested.parent_a.as_ref() {
+            //                     is_merger_found = true;
+            //                     break;
+            //                 }
+            //                 merger_idx += 1;
+            //             }
 
-                        for (chunk_nested_idx, chunk_nested) in
-                            self.buffer.borrow().curr.iter().enumerate()
-                        {
-                            if !is_mergee_found {
-                                if oid == chunk_nested.oid {
-                                    is_mergee_found = true;
-                                    if is_merger_found {
-                                        is_drawing = !is_drawing;
-                                    }
-                                    if !is_drawing {
-                                        is_merged_before = true;
-                                    }
-                                    self.layers.merge(SYM_EMPTY, merger_idx);
-                                    self.layers.merge(SYM_EMPTY, merger_idx);
-                                } else {
-                                    // Before the commit
-                                    if !is_merger_found {
-                                        self.layers.merge(SYM_EMPTY, merger_idx);
-                                        self.layers.merge(SYM_EMPTY, merger_idx);
-                                    } else if chunk_nested.parents.len() == 1
-                                        && chunk
-                                            .parents
-                                            .contains(chunk_nested.parents.first().unwrap())
-                                    {
-                                        self.layers.merge(SYM_MERGE_RIGHT_FROM, merger_idx);
-                                        if chunk_nested_idx + 1 == mergee_idx {
-                                            self.layers.merge(SYM_EMPTY, merger_idx);
-                                        } else {
-                                            self.layers.merge(SYM_HORIZONTAL, merger_idx);
-                                        }
-                                        is_drawing = true;
-                                    } else if is_drawing {
-                                        if chunk_nested_idx + 1 == mergee_idx {
-                                            self.layers.merge(SYM_HORIZONTAL, merger_idx);
-                                            self.layers.merge(SYM_EMPTY, merger_idx);
-                                        } else {
-                                            self.layers.merge(SYM_HORIZONTAL, merger_idx);
-                                            self.layers.merge(SYM_HORIZONTAL, merger_idx);
-                                        }
-                                    } else {
-                                        self.layers.merge(SYM_EMPTY, merger_idx);
-                                        self.layers.merge(SYM_EMPTY, merger_idx);
-                                    }
-                                }
-                            } else {
-                                // After the commit
-                                if is_merger_found && !is_merged_before {
-                                    if chunk_nested.parents.len() == 1
-                                        && chunk
-                                            .parents
-                                            .contains(chunk_nested.parents.first().unwrap())
-                                    {
-                                        self.layers.merge(SYM_MERGE_LEFT_FROM, merger_idx);
-                                        self.layers.merge(SYM_EMPTY, merger_idx);
-                                        is_drawing = false;
-                                    } else if is_drawing {
-                                        self.layers.merge(SYM_HORIZONTAL, merger_idx);
-                                        self.layers.merge(SYM_HORIZONTAL, merger_idx);
-                                    } else {
-                                        self.layers.merge(SYM_EMPTY, merger_idx);
-                                        self.layers.merge(SYM_EMPTY, merger_idx);
-                                    }
-                                }
-                            }
-                        }
+            //             let mut mergee_idx: usize = 0;
+            //             for chunk_nested in &self.buffer.borrow().curr {
+            //                 if Some(&oid) == chunk_nested.oid.as_ref() {
+            //                     break;
+            //                 }
+            //                 mergee_idx += 1;
+            //             }
 
-                        if !is_merger_found {
-                            // Count how many dummies in the end to get the real last element, append there
-                            let mut idx = self.buffer.borrow().curr.len() - 1;
-                            let mut trailing_dummies = 0;
-                            for (i, c) in self.buffer.borrow().curr.iter().enumerate().rev() {
-                                if !c.is_dummy() {
-                                    idx = i;
-                                    break;
-                                } else {
-                                    trailing_dummies += 1;
-                                }
-                            }
+            //             for (chunk_nested_idx, chunk_nested) in
+            //                 self.buffer.borrow().curr.iter().enumerate()
+            //             {
+            //                 if !is_mergee_found {
+            //                     if Some(&oid) == chunk_nested.oid.as_ref() {
+            //                         is_mergee_found = true;
+            //                         if is_merger_found {
+            //                             is_drawing = !is_drawing;
+            //                         }
+            //                         if !is_drawing {
+            //                             is_merged_before = true;
+            //                         }
+            //                         self.layers.merge(SYM_EMPTY, merger_idx);
+            //                         self.layers.merge(SYM_EMPTY, merger_idx);
+            //                     } else {
+            //                         // Before the commit
+            //                         if !is_merger_found {
+            //                             self.layers.merge(SYM_EMPTY, merger_idx);
+            //                             self.layers.merge(SYM_EMPTY, merger_idx);
+            //                         } else if ((chunk_nested.parent_a.is_some() && chunk_nested.parent_b.is_none()) ||
+            //                             (chunk_nested.parent_a.is_none() && chunk_nested.parent_b.is_some()))
+            //                             && (
+            //                                 chunk.parent_a.as_ref() == chunk_nested.parent_a.as_ref() ||
+            //                                 chunk.parent_b.as_ref() == chunk_nested.parent_a.as_ref()
+            //                             ) {
+            //                             self.layers.merge(SYM_MERGE_RIGHT_FROM, merger_idx);
+            //                             if chunk_nested_idx + 1 == mergee_idx {
+            //                                 self.layers.merge(SYM_EMPTY, merger_idx);
+            //                             } else {
+            //                                 self.layers.merge(SYM_HORIZONTAL, merger_idx);
+            //                             }
+            //                             is_drawing = true;
+            //                         } else if is_drawing {
+            //                             if chunk_nested_idx + 1 == mergee_idx {
+            //                                 self.layers.merge(SYM_HORIZONTAL, merger_idx);
+            //                                 self.layers.merge(SYM_EMPTY, merger_idx);
+            //                             } else {
+            //                                 self.layers.merge(SYM_HORIZONTAL, merger_idx);
+            //                                 self.layers.merge(SYM_HORIZONTAL, merger_idx);
+            //                             }
+            //                         } else {
+            //                             self.layers.merge(SYM_EMPTY, merger_idx);
+            //                             self.layers.merge(SYM_EMPTY, merger_idx);
+            //                         }
+            //                     }
+            //                 } else {
+            //                     // After the commit
+            //                     if is_merger_found && !is_merged_before {
+            //                         if ((chunk_nested.parent_a.is_some() && chunk_nested.parent_b.is_none()) ||
+            //                             (chunk_nested.parent_a.is_none() && chunk_nested.parent_b.is_some()))
+            //                             && (
+            //                                 chunk.parent_a.as_ref() == chunk_nested.parent_a.as_ref() ||
+            //                                 chunk.parent_b.as_ref() == chunk_nested.parent_a.as_ref()
+            //                             ) {
+            //                             self.layers.merge(SYM_MERGE_LEFT_FROM, merger_idx);
+            //                             self.layers.merge(SYM_EMPTY, merger_idx);
+            //                             is_drawing = false;
+            //                         } else if is_drawing {
+            //                             self.layers.merge(SYM_HORIZONTAL, merger_idx);
+            //                             self.layers.merge(SYM_HORIZONTAL, merger_idx);
+            //                         } else {
+            //                             self.layers.merge(SYM_EMPTY, merger_idx);
+            //                             self.layers.merge(SYM_EMPTY, merger_idx);
+            //                         }
+            //                     }
+            //                 }
+            //             }
 
-                            if trailing_dummies > 0
-                                && self.buffer.borrow().prev.len() > idx
-                                && self.buffer.borrow().prev[idx + 1].is_dummy()
-                            {
-                                self.color.borrow_mut().alternate(idx + 1);
-                                self.layers.merge(SYM_BRANCH_DOWN, idx + 1);
-                                self.layers.merge(SYM_EMPTY, idx + 1);
-                            } else if trailing_dummies > 0 {
-                                // Calculate how many lanes before we reach the branch character
-                                for _ in lane_idx..idx {
-                                    self.layers.merge(SYM_HORIZONTAL, idx + 1);
-                                    self.layers.merge(SYM_HORIZONTAL, idx + 1);
-                                }
+            //             if !is_merger_found {
+            //                 // Count how many dummies in the end to get the real last element, append there
+            //                 let mut idx = self.buffer.borrow().curr.len() - 1;
+            //                 let mut trailing_dummies = 0;
+            //                 for (i, c) in self.buffer.borrow().curr.iter().enumerate().rev() {
+            //                     if !c.is_dummy() {
+            //                         idx = i;
+            //                         break;
+            //                     } else {
+            //                         trailing_dummies += 1;
+            //                     }
+            //                 }
 
-                                self.layers.merge(SYM_MERGE_LEFT_FROM, idx + 1);
-                                self.layers.merge(SYM_EMPTY, idx + 1);
-                            } else {
-                                self.color.borrow_mut().alternate(idx + 1);
+            //                 if trailing_dummies > 0
+            //                     && self.buffer.borrow().prev.len() > idx
+            //                     && self.buffer.borrow().prev[idx + 1].is_dummy()
+            //                 {
+            //                     self.color.borrow_mut().alternate(idx + 1);
+            //                     self.layers.merge(SYM_BRANCH_DOWN, idx + 1);
+            //                     self.layers.merge(SYM_EMPTY, idx + 1);
+            //                 } else if trailing_dummies > 0 {
+            //                     // Calculate how many lanes before we reach the branch character
+            //                     for _ in lane_idx..idx {
+            //                         self.layers.merge(SYM_HORIZONTAL, idx + 1);
+            //                         self.layers.merge(SYM_HORIZONTAL, idx + 1);
+            //                     }
 
-                                // Calculate how many lanes before we reach the branch character
-                                for _ in lane_idx..idx {
-                                    self.layers.merge(SYM_HORIZONTAL, idx + 1);
-                                    self.layers.merge(SYM_HORIZONTAL, idx + 1);
-                                }
+            //                     self.layers.merge(SYM_MERGE_LEFT_FROM, idx + 1);
+            //                     self.layers.merge(SYM_EMPTY, idx + 1);
+            //                 } else {
+            //                     self.color.borrow_mut().alternate(idx + 1);
 
-                                self.layers.merge(SYM_BRANCH_DOWN, idx + 1);
-                                self.layers.merge(SYM_EMPTY, idx + 1);
-                            }
-                            merger_oid = Some(chunk.oid);
-                        }
-                    }
-                } else {
-                    self.layers.commit(SYM_EMPTY, lane_idx);
-                    self.layers.commit(SYM_EMPTY, lane_idx);
-                    if chunk.parents.contains(&head_oid) && lane_idx == 0 {
-                        self.layers
-                            .pipe_custom(SYM_VERTICAL_DOTTED, lane_idx, COLOR_GREY_500);
-                    } else {
-                        self.layers.pipe(SYM_VERTICAL, lane_idx);
-                    }
-                    self.layers.pipe(SYM_EMPTY, lane_idx);
-                }
+            //                     // Calculate how many lanes before we reach the branch character
+            //                     for _ in lane_idx..idx {
+            //                         self.layers.merge(SYM_HORIZONTAL, idx + 1);
+            //                         self.layers.merge(SYM_HORIZONTAL, idx + 1);
+            //                     }
 
-                lane_idx += 1;
-            }
+            //                     self.layers.merge(SYM_BRANCH_DOWN, idx + 1);
+            //                     self.layers.merge(SYM_EMPTY, idx + 1);
+            //                 }
+            //                 merger_oid = chunk.oid;
+            //             }
+            //         }
+            //     } else {
+            //         self.layers.commit(SYM_EMPTY, lane_idx);
+            //         self.layers.commit(SYM_EMPTY, lane_idx);
+            //         if (
+            //             chunk.parent_a.as_ref() == Some(&head_oid) ||
+            //             chunk.parent_b.as_ref() == Some(&head_oid)
+            //          ) && lane_idx == 0 {
+            //             self.layers
+            //                 .pipe_custom(SYM_VERTICAL_DOTTED, lane_idx, COLOR_GREY_500);
+            //         } else {
+            //             self.layers.pipe(SYM_VERTICAL, lane_idx);
+            //         }
+            //         self.layers.pipe(SYM_EMPTY, lane_idx);
+            //     }
+
+            //     lane_idx += 1;
+            // }
             if !is_commit_found {
                 if self.tips.contains_key(&oid) {
                     self.color.borrow_mut().alternate(lane_idx);
@@ -454,8 +460,8 @@ impl Walker {
             self.layers.bake(&mut spans_graph);
 
             // Now we can borrow mutably
-            if let Some(sha) = merger_oid {
-                self.buffer.borrow_mut().merger(sha);
+            if let Some(oid) = merger_oid {
+                self.buffer.borrow_mut().merger(oid);
             }
             self.buffer.borrow_mut().backup();
 
@@ -464,15 +470,7 @@ impl Walker {
 
             // Render
             render_graph(&oid, &mut self.lines_graph, spans_graph);
-            render_branches(
-                &oid,
-                &mut self.lines_branches,
-                &self.tips,
-                &self.tip_colors,
-                &commit,
-            );
-            render_messages(&commit, &mut self.lines_messages);
-            render_buffer(&self.buffer, &mut self.lines_buffers);
+            // render_buffer(&self.buffer, &mut self.lines_buffers);
         }
 
         // Indicate whether repeats are needed

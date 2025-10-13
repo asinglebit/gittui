@@ -71,13 +71,14 @@ impl App {
             let committer = commit.committer();
             let summary = commit.summary().unwrap_or("⊘ no summary").to_string();
             let body = commit.body().unwrap_or("⊘ no body").to_string();
+            let color = self.oid_colors.get(&oid);
 
             // Assemble lines
             lines = vec![
                 Line::from(vec![Span::styled("commit sha:", Style::default().fg(COLOR_GREY_500))]),
                 Line::from(vec![Span::styled(
                     truncate_with_ellipsis(&format!("#{}", oid), max_text_width),
-                    Style::default().fg(*self.oid_colors.get(&oid).unwrap()),
+                    Style::default().fg(if color.is_some() { *color.unwrap() } else { COLOR_TEXT }),
                 )]),
                 Line::from(""),
                 Line::from(vec![Span::styled("parent shas:", Style::default().fg(COLOR_GREY_500))]),

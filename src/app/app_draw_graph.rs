@@ -1,3 +1,4 @@
+use git2::Oid;
 use ratatui::text::Line;
 #[rustfmt::skip]
 use ratatui::{
@@ -18,7 +19,8 @@ use ratatui::{
 #[rustfmt::skip]
 use crate::{
     helpers::{
-        palette::*
+        palette::*,
+        symbols::*
     },
 };
 #[rustfmt::skip]
@@ -69,25 +71,60 @@ impl App {
                 .max()
                 .unwrap_or(0) as u16;
 
-            for (i, ((graph, branch), buffer)) in self.lines_graph[start..end]
+            for (i, graph) in self.lines_graph[start..end]
                 .iter()
-                .zip(&self.lines_branches[start..end])
-                .zip(&self.lines_buffers[start..end])
                 .enumerate()
             {
                 let actual_index = start + i;
-                let (graph, branch, buffer) = if actual_index == self.graph_selected {
-                    let graph_spans: Vec<Span> = graph.spans.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GRASS)) }).collect();
-                    let branch_spans: Vec<Span> = branch.spans.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GRASS)) }).collect();
-                    let buffer_spans: Vec<Span> = buffer.spans.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GRASS)) }).collect();
-                    (Line::from(graph_spans), Line::from(branch_spans), Line::from(buffer_spans))
+
+                let graph = if actual_index == self.graph_selected {
+                    let graph_spans: Vec<Span> = graph.spans.iter().map(|span| { Span::styled(span.content.clone(), span.style)}).collect();
+                    Line::from(graph_spans)
                 } else {
-                    (graph.clone(), branch.clone(), buffer.clone())
+                    graph.clone()
                 };
+
+                let mut message = Line::default();
+                if *self.oids.get(actual_index).unwrap() != Oid::zero() {
+                    let commit = self.repo.find_commit(*self.oids.get(actual_index).unwrap()).unwrap();
+                    message = if actual_index == self.graph_selected {
+                        Line::from(Span::styled(commit.summary().unwrap_or("⊘ no message").to_string(), Style::default().fg(COLOR_GRASS)))
+                    } else {
+                        Line::from(Span::styled(commit.summary().unwrap_or("⊘ no message").to_string(), Style::default().fg(COLOR_TEXT)))
+                    };
+                } else {
+                    let mut uncommited_line_spans = vec![Span::styled(
+                        format!("{} ", SYM_UNCOMMITED),
+                        Style::default().fg(COLOR_GREY_400),
+                    )];
+
+                    if self.uncommitted.modified_count > 0 {
+                        uncommited_line_spans.push(Span::styled("~ ", Style::default().fg(COLOR_BLUE)));
+                        uncommited_line_spans.push(Span::styled(
+                            format!("{} ", self.uncommitted.modified_count),
+                            Style::default().fg(COLOR_GREY_600),
+                        ));
+                    }
+                    if self.uncommitted.added_count > 0 {
+                        uncommited_line_spans.push(Span::styled("+ ", Style::default().fg(COLOR_GREEN)));
+                        uncommited_line_spans.push(Span::styled(
+                            format!("{} ", self.uncommitted.added_count),
+                            Style::default().fg(COLOR_GREY_600),
+                        ));
+                    }
+                    if self.uncommitted.deleted_count > 0 {
+                        uncommited_line_spans.push(Span::styled("- ", Style::default().fg(COLOR_RED)));
+                        uncommited_line_spans.push(Span::styled(
+                            format!("{} ", self.uncommitted.deleted_count),
+                            Style::default().fg(COLOR_GREY_600),
+                        ));
+                    }
+                    message = Line::from(uncommited_line_spans);
+                }
+
                 let mut row = Row::new(vec![
-                    WidgetCell::from(graph.clone()),
-                    WidgetCell::from(branch.clone()),
-                    WidgetCell::from(buffer.clone()),
+                    WidgetCell::from(graph),
+                    WidgetCell::from(message)
                 ]);
                 if actual_index == self.graph_selected {
                     row = row.style(Style::default().bg(COLOR_GREY_800));
