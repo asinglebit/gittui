@@ -317,47 +317,22 @@ impl App {
         let (tx, rx) = channel();
         self.walker_rx = Some(rx);
 
+        // Copy the repo path
         let path = self.path.clone();
-        let color = (*self.color.borrow()).clone();
         
         // Spawn a thread that computes something
         thread::spawn(move || {
-            let repo = Arc::new(Repository::open(path).expect("Failed to open repo"));
-            let walker =  LazyWalker::new(repo.clone()).expect("Error");
-            let color =  Arc::new(RefCell::new(color));
-            let buffer =  RefCell::new(Buffer::default());
-            let layers =  layers!(Arc::new(RefCell::new(ColorPicker::default())));
-            let oids = vec![Oid::zero()];
-            let tips = get_tip_oids(&repo);
-            let oid_colors = HashMap::new();
-            let tip_colors = HashMap::new();
-            let oid_branch_map = HashMap::new();
-            let branch_oid_map = HashMap::new();
-            let uncommitted = get_filenames_diff_at_workdir(&repo).expect("Error");
 
-            let mut walk_ctx = WalkContext {
-                repo,
-                walker,
-                color,
-                buffer,
-                layers,
-                oids,
-                tips,
-                oid_colors,
-                tip_colors,
-                oid_branch_map,
-                branch_oid_map,
-                uncommitted,
-                lines_graph: Vec::new(),
-                lines_branches: Vec::new(),
-                lines_messages: Vec::new(),
-                lines_buffers: Vec::new(),
-            };
+            // Create the walker
+            let mut walk_ctx = WalkContext::new(path, 10000).expect("Error");
             
+            // Pagination loop
             loop {
 
-                let again = walk_ctx.walk(10000);
+                // Parse a chunk
+                let again = walk_ctx.walk();
 
+                // Send the message to the main thread
                 tx.send(WalkContextOutput {
                     oids: walk_ctx.oids.clone(),
                     tips: walk_ctx.tips.clone(),
@@ -373,6 +348,7 @@ impl App {
                     again
                 }).expect("Error");
 
+                // Break the loop
                 if !again { break }
             }
             

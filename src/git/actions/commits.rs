@@ -189,7 +189,10 @@ pub fn unstage_all(repo: &Repository) -> Result<(), git2::Error> {
     Ok(())
 }
 
-pub fn fetch_over_ssh(repo_path: &str, remote_name: &str) -> thread::JoinHandle<Result<(), git2::Error>> {
+pub fn fetch_over_ssh(
+    repo_path: &str,
+    remote_name: &str,
+) -> thread::JoinHandle<Result<(), git2::Error>> {
     // Clone the strings so the thread owns them
     let repo_path = repo_path.to_string();
     let remote_name = remote_name.to_string();
@@ -211,15 +214,21 @@ pub fn fetch_over_ssh(repo_path: &str, remote_name: &str) -> thread::JoinHandle<
         let mut fetch_options = FetchOptions::new();
         fetch_options.remote_callbacks(callbacks);
 
-        remote.fetch(&["refs/heads/*:refs/remotes/origin/*"], Some(&mut fetch_options), None)?;
+        remote.fetch(
+            &["refs/heads/*:refs/remotes/origin/*"],
+            Some(&mut fetch_options),
+            None,
+        )?;
         Ok(())
     })
 }
 
-
-pub fn push_over_ssh(repo_path: &str, remote_name: &str, branch: &str, force: bool)
-    -> thread::JoinHandle<Result<(), git2::Error>>
-{
+pub fn push_over_ssh(
+    repo_path: &str,
+    remote_name: &str,
+    branch: &str,
+    force: bool,
+) -> thread::JoinHandle<Result<(), git2::Error>> {
     // Clone inputs so they can move into the thread safely
     let repo_path = repo_path.to_string();
     let remote_name = remote_name.to_string();
@@ -232,9 +241,7 @@ pub fn push_over_ssh(repo_path: &str, remote_name: &str, branch: &str, force: bo
 
         // Configure SSH authentication
         let mut callbacks = RemoteCallbacks::new();
-        callbacks.credentials(|_url, username_from_url, _| {
-            Cred::ssh_key_from_agent("git")
-        });
+        callbacks.credentials(|_url, username_from_url, _| Cred::ssh_key_from_agent("git"));
 
         // Track progress
         callbacks.push_update_reference(|refname, status| {

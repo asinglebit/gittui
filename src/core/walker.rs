@@ -26,6 +26,7 @@ use ratatui::{
         Line,
     },
 };
+use crate::{git::queries::{commits::get_tip_oids, diffs::get_filenames_diff_at_workdir}, layers};
 #[rustfmt::skip]
 use crate::{
     core::{
@@ -65,12 +66,13 @@ use crate::{
     },
 };
 
+// Encapsulate a revwalk over the git repository, allowing incremental fetching of commits
 pub struct LazyWalker {
     revwalk: Mutex<Revwalk<'static>>,
 }
 
 impl LazyWalker {
-    
+    // Creates a new LazyWalker by building a revwalk from the repo
     pub fn new(repo: Arc<Repository>) -> Result<Self, git2::Error> {
         let revwalk = Self::build_revwalk(&repo)?;
         Ok(Self {
@@ -78,6 +80,7 @@ impl LazyWalker {
         })
     }
 
+    // Reset the revwalk
     pub fn reset(&self, repo: Arc<Repository>) -> Result<(), git2::Error> {
         let revwalk = Self::build_revwalk(&repo)?;
         let mut guard = self.revwalk.lock().unwrap();
@@ -85,17 +88,21 @@ impl LazyWalker {
         Ok(())
     }
 
-    // Get up to `count` commits from the global revwalk
+    // Get up to "count" commits from the global revwalk
     pub fn next_chunk(&self, count: usize) -> Vec<Oid> {
         let mut revwalk = self.revwalk.lock().unwrap();
-        revwalk.by_ref().take(count).filter_map(Result::ok).collect()
+        revwalk
+            .by_ref()
+            .take(count)
+            .filter_map(Result::ok)
+            .collect()
     }
-    
+
+    // Internal helper to build a revwalk for all branch tips
     fn build_revwalk(repo: &Repository) -> Result<Revwalk<'static>, git2::Error> {
-        // SAFETY: we keep repo alive in Arc, so transmute to 'static is safe
+        // Safge: we keep repo alive in Arc, so transmute to 'static is safe
         let repo_ref: &'static Repository =
             unsafe { std::mem::transmute::<&Repository, &'static Repository>(repo) };
-
         let mut revwalk = repo_ref.revwalk()?;
 
         // Push all local and remote branch tips
@@ -108,21 +115,23 @@ impl LazyWalker {
             }
         }
 
+        // Topological and chronological sorting
         revwalk.set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME)?;
         Ok(revwalk)
     }
 }
 
+// Context for walking and rendering commits
 pub struct WalkContext {
     // General
     pub repo: Arc<Repository>,
     pub walker: LazyWalker,
 
-    // Walker utilities    
+    // Walker utilities
     pub color: Arc<RefCell<ColorPicker>>,
     pub buffer: RefCell<Buffer>,
     pub layers: LayersContext,
-    
+
     // Walker data
     pub oids: Vec<Oid>,
     pub tips: HashMap<Oid, Vec<String>>,
@@ -137,9 +146,13 @@ pub struct WalkContext {
     pub lines_branches: Vec<Line<'static>>,
     pub lines_messages: Vec<Line<'static>>,
     pub lines_buffers: Vec<Line<'static>>,
+
+    // Pagination
+    pub amount: usize
 }
 
-pub struct WalkContextOutput {    
+// Output structure for walk results
+pub struct WalkContextOutput {
     pub oids: Vec<Oid>,
     pub tips: HashMap<Oid, Vec<String>>,
     pub oid_colors: HashMap<Oid, Color>,
@@ -151,15 +164,57 @@ pub struct WalkContextOutput {
     pub lines_branches: Vec<Line<'static>>,
     pub lines_messages: Vec<Line<'static>>,
     pub lines_buffers: Vec<Line<'static>>,
-    pub again: bool,
+    pub again: bool, // Indicates whether more commits remain to walk
 }
 
 impl WalkContext {
-    pub fn walk(&mut self, amount: usize) -> bool {
+    
+    // Creates a new WalkCntext
+    pub fn new(path: String, amount: usize) -> Result<Self, git2::Error> {
+        let path = path.clone();
+        let repo = Arc::new(Repository::open(path).expect("Failed to open repo"));
+        let walker =  LazyWalker::new(repo.clone()).expect("Error");
+        let tips = get_tip_oids(&repo);
+        let uncommitted = get_filenames_diff_at_workdir(&repo).expect("Error");
+        
+        Ok(Self {
+            repo,
+            walker,
+            color: Arc::new(RefCell::new(ColorPicker::default())),
+            buffer: RefCell::new(Buffer::default()),
+            layers: layers!(Arc::new(RefCell::new(ColorPicker::default()))),
+            oids: vec![Oid::zero()],
+            tips,
+            oid_colors: HashMap::new(),
+            tip_colors: HashMap::new(),
+            oid_branch_map: HashMap::new(),
+            branch_oid_map: HashMap::new(),
+            uncommitted,
+            lines_graph: Vec::new(),
+            lines_branches: Vec::new(),
+            lines_messages: Vec::new(),
+            lines_buffers: Vec::new(),
+            amount
+        })
+    }
 
+    // Walk through "amount" commits, update buffers and render lines
+    pub fn walk(&mut self) -> bool {
+        // Determine current HEAD oid
         let head_oid = self.repo.head().unwrap().target().unwrap();
+
+        // Sort commits
         let mut sorted: Vec<Oid> = Vec::new();
-        get_branches_and_sorted_oids(&self.repo, &self.walker, &self.tips, &mut self.oids, &mut self.oid_branch_map, &mut self.branch_oid_map, &mut sorted, amount);
+        get_branches_and_sorted_oids(
+            &self.repo,
+            &self.walker,
+            &self.tips,
+            &mut self.oids,
+            &mut self.oid_branch_map,
+            &mut self.branch_oid_map,
+            &mut sorted,
+            self.amount,
+        );
 
         // Make a fake commit for unstaged changes
         if self.oids.len() == 1 {
@@ -219,7 +274,8 @@ impl WalkContext {
                         self.layers.commit(SYM_MERGE, lane_idx);
                     } else if self.tips.contains_key(&oid) {
                         self.color.borrow_mut().alternate(lane_idx);
-                        self.tip_colors.insert(oid, self.color.borrow().get(lane_idx));
+                        self.tip_colors
+                            .insert(oid, self.color.borrow().get(lane_idx));
                         self.layers.commit(SYM_COMMIT_BRANCH, lane_idx);
                     } else {
                         self.layers.commit(SYM_COMMIT, lane_idx);
@@ -340,8 +396,6 @@ impl WalkContext {
                                 self.layers.merge(SYM_BRANCH_DOWN, idx + 1);
                                 self.layers.merge(SYM_EMPTY, idx + 1);
                             } else if trailing_dummies > 0 {
-                                // color.alternate(idx + 1);
-
                                 // Calculate how many lanes before we reach the branch character
                                 for _ in lane_idx..idx {
                                     self.layers.merge(SYM_HORIZONTAL, idx + 1);
@@ -369,7 +423,8 @@ impl WalkContext {
                     self.layers.commit(SYM_EMPTY, lane_idx);
                     self.layers.commit(SYM_EMPTY, lane_idx);
                     if chunk.parents.contains(&head_oid) && lane_idx == 0 {
-                        self.layers.pipe_custom(SYM_VERTICAL_DOTTED, lane_idx, COLOR_GREY_500);
+                        self.layers
+                            .pipe_custom(SYM_VERTICAL_DOTTED, lane_idx, COLOR_GREY_500);
                     } else {
                         self.layers.pipe(SYM_VERTICAL, lane_idx);
                     }
@@ -381,7 +436,8 @@ impl WalkContext {
             if !is_commit_found {
                 if self.tips.contains_key(&oid) {
                     self.color.borrow_mut().alternate(lane_idx);
-                    self.tip_colors.insert(oid, self.color.borrow().get(lane_idx));
+                    self.tip_colors
+                        .insert(oid, self.color.borrow().get(lane_idx));
                     self.layers.commit(SYM_COMMIT_BRANCH, lane_idx);
                 } else {
                     self.layers.commit(SYM_COMMIT, lane_idx);
@@ -405,11 +461,19 @@ impl WalkContext {
 
             // Render
             render_graph(&oid, &mut self.lines_graph, spans_graph);
-            render_branches(&oid, &mut self.lines_branches, &self.tips, &self.tip_colors, &commit);
+            render_branches(
+                &oid,
+                &mut self.lines_branches,
+                &self.tips,
+                &self.tip_colors,
+                &commit,
+            );
             render_messages(&commit, &mut self.lines_messages);
             render_buffer(&self.buffer, &mut self.lines_buffers);
         }
 
+        // Indicate whether repeats are needed
+        // Too lazy to make an off by one mistake here, zero is fine
         sorted.len() > 0
     }
 }
