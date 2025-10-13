@@ -113,10 +113,7 @@ pub fn commit_staged(
     let parent_commit = match repo.head() {
         Ok(head_ref) => {
             // Try to peel to commit
-            match head_ref.peel_to_commit() {
-                Ok(commit) => Some(commit),
-                Err(_) => None, // HEAD exists but not pointing to a commit
-            }
+            head_ref.peel_to_commit().ok()
         }
         Err(e) => {
             if e.code() == ErrorCode::UnbornBranch {
