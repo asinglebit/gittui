@@ -176,12 +176,14 @@ pub fn decode(bytes: &[u8]) -> String {
 // Clean and normalizes a string
 pub fn sanitize(string: String) -> String {
     string
-        .replace("\r\n", "\n").replace("\r", "\n")              // Convert Windows/Mac newlines to '\n'
-        .chars().flat_map(|character| match character {
-            '\t' => "    ".chars().collect::<Vec<_>>(),         // Expand tabs
-            '\n' => vec!['\n'],                                 // keep newlines
-            character if character.is_control() => vec![],      // remove other control chars
-            _ => vec![character],                               // Keep the rest of the characters
+        .replace("\r\n", "\n")
+        .replace("\r", "\n") // Convert Windows/Mac newlines to '\n'
+        .chars()
+        .flat_map(|character| match character {
+            '\t' => "    ".chars().collect::<Vec<_>>(), // Expand tabs
+            '\n' => vec!['\n'],                         // keep newlines
+            character if character.is_control() => vec![], // remove other control chars
+            _ => vec![character],                       // Keep the rest of the characters
         })
         .collect()
 }

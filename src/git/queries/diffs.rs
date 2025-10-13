@@ -174,7 +174,9 @@ pub fn get_file_diff_at_workdir(
     diff_options.pathspec(filename);
 
     // Compare HEAD tree with workdir + index
-    diff_to_hunks(repo.diff_tree_to_workdir_with_index(head_tree.as_ref(), Some(&mut diff_options))?)
+    diff_to_hunks(
+        repo.diff_tree_to_workdir_with_index(head_tree.as_ref(), Some(&mut diff_options))?,
+    )
 }
 
 // Generate a line-by-line diff for a file between a commit and its parent
@@ -196,7 +198,11 @@ pub fn get_file_diff_at_oid(
     diff_options.pathspec(filename);
 
     // Compare parent tree with current commit tree
-    diff_to_hunks(repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), Some(&mut diff_options))?)
+    diff_to_hunks(repo.diff_tree_to_tree(
+        parent_tree.as_ref(),
+        Some(&tree),
+        Some(&mut diff_options),
+    )?)
 }
 
 // Retrieve the contents of a file at a specific commit
@@ -206,7 +212,12 @@ pub fn get_file_at_oid(repo: &Repository, commit_oid: Oid, filename: &str) -> Ve
     tree.get_path(Path::new(filename))
         .ok()
         .and_then(|entry| repo.find_blob(entry.id()).ok())
-        .map(|blob| sanitize(decode(blob.content())).lines().map(|s| s.to_string()).collect())
+        .map(|blob| {
+            sanitize(decode(blob.content()))
+                .lines()
+                .map(|s| s.to_string())
+                .collect()
+        })
         .unwrap_or_default()
 }
 

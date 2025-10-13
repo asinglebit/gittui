@@ -46,7 +46,7 @@ use ratatui::{
         Span
     },
 };
-use crate::core::walker::{WalkContext, WalkContextOutput};
+use crate::core::walker::{Walker, WalkerOutput};
 #[rustfmt::skip]
 use crate::{
     layers,
@@ -98,7 +98,7 @@ pub struct Layout {
 pub enum Viewport {
     Graph,
     Viewer,
-    Editor
+    Editor,
 }
 
 #[derive(PartialEq, Eq)]
@@ -119,16 +119,16 @@ pub struct App {
     pub repo: Arc<Repository>,
     pub walker: LazyWalker,
     pub log: Vec<String>,
-    
+
     // User
     pub name: String,
     pub email: String,
 
-    // Walker utilities    
+    // Walker utilities
     pub color: Arc<RefCell<ColorPicker>>,
     pub buffer: RefCell<Buffer>,
     pub layers: LayersContext,
-    pub walker_rx: Option<std::sync::mpsc::Receiver<WalkContextOutput>>,
+    pub walker_rx: Option<std::sync::mpsc::Receiver<WalkerOutput>>,
 
     // Walker data
     pub oids: Vec<Oid>,
@@ -159,11 +159,11 @@ pub struct App {
     pub is_inspector: bool,
     pub viewport: Viewport,
     pub focus: Focus,
-    
+
     // Graph
     pub graph_selected: usize,
     pub graph_scroll: Cell<usize>,
-    
+
     // Viewer
     pub viewer_selected: usize,
     pub viewer_scroll: Cell<usize>,
@@ -171,15 +171,15 @@ pub struct App {
     // Editor
     pub file_editor: EditorState,
     pub file_editor_event_handler: EditorEventHandler,
-    
+
     // Inspector
     pub inspector_selected: usize,
     pub inspector_scroll: Cell<usize>,
-    
+
     // Status top
     pub status_top_selected: usize,
     pub status_top_scroll: Cell<usize>,
-    
+
     // Status bottom
     pub status_bottom_selected: usize,
     pub status_bottom_scroll: Cell<usize>,
@@ -192,17 +192,15 @@ pub struct App {
     pub commit_editor_event_handler: EditorEventHandler,
 
     // Exit
-    pub is_exit: bool,    
+    pub is_exit: bool,
 }
 
 impl App {
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
-
         self.reload();
 
         // Main loop
         while !self.is_exit {
-
             // Check if the background walk is done
             if let Some(rx) = &self.walker_rx {
                 if let Ok(result) = rx.try_recv() {
@@ -232,13 +230,13 @@ impl App {
                 // Handle events
                 self.handle_events()?;
             }
-            
+
             std::thread::sleep(Duration::from_millis(10));
         }
 
         Ok(())
     }
-    
+
     pub fn draw(&mut self, frame: &mut Frame) {
         // Compute the layout
         self.layout(frame);
@@ -259,8 +257,12 @@ impl App {
 
         // Main layout
         self.draw_title(frame);
-        if self.is_status {self.draw_status(frame);}
-        if self.is_inspector && self.graph_selected != 0 {self.draw_inspector(frame);}
+        if self.is_status {
+            self.draw_status(frame);
+        }
+        if self.is_inspector && self.graph_selected != 0 {
+            self.draw_inspector(frame);
+        }
         self.draw_statusbar(frame);
 
         // Modals
@@ -279,15 +281,14 @@ impl App {
     }
 
     pub fn reload(&mut self) {
-
         // Reset the walker
-        self.walker.reset(self.repo.clone()).expect("Failed to reset walker");
-
+        self.walker
+            .reset(self.repo.clone())
+            .expect("Failed to reset walker");
         // Reset utilities
         self.color = Arc::new(RefCell::new(ColorPicker::default()));
         self.buffer = RefCell::new(Buffer::default());
         self.layers = layers!(self.color.clone());
-
         // Topologically sorted list of oids including the uncommited, for the sake of order
         self.oids = vec![Oid::zero()];
         // Mapping of tip oids of the branches to the branch names
@@ -306,34 +307,30 @@ impl App {
         self.lines_branches = Vec::new();
         self.lines_messages = Vec::new();
         self.lines_buffers = Vec::new();
-
         // First walk
         self.walk();
     }
 
     pub fn walk(&mut self) {
-
         // Create a channel
         let (tx, rx) = channel();
         self.walker_rx = Some(rx);
 
         // Copy the repo path
         let path = self.path.clone();
-        
+
         // Spawn a thread that computes something
         thread::spawn(move || {
-
             // Create the walker
-            let mut walk_ctx = WalkContext::new(path, 10000).expect("Error");
-            
+            let mut walk_ctx = Walker::new(path, 10000).expect("Error");
+
             // Pagination loop
             loop {
-
                 // Parse a chunk
                 let again = walk_ctx.walk();
 
                 // Send the message to the main thread
-                tx.send(WalkContextOutput {
+                tx.send(WalkerOutput {
                     oids: walk_ctx.oids.clone(),
                     tips: walk_ctx.tips.clone(),
                     oid_colors: walk_ctx.oid_colors.clone(),
@@ -345,13 +342,15 @@ impl App {
                     lines_branches: walk_ctx.lines_branches.clone(),
                     lines_messages: walk_ctx.lines_messages.clone(),
                     lines_buffers: walk_ctx.lines_buffers.clone(),
-                    again
-                }).expect("Error");
+                    again,
+                })
+                .expect("Error");
 
                 // Break the loop
-                if !again { break }
+                if !again {
+                    break;
+                }
             }
-            
         });
     }
 

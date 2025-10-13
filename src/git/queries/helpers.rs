@@ -26,14 +26,14 @@ use crate::{
 // Structure representing all uncommitted changes in the repository
 #[derive(Debug, Default, Clone)]
 pub struct UncommittedChanges {
-    pub unstaged: FileChanges,       // Changes in the working directory not yet staged
-    pub staged: FileChanges,         // Changes that have been staged
-    pub modified_count: usize,       // Number of modified files (deduplicated)
-    pub added_count: usize,          // Number of added files (deduplicated)
-    pub deleted_count: usize,        // Number of deleted files (deduplicated)
-    pub is_clean: bool,              // True if there are no changes
-    pub is_staged: bool,             // True if there are staged changes
-    pub is_unstaged: bool,           // True if there are unstaged changes
+    pub unstaged: FileChanges, // Changes in the working directory not yet staged
+    pub staged: FileChanges,   // Changes that have been staged
+    pub modified_count: usize, // Number of modified files (deduplicated)
+    pub added_count: usize,    // Number of added files (deduplicated)
+    pub deleted_count: usize,  // Number of deleted files (deduplicated)
+    pub is_clean: bool,        // True if there are no changes
+    pub is_staged: bool,       // True if there are staged changes
+    pub is_unstaged: bool,     // True if there are unstaged changes
 }
 
 // Structure representing a set of file changes (added, modified, deleted)

@@ -1,8 +1,8 @@
-use std::sync::Arc;
 #[rustfmt::skip]
 use std::{
     cell::RefCell,
-    collections::HashMap
+    collections::HashMap,
+    sync::Arc
 };
 #[rustfmt::skip]
 use ratatui::{
@@ -13,7 +13,13 @@ use ratatui::{
     text::Span,
 };
 #[rustfmt::skip]
-use crate::helpers::colors::ColorPicker;
+use crate::{
+    helpers::{
+        colors::{
+            ColorPicker
+        }
+    }
+};
 
 #[derive(Eq, Hash, PartialEq, Clone)]
 pub enum LayerTypes {
@@ -21,7 +27,6 @@ pub enum LayerTypes {
     Merges = 1,
     Pipes = 2,
 }
-
 
 #[derive(Clone)]
 pub struct LayerBuilder {

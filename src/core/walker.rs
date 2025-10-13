@@ -26,9 +26,9 @@ use ratatui::{
         Line,
     },
 };
-use crate::{git::queries::{commits::get_tip_oids, diffs::get_filenames_diff_at_workdir}, layers};
 #[rustfmt::skip]
 use crate::{
+    layers,
     core::{
         layers::{
             LayersContext,
@@ -58,6 +58,10 @@ use crate::{
         queries::{
             commits::{
                 get_branches_and_sorted_oids,
+                get_tip_oids
+            },
+            diffs::{
+                get_filenames_diff_at_workdir
             },
             helpers::{
                 UncommittedChanges
@@ -122,7 +126,7 @@ impl LazyWalker {
 }
 
 // Context for walking and rendering commits
-pub struct WalkContext {
+pub struct Walker {
     // General
     pub repo: Arc<Repository>,
     pub walker: LazyWalker,
@@ -148,11 +152,11 @@ pub struct WalkContext {
     pub lines_buffers: Vec<Line<'static>>,
 
     // Pagination
-    pub amount: usize
+    pub amount: usize,
 }
 
 // Output structure for walk results
-pub struct WalkContextOutput {
+pub struct WalkerOutput {
     pub oids: Vec<Oid>,
     pub tips: HashMap<Oid, Vec<String>>,
     pub oid_colors: HashMap<Oid, Color>,
@@ -167,16 +171,15 @@ pub struct WalkContextOutput {
     pub again: bool, // Indicates whether more commits remain to walk
 }
 
-impl WalkContext {
-    
-    // Creates a new WalkCntext
+impl Walker {
+    // Creates a new walker
     pub fn new(path: String, amount: usize) -> Result<Self, git2::Error> {
         let path = path.clone();
         let repo = Arc::new(Repository::open(path).expect("Failed to open repo"));
-        let walker =  LazyWalker::new(repo.clone()).expect("Error");
+        let walker = LazyWalker::new(repo.clone()).expect("Error");
         let tips = get_tip_oids(&repo);
         let uncommitted = get_filenames_diff_at_workdir(&repo).expect("Error");
-        
+
         Ok(Self {
             repo,
             walker,
@@ -194,7 +197,7 @@ impl WalkContext {
             lines_branches: Vec::new(),
             lines_messages: Vec::new(),
             lines_buffers: Vec::new(),
-            amount
+            amount,
         })
     }
 

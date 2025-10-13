@@ -12,6 +12,7 @@ use git2::{
     Repository,
     Time
 };
+#[rustfmt::skip]
 use crate::{
     core::{
         walker::{
@@ -52,7 +53,7 @@ pub fn get_branches_and_sorted_oids(
     oid_branch_map: &mut HashMap<Oid, HashSet<String>>,
     branch_oid_map: &mut HashMap<String, Oid>,
     sorted: &mut Vec<Oid>,
-    amount: usize
+    amount: usize,
 ) {
     // Get the next batch of commits
     let chunk = walker.next_chunk(amount);
@@ -79,10 +80,7 @@ pub fn get_branches_and_sorted_oids(
         sorted.push(oid);
 
         // Get the branch names that currently reach this commit
-        let branches_here = oid_branch_map
-            .get(&oid)
-            .cloned()
-            .unwrap_or_default();
+        let branches_here = oid_branch_map.get(&oid).cloned().unwrap_or_default();
 
         // Propagate those branch names to parents
         let commit = repo.find_commit(oid).unwrap();
