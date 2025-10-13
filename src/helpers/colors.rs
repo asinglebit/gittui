@@ -6,6 +6,7 @@ use ratatui::style::Color;
 #[rustfmt::skip]
 use crate::helpers::palette::*;
 
+#[derive(Clone)]
 pub struct ColorPicker {
     lanes: HashMap<usize, bool>,
     palette_a: [Color; 8],

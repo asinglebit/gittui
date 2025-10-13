@@ -5,14 +5,23 @@ use std::{
         RefCell
     },
     sync::{
-        Arc
+        Arc,
+        mpsc::{
+            channel,
+        }
     },
     collections::{
         HashMap,
         HashSet
     },
+    time::{
+        Duration
+    },
+    thread,
     io,
 };
+#[rustfmt::skip]
+use crossterm::event::poll;
 #[rustfmt::skip]
 use edtui::{
     EditorEventHandler,
@@ -37,6 +46,7 @@ use ratatui::{
         Span
     },
 };
+use crate::core::walker::{WalkContext, WalkContextOutput};
 #[rustfmt::skip]
 use crate::{
     layers,
@@ -47,23 +57,11 @@ use crate::{
         walker::{
             LazyWalker
         },
-        renderers::{
-            render_uncommitted,
-            render_branches,
-            render_buffer,
-            render_graph,
-            render_messages
-        },
         buffer::{
             Buffer
         },
-        chunk::{
-            Chunk
-        }
     },
     helpers::{
-        symbols::*,
-        palette::*,
         colors::{
             ColorPicker
         }
@@ -74,7 +72,6 @@ use crate::{
                 get_filenames_diff_at_workdir
             },
             commits::{
-                get_branches_and_sorted_oids,
                 get_tip_oids
             },
             helpers::{
@@ -131,6 +128,7 @@ pub struct App {
     pub color: Arc<RefCell<ColorPicker>>,
     pub buffer: RefCell<Buffer>,
     pub layers: LayersContext,
+    pub walker_rx: Option<std::sync::mpsc::Receiver<WalkContextOutput>>,
 
     // Walker data
     pub oids: Vec<Oid>,
@@ -199,11 +197,43 @@ pub struct App {
 
 impl App {
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
+
         self.reload();
 
+        // Main loop
         while !self.is_exit {
+
+            // Check if the background walk is done
+            if let Some(rx) = &self.walker_rx {
+                if let Ok(result) = rx.try_recv() {
+                    self.oids = result.oids;
+                    self.tips = result.tips;
+                    self.oid_colors = result.oid_colors;
+                    self.tip_colors = result.tip_colors;
+                    self.branch_oid_map = result.branch_oid_map;
+                    self.oid_branch_map = result.oid_branch_map;
+                    self.uncommitted = result.uncommitted;
+                    self.lines_graph = result.lines_graph;
+                    self.lines_branches = result.lines_branches;
+                    self.lines_messages = result.lines_messages;
+                    self.lines_buffers = result.lines_buffers;
+
+                    if !result.again {
+                        self.walker_rx = None;
+                    }
+                }
+            }
+
+            // Draw the user interface
             terminal.draw(|frame| self.draw(frame))?;
-            self.handle_events()?;
+
+            // Poll for events with a timeout
+            if poll(Duration::from_millis(100))? {
+                // Handle events
+                self.handle_events()?;
+            }
+            
+            std::thread::sleep(Duration::from_millis(10));
         }
 
         Ok(())
@@ -283,258 +313,70 @@ impl App {
 
     pub fn walk(&mut self) {
 
-        let head_oid = self.repo.head().unwrap().target().unwrap();
-        let mut sorted: Vec<Oid> = Vec::new();
-        get_branches_and_sorted_oids(&self.repo, &self.walker, &self.tips, &mut self.oids, &mut self.oid_branch_map, &mut self.branch_oid_map, &mut sorted);
+        // Create a channel
+        let (tx, rx) = channel();
+        self.walker_rx = Some(rx);
 
-        // Make a fake commit for unstaged changes
-        if self.oids.len() == 1 {
-            render_uncommitted(
-                head_oid,
-                &self.uncommitted,
-                &mut self.lines_graph,
-                &mut self.lines_branches,
-                &mut self.lines_messages,
-                &mut self.lines_buffers,
-            );
-            self.buffer
-                .borrow_mut()
-                .update(Chunk::uncommitted(vec![head_oid]));
-        }
+        let path = self.path.clone();
+        let color = (*self.color.borrow()).clone();
+        
+        // Spawn a thread that computes something
+        thread::spawn(move || {
+            let repo = Arc::new(Repository::open(path).expect("Failed to open repo"));
+            let walker =  LazyWalker::new(repo.clone()).expect("Error");
+            let color =  Arc::new(RefCell::new(color));
+            let buffer =  RefCell::new(Buffer::default());
+            let layers =  layers!(Arc::new(RefCell::new(ColorPicker::default())));
+            let oids = vec![Oid::zero()];
+            let tips = get_tip_oids(&repo);
+            let oid_colors = HashMap::new();
+            let tip_colors = HashMap::new();
+            let oid_branch_map = HashMap::new();
+            let branch_oid_map = HashMap::new();
+            let uncommitted = get_filenames_diff_at_workdir(&repo).expect("Error");
 
-        // Go through the commits, inferring the graph
-        for oid in sorted {
-            let mut merger_oid = None;
+            let mut walk_ctx = WalkContext {
+                repo,
+                walker,
+                color,
+                buffer,
+                layers,
+                oids,
+                tips,
+                oid_colors,
+                tip_colors,
+                oid_branch_map,
+                branch_oid_map,
+                uncommitted,
+                lines_graph: Vec::new(),
+                lines_branches: Vec::new(),
+                lines_messages: Vec::new(),
+                lines_buffers: Vec::new(),
+            };
+            
+            loop {
 
-            self.layers.clear();
-            let commit = self.repo.find_commit(oid).unwrap();
-            let parents: Vec<Oid> = commit.parent_ids().collect();
-            let chunk = Chunk::commit(oid, parents);
+                let again = walk_ctx.walk(10000);
 
-            let mut spans_graph = Vec::new();
+                tx.send(WalkContextOutput {
+                    oids: walk_ctx.oids.clone(),
+                    tips: walk_ctx.tips.clone(),
+                    oid_colors: walk_ctx.oid_colors.clone(),
+                    tip_colors: walk_ctx.tip_colors.clone(),
+                    oid_branch_map: walk_ctx.oid_branch_map.clone(),
+                    branch_oid_map: walk_ctx.branch_oid_map.clone(),
+                    uncommitted: walk_ctx.uncommitted.clone(),
+                    lines_graph: walk_ctx.lines_graph.clone(),
+                    lines_branches: walk_ctx.lines_branches.clone(),
+                    lines_messages: walk_ctx.lines_messages.clone(),
+                    lines_buffers: walk_ctx.lines_buffers.clone(),
+                    again
+                }).expect("Error");
 
-            // Update
-            self.buffer.borrow_mut().update(chunk);
-
-            // Iterate over the buffer chunks, rendering the graph line
-            let mut is_commit_found = false;
-            let mut is_merged_before = false;
-            let mut lane_idx = 0;
-            for chunk in &self.buffer.borrow().curr {
-                if chunk.is_dummy() {
-                    if let Some(prev) = self.buffer.borrow().prev.get(lane_idx) {
-                        if prev.parents.len() == 1 {
-                            self.layers.commit(SYM_EMPTY, lane_idx);
-                            self.layers.commit(SYM_EMPTY, lane_idx);
-                            self.layers.pipe(SYM_BRANCH_UP, lane_idx);
-                            self.layers.pipe(SYM_EMPTY, lane_idx);
-                        } else {
-                            self.layers.commit(SYM_EMPTY, lane_idx);
-                            self.layers.commit(SYM_EMPTY, lane_idx);
-                            self.layers.pipe(SYM_EMPTY, lane_idx);
-                            self.layers.pipe(SYM_EMPTY, lane_idx);
-                        }
-                    }
-                } else if oid == chunk.oid {
-                    is_commit_found = true;
-                    self.oid_colors
-                        .entry(oid)
-                        .or_insert(self.color.borrow().get(lane_idx));
-
-                    if chunk.parents.len() > 1 && !self.tips.contains_key(&oid) {
-                        self.layers.commit(SYM_MERGE, lane_idx);
-                    } else if self.tips.contains_key(&oid) {
-                        self.color.borrow_mut().alternate(lane_idx);
-                        self.tip_colors.insert(oid, self.color.borrow().get(lane_idx));
-                        self.layers.commit(SYM_COMMIT_BRANCH, lane_idx);
-                    } else {
-                        self.layers.commit(SYM_COMMIT, lane_idx);
-                    }
-                    self.layers.commit(SYM_EMPTY, lane_idx);
-                    self.layers.pipe(SYM_EMPTY, lane_idx);
-                    self.layers.pipe(SYM_EMPTY, lane_idx);
-
-                    // Check if commit is being merged into
-                    let mut is_mergee_found = false;
-                    let mut is_drawing = false;
-                    if chunk.parents.len() > 1 {
-                        let mut is_merger_found = false;
-                        let mut merger_idx: usize = 0;
-                        for chunk_nested in &self.buffer.borrow().curr {
-                            if chunk_nested.parents.len() == 1
-                                && chunk.parents.last().unwrap()
-                                    == chunk_nested.parents.first().unwrap()
-                            {
-                                is_merger_found = true;
-                                break;
-                            }
-                            merger_idx += 1;
-                        }
-
-                        let mut mergee_idx: usize = 0;
-                        for chunk_nested in &self.buffer.borrow().curr {
-                            if oid == chunk_nested.oid {
-                                break;
-                            }
-                            mergee_idx += 1;
-                        }
-
-                        for (chunk_nested_idx, chunk_nested) in
-                            self.buffer.borrow().curr.iter().enumerate()
-                        {
-                            if !is_mergee_found {
-                                if oid == chunk_nested.oid {
-                                    is_mergee_found = true;
-                                    if is_merger_found {
-                                        is_drawing = !is_drawing;
-                                    }
-                                    if !is_drawing {
-                                        is_merged_before = true;
-                                    }
-                                    self.layers.merge(SYM_EMPTY, merger_idx);
-                                    self.layers.merge(SYM_EMPTY, merger_idx);
-                                } else {
-                                    // Before the commit
-                                    if !is_merger_found {
-                                        self.layers.merge(SYM_EMPTY, merger_idx);
-                                        self.layers.merge(SYM_EMPTY, merger_idx);
-                                    } else if chunk_nested.parents.len() == 1
-                                        && chunk
-                                            .parents
-                                            .contains(chunk_nested.parents.first().unwrap())
-                                    {
-                                        self.layers.merge(SYM_MERGE_RIGHT_FROM, merger_idx);
-                                        if chunk_nested_idx + 1 == mergee_idx {
-                                            self.layers.merge(SYM_EMPTY, merger_idx);
-                                        } else {
-                                            self.layers.merge(SYM_HORIZONTAL, merger_idx);
-                                        }
-                                        is_drawing = true;
-                                    } else if is_drawing {
-                                        if chunk_nested_idx + 1 == mergee_idx {
-                                            self.layers.merge(SYM_HORIZONTAL, merger_idx);
-                                            self.layers.merge(SYM_EMPTY, merger_idx);
-                                        } else {
-                                            self.layers.merge(SYM_HORIZONTAL, merger_idx);
-                                            self.layers.merge(SYM_HORIZONTAL, merger_idx);
-                                        }
-                                    } else {
-                                        self.layers.merge(SYM_EMPTY, merger_idx);
-                                        self.layers.merge(SYM_EMPTY, merger_idx);
-                                    }
-                                }
-                            } else {
-                                // After the commit
-                                if is_merger_found && !is_merged_before {
-                                    if chunk_nested.parents.len() == 1
-                                        && chunk
-                                            .parents
-                                            .contains(chunk_nested.parents.first().unwrap())
-                                    {
-                                        self.layers.merge(SYM_MERGE_LEFT_FROM, merger_idx);
-                                        self.layers.merge(SYM_EMPTY, merger_idx);
-                                        is_drawing = false;
-                                    } else if is_drawing {
-                                        self.layers.merge(SYM_HORIZONTAL, merger_idx);
-                                        self.layers.merge(SYM_HORIZONTAL, merger_idx);
-                                    } else {
-                                        self.layers.merge(SYM_EMPTY, merger_idx);
-                                        self.layers.merge(SYM_EMPTY, merger_idx);
-                                    }
-                                }
-                            }
-                        }
-
-                        if !is_merger_found {
-                            // Count how many dummies in the end to get the real last element, append there
-                            let mut idx = self.buffer.borrow().curr.len() - 1;
-                            let mut trailing_dummies = 0;
-                            for (i, c) in self.buffer.borrow().curr.iter().enumerate().rev() {
-                                if !c.is_dummy() {
-                                    idx = i;
-                                    break;
-                                } else {
-                                    trailing_dummies += 1;
-                                }
-                            }
-
-                            if trailing_dummies > 0
-                                && self.buffer.borrow().prev.len() > idx
-                                && self.buffer.borrow().prev[idx + 1].is_dummy()
-                            {
-                                self.color.borrow_mut().alternate(idx + 1);
-                                self.layers.merge(SYM_BRANCH_DOWN, idx + 1);
-                                self.layers.merge(SYM_EMPTY, idx + 1);
-                            } else if trailing_dummies > 0 {
-                                // color.alternate(idx + 1);
-
-                                // Calculate how many lanes before we reach the branch character
-                                for _ in lane_idx..idx {
-                                    self.layers.merge(SYM_HORIZONTAL, idx + 1);
-                                    self.layers.merge(SYM_HORIZONTAL, idx + 1);
-                                }
-
-                                self.layers.merge(SYM_MERGE_LEFT_FROM, idx + 1);
-                                self.layers.merge(SYM_EMPTY, idx + 1);
-                            } else {
-                                self.color.borrow_mut().alternate(idx + 1);
-
-                                // Calculate how many lanes before we reach the branch character
-                                for _ in lane_idx..idx {
-                                    self.layers.merge(SYM_HORIZONTAL, idx + 1);
-                                    self.layers.merge(SYM_HORIZONTAL, idx + 1);
-                                }
-
-                                self.layers.merge(SYM_BRANCH_DOWN, idx + 1);
-                                self.layers.merge(SYM_EMPTY, idx + 1);
-                            }
-                            merger_oid = Some(chunk.oid);
-                        }
-                    }
-                } else {
-                    self.layers.commit(SYM_EMPTY, lane_idx);
-                    self.layers.commit(SYM_EMPTY, lane_idx);
-                    if chunk.parents.contains(&head_oid) && lane_idx == 0 {
-                        self.layers.pipe_custom(SYM_VERTICAL_DOTTED, lane_idx, COLOR_GREY_500);
-                    } else {
-                        self.layers.pipe(SYM_VERTICAL, lane_idx);
-                    }
-                    self.layers.pipe(SYM_EMPTY, lane_idx);
-                }
-
-                lane_idx += 1;
+                if !again { break }
             }
-            if !is_commit_found {
-                if self.tips.contains_key(&oid) {
-                    self.color.borrow_mut().alternate(lane_idx);
-                    self.tip_colors.insert(oid, self.color.borrow().get(lane_idx));
-                    self.layers.commit(SYM_COMMIT_BRANCH, lane_idx);
-                } else {
-                    self.layers.commit(SYM_COMMIT, lane_idx);
-                };
-                self.layers.commit(SYM_EMPTY, lane_idx);
-                self.layers.pipe(SYM_EMPTY, lane_idx);
-                self.layers.pipe(SYM_EMPTY, lane_idx);
-            }
-
-            // Blend layers into the graph
-            self.layers.bake(&mut spans_graph);
-
-            // Now we can borrow mutably
-            if let Some(sha) = merger_oid {
-                self.buffer.borrow_mut().merger(sha);
-            }
-            self.buffer.borrow_mut().backup();
-
-            // Serialize
-            self.oids.push(oid);
-
-            // Render
-            render_graph(&oid, &mut self.lines_graph, spans_graph);
-            render_branches(&oid, &mut self.lines_branches, &self.tips, &self.tip_colors, &commit);
-            render_messages(&commit, &mut self.lines_messages);
-            render_buffer(&self.buffer, &mut self.lines_buffers);
-        }
+            
+        });
     }
 
     pub fn exit(&mut self) {

@@ -3,7 +3,7 @@ use git2::Oid;
 #[rustfmt::skip]
 use crate::core::chunk::Chunk;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Buffer {
     pub prev: Vec<Chunk>,
     pub curr: Vec<Chunk>,

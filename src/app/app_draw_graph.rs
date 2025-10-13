@@ -53,36 +53,56 @@ impl App {
         let mut rows = Vec::with_capacity(end - start + 1); // preallocate for efficiency
 
         // Add the rest of the commits
-        for (i, ((graph, branch), buffer)) in self.lines_graph[start..end]
-            .iter()
-            .zip(&self.lines_branches[start..end])
-            .zip(&self.lines_buffers[start..end])
-            .enumerate()
-        {
-            let actual_index = start + i;
-            let (graph, branch, buffer) = if actual_index == self.graph_selected {
-                let graph_spans: Vec<Span> = graph.spans.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GRASS)) }).collect();
-                let branch_spans: Vec<Span> = branch.spans.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GRASS)) }).collect();
-                let buffer_spans: Vec<Span> = buffer.spans.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GRASS)) }).collect();
-                (Line::from(graph_spans), Line::from(branch_spans), Line::from(buffer_spans))
-            } else {
-                (graph.clone(), branch.clone(), buffer.clone())
-            };
-            let mut row = Row::new(vec![
-                WidgetCell::from(graph.clone()),
-                WidgetCell::from(branch.clone()),
-                WidgetCell::from(buffer.clone()),
-            ]);
-            if actual_index == self.graph_selected {
-                row = row.style(Style::default().bg(COLOR_GREY_800));
-            }
-            rows.push(row);
-        }
+        let mut width = 0;
+        
+        if !self.lines_graph.is_empty() {
+
+            width = self.lines_graph[start..end]
+                .iter()
+                .map(|line| {
+                    line.spans
+                        .iter()
+                        .filter(|span| !span.content.is_empty()) // only non-empty spans
+                        .map(|span| span.content.chars().count()) // use chars() for wide characters
+                        .sum::<usize>()
+                })
+                .max()
+                .unwrap_or(0) as u16;
+
+            for (i, ((graph, branch), buffer)) in self.lines_graph[start..end]
+                .iter()
+                .zip(&self.lines_branches[start..end])
+                .zip(&self.lines_buffers[start..end])
+                .enumerate()
+            {
+                let actual_index = start + i;
+                
+                
+
+                let (graph, branch, buffer) = if actual_index == self.graph_selected {
+                    let graph_spans: Vec<Span> = graph.spans.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GRASS)) }).collect();
+                    let branch_spans: Vec<Span> = branch.spans.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GRASS)) }).collect();
+                    let buffer_spans: Vec<Span> = buffer.spans.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GRASS)) }).collect();
+                    (Line::from(graph_spans), Line::from(branch_spans), Line::from(buffer_spans))
+                } else {
+                    (graph.clone(), branch.clone(), buffer.clone())
+                };
+                let mut row = Row::new(vec![
+                    WidgetCell::from(graph.clone()),
+                    WidgetCell::from(branch.clone()),
+                    WidgetCell::from(buffer.clone()),
+                ]);
+                if actual_index == self.graph_selected {
+                    row = row.style(Style::default().bg(COLOR_GREY_800));
+                }
+                rows.push(row);
+            }            
+        };
 
         // Setup the table
         let table = Table::new(rows, [
-                ratatui::layout::Constraint::Length(25),
-                ratatui::layout::Constraint::Percentage(70),
+                ratatui::layout::Constraint::Length(width as u16),
+                ratatui::layout::Constraint::Min(0),
             ]).block(
                 Block::default()
                     .title(vec![

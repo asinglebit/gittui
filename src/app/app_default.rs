@@ -90,6 +90,7 @@ impl Default for App {
             color: Arc::new(RefCell::new(ColorPicker::default())),
             buffer: RefCell::new(Buffer::default()),
             layers: layers!(Arc::new(RefCell::new(ColorPicker::default()))),
+            walker_rx: None,
 
             // Walker data
             oids: Vec::new(),

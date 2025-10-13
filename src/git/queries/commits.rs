@@ -10,8 +10,7 @@ use git2::{
     BranchType,
     Oid,
     Repository,
-    Time,
-    Sort
+    Time
 };
 use crate::{
     core::{
@@ -53,9 +52,10 @@ pub fn get_branches_and_sorted_oids(
     oid_branch_map: &mut HashMap<Oid, HashSet<String>>,
     branch_oid_map: &mut HashMap<String, Oid>,
     sorted: &mut Vec<Oid>,
+    amount: usize
 ) {
     // Get the next batch of commits
-    let chunk = walker.next_chunk(10000);
+    let chunk = walker.next_chunk(amount);
     if chunk.is_empty() {
         // No more commits left
         return;

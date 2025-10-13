@@ -15,13 +15,15 @@ use ratatui::{
 #[rustfmt::skip]
 use crate::helpers::colors::ColorPicker;
 
-#[derive(Eq, Hash, PartialEq)]
+#[derive(Eq, Hash, PartialEq, Clone)]
 pub enum LayerTypes {
     Commits = 0,
     Merges = 1,
     Pipes = 2,
 }
 
+
+#[derive(Clone)]
 pub struct LayerBuilder {
     layers: HashMap<LayerTypes, Vec<(String, Color)>>,
     color: Arc<RefCell<ColorPicker>>,
@@ -50,6 +52,7 @@ impl LayerBuilder {
 }
 
 // Context struct holding mutable reference to LayerBuilder
+#[derive(Clone)]
 pub struct LayersContext {
     pub builder: LayerBuilder,
 }

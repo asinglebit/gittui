@@ -24,7 +24,7 @@ use crate::{
 };
 
 // Structure representing all uncommitted changes in the repository
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct UncommittedChanges {
     pub unstaged: FileChanges,       // Changes in the working directory not yet staged
     pub staged: FileChanges,         // Changes that have been staged
@@ -37,7 +37,7 @@ pub struct UncommittedChanges {
 }
 
 // Structure representing a set of file changes (added, modified, deleted)
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct FileChanges {
     pub modified: Vec<String>,
     pub added: Vec<String>,
