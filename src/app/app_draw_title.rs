@@ -26,16 +26,23 @@ impl App {
 
     pub fn draw_title(&mut self, frame: &mut Frame) {
 
+        // Logo and path
         let path = if let Some(file_name) = self.file_name.clone() { format!("{}/{}", self.path.clone(), file_name) } else { self.path.clone() };
-
-        let paragraph = ratatui::widgets::Paragraph::new(Text::from(Line::from([
-            self.logo.clone(), vec![
-            Span::styled(" |", Style::default().fg(COLOR_TEXT)),
-            Span::styled(format!(" 🖿  {}", path), Style::default().fg(COLOR_TEXT)),
-            
-        ]].concat())))
-        .left_aligned()
-        .block(Block::default());
+        let logo = self.logo.clone();
+        let separator = Span::styled(" |", Style::default().fg(COLOR_TEXT));
+        let folder = Span::styled(format!(" 🖿  {}", path), Style::default().fg(COLOR_TEXT));
+        let line = Line::from([logo, vec![ separator, folder ]].concat());
+        let paragraph = ratatui::widgets::Paragraph::new(line)
+            .left_aligned()
+            .block(Block::default());
         frame.render_widget(paragraph, self.layout.title_left);
+
+        // Hint
+        let hint = Span::styled(format!("{} ", self.hint), Style::default().fg(COLOR_GRASS));
+        let line = Line::from(vec![hint]);
+        let paragraph = ratatui::widgets::Paragraph::new(line)
+            .right_aligned()
+            .block(Block::default());
+        frame.render_widget(paragraph, self.layout.title_right);
     }
 }

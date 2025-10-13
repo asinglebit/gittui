@@ -80,7 +80,7 @@ impl Default for App {
             path: absolute_path.display().to_string(),
             repo,
             walker,
-            log: Vec::new(),
+            hint: String::new(),
 
             // User
             name: "rattleworks".to_string(),

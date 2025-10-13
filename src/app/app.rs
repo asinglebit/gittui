@@ -118,7 +118,7 @@ pub struct App {
     pub path: String,
     pub repo: Rc<Repository>,
     pub walker: LazyWalker,
-    pub log: Vec<String>,
+    pub hint: String,
 
     // User
     pub name: String,

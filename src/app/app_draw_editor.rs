@@ -103,11 +103,7 @@ impl App {
                 .end_symbol(if self.is_inspector || self.is_status { Some("─") } else { Some("╯") })
                 .track_symbol(Some("│"))
                 .thumb_symbol("│")
-                .thumb_style(Style::default().fg(if self.focus == Focus::Viewport {
-                    COLOR_BORDER
-                } else {
-                    COLOR_BORDER
-                }));
+                .thumb_style(Style::default().fg(COLOR_BORDER));
 
             frame.render_stateful_widget(scrollbar, self.layout.graph, &mut scrollbar_state);
         }

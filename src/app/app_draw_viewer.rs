@@ -263,8 +263,7 @@ impl App {
                     original_lines[current_line].clone(),
                     (self.layout.graph.width as usize).saturating_sub(8),
                 );
-                let mut idx = 0;
-                for line in wrapped {
+                for (idx, line) in wrapped.into_iter().enumerate() {
 
                     // Push each wrapped line into viewer with line numbers
                     self.viewer_lines.push(ListItem::new(
@@ -277,7 +276,6 @@ impl App {
                         ])
                         .style(Style::default()),
                     ));
-                    idx += 1;
                 }
                 current_line += 1;
                 current_line_old += 1;
@@ -297,9 +295,7 @@ impl App {
 
                 // Wrap the line to viewport width
                 let wrapped = wrap_words(format!("{}{}", prefix, text), (self.layout.graph.width as usize).saturating_sub(9));
-                let mut idx = 0;
-
-                for line in wrapped {
+                for (idx, line) in wrapped.into_iter().enumerate() {
                     
                     // Push each wrapped line into the viewer
                     self.viewer_lines.push(
@@ -312,7 +308,6 @@ impl App {
                         ]))
                         .style(style),
                     );
-                    idx += 1;
                 }
 
                 // Update line counters depending on origin
@@ -338,8 +333,7 @@ impl App {
                 original_lines[current_line].clone(),
                 (self.layout.graph.width as usize).saturating_sub(8),
             );
-            let mut idx = 0;
-            for line in wrapped {
+            for (idx, line) in wrapped.into_iter().enumerate() {
                 self.viewer_lines.push(
                     ListItem::new(Line::from(vec![
                         Span::styled(
@@ -350,7 +344,6 @@ impl App {
                     ]))
                     .style(Style::default()),
                 );
-                idx += 1;
             }
             current_line += 1;
         }
