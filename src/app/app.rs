@@ -4,8 +4,8 @@ use std::{
         Cell,
         RefCell
     },
+    rc::Rc,
     sync::{
-        Arc,
         mpsc::{
             channel,
         }
@@ -116,7 +116,7 @@ pub struct App {
     // General
     pub logo: Vec<Span<'static>>,
     pub path: String,
-    pub repo: Arc<Repository>,
+    pub repo: Rc<Repository>,
     pub walker: LazyWalker,
     pub log: Vec<String>,
 
@@ -125,7 +125,7 @@ pub struct App {
     pub email: String,
 
     // Walker utilities
-    pub color: Arc<RefCell<ColorPicker>>,
+    pub color: Rc<RefCell<ColorPicker>>,
     pub buffer: RefCell<Buffer>,
     pub layers: LayersContext,
     pub walker_rx: Option<std::sync::mpsc::Receiver<WalkerOutput>>,
@@ -202,8 +202,8 @@ impl App {
         // Main loop
         while !self.is_exit {
             // Check if the background walk is done
-            if let Some(rx) = &self.walker_rx {
-                if let Ok(result) = rx.try_recv() {
+            if let Some(rx) = &self.walker_rx
+                && let Ok(result) = rx.try_recv() {
                     self.oids = result.oids;
                     self.tips = result.tips;
                     self.oid_colors = result.oid_colors;
@@ -220,7 +220,6 @@ impl App {
                         self.walker_rx = None;
                     }
                 }
-            }
 
             // Draw the user interface
             terminal.draw(|frame| self.draw(frame))?;
@@ -252,7 +251,6 @@ impl App {
             Viewport::Editor => {
                 self.draw_editor(frame);
             }
-            _ => {}
         }
 
         // Main layout
@@ -286,7 +284,7 @@ impl App {
             .reset(self.repo.clone())
             .expect("Failed to reset walker");
         // Reset utilities
-        self.color = Arc::new(RefCell::new(ColorPicker::default()));
+        self.color = Rc::new(RefCell::new(ColorPicker::default()));
         self.buffer = RefCell::new(Buffer::default());
         self.layers = layers!(self.color.clone());
         // Topologically sorted list of oids including the uncommited, for the sake of order

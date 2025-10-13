@@ -1,7 +1,7 @@
 #[rustfmt::skip]
 use std::{
+    rc::Rc,
     sync::{
-        Arc,
         Mutex
     },
     cell::{
@@ -77,7 +77,7 @@ pub struct LazyWalker {
 
 impl LazyWalker {
     // Creates a new LazyWalker by building a revwalk from the repo
-    pub fn new(repo: Arc<Repository>) -> Result<Self, git2::Error> {
+    pub fn new(repo: Rc<Repository>) -> Result<Self, git2::Error> {
         let revwalk = Self::build_revwalk(&repo)?;
         Ok(Self {
             revwalk: Mutex::new(revwalk),
@@ -85,7 +85,7 @@ impl LazyWalker {
     }
 
     // Reset the revwalk
-    pub fn reset(&self, repo: Arc<Repository>) -> Result<(), git2::Error> {
+    pub fn reset(&self, repo: Rc<Repository>) -> Result<(), git2::Error> {
         let revwalk = Self::build_revwalk(&repo)?;
         let mut guard = self.revwalk.lock().unwrap();
         *guard = revwalk;
@@ -104,7 +104,7 @@ impl LazyWalker {
 
     // Internal helper to build a revwalk for all branch tips
     fn build_revwalk(repo: &Repository) -> Result<Revwalk<'static>, git2::Error> {
-        // Safge: we keep repo alive in Arc, so transmute to 'static is safe
+        // Safge: we keep repo alive in Rc, so transmute to 'static is safe
         let repo_ref: &'static Repository =
             unsafe { std::mem::transmute::<&Repository, &'static Repository>(repo) };
         let mut revwalk = repo_ref.revwalk()?;
@@ -128,11 +128,11 @@ impl LazyWalker {
 // Context for walking and rendering commits
 pub struct Walker {
     // General
-    pub repo: Arc<Repository>,
+    pub repo: Rc<Repository>,
     pub walker: LazyWalker,
 
     // Walker utilities
-    pub color: Arc<RefCell<ColorPicker>>,
+    pub color: Rc<RefCell<ColorPicker>>,
     pub buffer: RefCell<Buffer>,
     pub layers: LayersContext,
 
@@ -175,7 +175,7 @@ impl Walker {
     // Creates a new walker
     pub fn new(path: String, amount: usize) -> Result<Self, git2::Error> {
         let path = path.clone();
-        let repo = Arc::new(Repository::open(path).expect("Failed to open repo"));
+        let repo = Rc::new(Repository::open(path).expect("Failed to open repo"));
         let walker = LazyWalker::new(repo.clone()).expect("Error");
         let tips = get_tip_oids(&repo);
         let uncommitted = get_filenames_diff_at_workdir(&repo).expect("Error");
@@ -183,9 +183,9 @@ impl Walker {
         Ok(Self {
             repo,
             walker,
-            color: Arc::new(RefCell::new(ColorPicker::default())),
+            color: Rc::new(RefCell::new(ColorPicker::default())),
             buffer: RefCell::new(Buffer::default()),
-            layers: layers!(Arc::new(RefCell::new(ColorPicker::default()))),
+            layers: layers!(Rc::new(RefCell::new(ColorPicker::default()))),
             oids: vec![Oid::zero()],
             tips,
             oid_colors: HashMap::new(),
@@ -477,6 +477,6 @@ impl Walker {
 
         // Indicate whether repeats are needed
         // Too lazy to make an off by one mistake here, zero is fine
-        sorted.len() > 0
+        !sorted.is_empty()
     }
 }

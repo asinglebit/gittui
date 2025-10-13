@@ -45,11 +45,12 @@ pub fn get_tip_oids(repo: &Repository) -> HashMap<Oid, Vec<String>> {
 // Update oid_branch_map: commit OIDs to the branch names that contain them
 // Update branch_oid_map: branch names to their latest commit OID
 // Update the oids vector
+#[allow(clippy::too_many_arguments)]
 pub fn get_branches_and_sorted_oids(
     repo: &Repository,
     walker: &LazyWalker,
     tips: &HashMap<Oid, Vec<String>>,
-    oids: &mut Vec<Oid>,
+    oids: &mut [Oid],
     oid_branch_map: &mut HashMap<Oid, HashSet<String>>,
     branch_oid_map: &mut HashMap<String, Oid>,
     sorted: &mut Vec<Oid>,

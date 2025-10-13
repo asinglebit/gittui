@@ -4,7 +4,7 @@ use std::{
     collections::HashMap,
     env,
     path::PathBuf,
-    sync::Arc
+    rc::Rc
 };
 #[rustfmt::skip]
 use git2::Repository;
@@ -61,7 +61,7 @@ impl Default for App {
         };
         let absolute_path: PathBuf = std::fs::canonicalize(path)
             .unwrap_or_else(|_| PathBuf::from(path));
-        let repo = Arc::new(Repository::open(absolute_path.clone()).expect("Could not open repo"));
+        let repo = Rc::new(Repository::open(absolute_path.clone()).expect("Could not open repo"));
 
         let logo = vec![
             Span::styled(" g", Style::default().fg(COLOR_GRASS)),
@@ -87,9 +87,9 @@ impl Default for App {
             email: "gasimov.abdulali@gmail.com".to_string(),
 
             // Walker utilities    
-            color: Arc::new(RefCell::new(ColorPicker::default())),
+            color: Rc::new(RefCell::new(ColorPicker::default())),
             buffer: RefCell::new(Buffer::default()),
-            layers: layers!(Arc::new(RefCell::new(ColorPicker::default()))),
+            layers: layers!(Rc::new(RefCell::new(ColorPicker::default()))),
             walker_rx: None,
 
             // Walker data

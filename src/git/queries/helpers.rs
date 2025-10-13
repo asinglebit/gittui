@@ -125,7 +125,7 @@ pub fn diff_to_hunks(diff: Diff) -> Result<Vec<Hunk>, git2::Error> {
         // Add line to the most recent hunk
         if let Some(last) = hunks.last_mut() {
             last.lines.push(LineChange {
-                origin: line.origin() as char,
+                origin: line.origin(),
                 content: sanitize(decode(line.content())).to_string(),
             });
         }

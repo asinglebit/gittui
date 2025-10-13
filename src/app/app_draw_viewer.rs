@@ -61,8 +61,8 @@ impl App {
         };
         
         // Calculate maximum available width for text
-        let available_width = self.layout.graph.width as usize - 1;
-        let max_text_width = available_width.saturating_sub(2);
+        // let available_width = self.layout.graph.width as usize - 1;
+        // let max_text_width = available_width.saturating_sub(2);
 
         // Get vertical dimensions
         let total_lines = self.viewer_lines.len();
@@ -138,7 +138,7 @@ impl App {
             Focus::StatusTop => {
 
                 // If a commit is selected in the top graph view
-                if self.graph_selected != 0 && self.current_diff.len() > 0 {
+                if self.graph_selected != 0 && !self.current_diff.is_empty() {
 
                     // Set the file_name to the currently selected file in the diff
                     self.file_name = Some(
@@ -150,7 +150,7 @@ impl App {
                     );
 
                     // Update the viewer to show the file at the selected commit OID
-                    self.update_viewer(self.oids.get(self.graph_selected).unwrap().clone());
+                    self.update_viewer(*self.oids.get(self.graph_selected).unwrap());
                     self.viewport = Viewport::Viewer;
 
                 } else if self.graph_selected == 0 && self.uncommitted.is_staged {
@@ -270,10 +270,10 @@ impl App {
                     self.viewer_lines.push(ListItem::new(
                         Line::from(vec![
                             Span::styled(
-                                format!("{}", if idx == 0 { format!("{:3}  ", current_line + 1) } else { format!("     ") }),
+                                (if idx == 0 { format!("{:3}  ", current_line + 1) } else { "     ".to_string() }).to_string(),
                                 Style::default().fg(COLOR_BORDER),
                             ),
-                            Span::styled(format!("{}", line), Style::default().fg(COLOR_GREY_500)),
+                            Span::styled(line.to_string(), Style::default().fg(COLOR_GREY_500)),
                         ])
                         .style(Style::default()),
                     ));
@@ -305,10 +305,10 @@ impl App {
                     self.viewer_lines.push(
                         ListItem::new(Line::from(vec![
                             Span::styled(
-                                format!("{}",if idx == 0 {format!("{:3}  ", count)} else {format!("     ")}),
+                                (if idx == 0 {format!("{:3}  ", count)} else {"     ".to_string()}).to_string(),
                                 Style::default().fg(side),
                             ),
-                            Span::styled(format!("{}", line), Style::default().fg(fg))
+                            Span::styled(line.to_string(), Style::default().fg(fg))
                         ]))
                         .style(style),
                     );
@@ -343,10 +343,10 @@ impl App {
                 self.viewer_lines.push(
                     ListItem::new(Line::from(vec![
                         Span::styled(
-                            format!("{}", if idx == 0 {format!("{:3}  ", current_line + 1)} else {format!("     ")}),
+                            (if idx == 0 {format!("{:3}  ", current_line + 1)} else {"     ".to_string()}).to_string(),
                             Style::default().fg(COLOR_BORDER),
                         ),
-                        Span::styled(format!("{}", line), Style::default().fg(COLOR_GREY_500)),
+                        Span::styled(line.to_string(), Style::default().fg(COLOR_GREY_500)),
                     ]))
                     .style(Style::default()),
                 );

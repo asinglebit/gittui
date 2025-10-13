@@ -1,8 +1,8 @@
 #[rustfmt::skip]
 use std::{
+    rc::Rc,
     cell::RefCell,
-    collections::HashMap,
-    sync::Arc
+    collections::HashMap
 };
 #[rustfmt::skip]
 use ratatui::{
@@ -31,11 +31,11 @@ pub enum LayerTypes {
 #[derive(Clone)]
 pub struct LayerBuilder {
     layers: HashMap<LayerTypes, Vec<(String, Color)>>,
-    color: Arc<RefCell<ColorPicker>>,
+    color: Rc<RefCell<ColorPicker>>,
 }
 
 impl LayerBuilder {
-    pub fn new(color: Arc<RefCell<ColorPicker>>) -> Self {
+    pub fn new(color: Rc<RefCell<ColorPicker>>) -> Self {
         Self {
             layers: HashMap::new(),
             color,

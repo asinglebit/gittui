@@ -35,6 +35,8 @@ impl App {
         
         let length = 60;
         let mut height = 9;
+
+        #[allow(unused_assignments)] // This is a bug in clippy
         let mut lines: Vec<Line> = Vec::new();
 
         if self.graph_selected == 0 {
@@ -42,12 +44,12 @@ impl App {
                 lines = vec![
                     Line::default(),
                     Line::from(vec![
-                        Span::styled(format!("all is up-to-date"), Style::default().fg(COLOR_TEXT))
+                        Span::styled("all is up-to-date".to_string(), Style::default().fg(COLOR_TEXT))
                     ]),
                     Line::default(),
                     Line::from(vec![
-                        Span::styled(format!("(r)"), Style::default().fg(COLOR_GREY_500)),
-                        Span::styled(format!("eload"), Style::default().fg(COLOR_TEXT)),
+                        Span::styled("(r)".to_string(), Style::default().fg(COLOR_GREY_500)),
+                        Span::styled("eload".to_string(), Style::default().fg(COLOR_TEXT)),
                     ]),
                 ];
             } else {
@@ -56,53 +58,53 @@ impl App {
                 if self.uncommitted.is_staged {
                     line_status.extend(vec![
                         Span::styled("staged: ", Style::default().fg(COLOR_TEXT)),
-                    ].into_iter());
+                    ]);
                 }
-                if self.uncommitted.staged.modified.len() > 0 {
+                if !self.uncommitted.staged.modified.is_empty() {
                     line_status.extend(vec![
                         Span::styled("~", Style::default().fg(COLOR_BLUE)),
                         Span::styled(format!("{} ", self.uncommitted.staged.modified.len()), Style::default().fg(COLOR_TEXT)),
-                    ].into_iter());
+                    ]);
                 }
-                if self.uncommitted.staged.added.len() > 0 {
+                if !self.uncommitted.staged.added.is_empty() {
                     line_status.extend(vec![
                         Span::styled("+", Style::default().fg(COLOR_GREEN)),
                         Span::styled(format!("{} ", self.uncommitted.staged.added.len()), Style::default().fg(COLOR_TEXT)),
-                    ].into_iter());
+                    ]);
                 }
-                if self.uncommitted.staged.deleted.len() > 0 {
+                if !self.uncommitted.staged.deleted.is_empty() {
                     line_status.extend(vec![
                         Span::styled("-", Style::default().fg(COLOR_RED)),
                         Span::styled(format!("{} ", self.uncommitted.staged.deleted.len()), Style::default().fg(COLOR_TEXT)),
-                    ].into_iter());
+                    ]);
                 }
                 if self.uncommitted.is_staged && self.uncommitted.is_unstaged {
                     line_status.extend(vec![
                         Span::styled("| ", Style::default().fg(COLOR_TEXT)),
-                    ].into_iter());
+                    ]);
                 }
                 if self.uncommitted.is_unstaged {
                     line_status.extend(vec![
                         Span::styled("unstaged: ", Style::default().fg(COLOR_TEXT)),
-                    ].into_iter());
+                    ]);
                 }
-                if self.uncommitted.unstaged.modified.len() > 0 {
+                if !self.uncommitted.unstaged.modified.is_empty() {
                     line_status.extend(vec![
                         Span::styled("~", Style::default().fg(COLOR_BLUE)),
                         Span::styled(format!("{} ", self.uncommitted.unstaged.modified.len()), Style::default().fg(COLOR_TEXT)),
-                    ].into_iter());
+                    ]);
                 }
-                if self.uncommitted.unstaged.added.len() > 0 {
+                if !self.uncommitted.unstaged.added.is_empty() {
                     line_status.extend(vec![
                         Span::styled("+", Style::default().fg(COLOR_GREEN)),
                         Span::styled(format!("{} ", self.uncommitted.unstaged.added.len()), Style::default().fg(COLOR_TEXT)),
-                    ].into_iter());
+                    ]);
                 }
-                if self.uncommitted.unstaged.deleted.len() > 0 {
+                if !self.uncommitted.unstaged.deleted.is_empty() {
                     line_status.extend(vec![
                         Span::styled("-", Style::default().fg(COLOR_RED)),
                         Span::styled(format!("{} ", self.uncommitted.unstaged.deleted.len()), Style::default().fg(COLOR_TEXT)),
-                    ].into_iter());
+                    ]);
                 }
 
                 let mut line_operations = Line::default();
@@ -142,25 +144,25 @@ impl App {
                 ]),
                 Line::default(),
                 Line::from(vec![
-                    Span::styled(format!("select an operation to perform"), Style::default().fg(COLOR_TEXT))
+                    Span::styled("select an operation to perform".to_string(), Style::default().fg(COLOR_TEXT))
                 ]),
                 Line::default(),
                 Line::from(vec![
-                    Span::styled(format!("(c)"), Style::default().fg(COLOR_GREY_500)),
-                    Span::styled(format!("heckout "), Style::default().fg(COLOR_TEXT)),
-                    Span::styled(format!("(h)"), Style::default().fg(COLOR_GREY_500)),
-                    Span::styled(format!("ardreset "), Style::default().fg(COLOR_TEXT)),
-                    Span::styled(format!("(m)"), Style::default().fg(COLOR_GREY_500)),
-                    Span::styled(format!("ixedreset "), Style::default().fg(COLOR_TEXT)),
-                    Span::styled(format!("(f)"), Style::default().fg(COLOR_GREY_500)),
-                    Span::styled(format!("etch "), Style::default().fg(COLOR_TEXT)),
+                    Span::styled("(c)".to_string(), Style::default().fg(COLOR_GREY_500)),
+                    Span::styled("heckout ".to_string(), Style::default().fg(COLOR_TEXT)),
+                    Span::styled("(h)".to_string(), Style::default().fg(COLOR_GREY_500)),
+                    Span::styled("ardreset ".to_string(), Style::default().fg(COLOR_TEXT)),
+                    Span::styled("(m)".to_string(), Style::default().fg(COLOR_GREY_500)),
+                    Span::styled("ixedreset ".to_string(), Style::default().fg(COLOR_TEXT)),
+                    Span::styled("(f)".to_string(), Style::default().fg(COLOR_GREY_500)),
+                    Span::styled("etch ".to_string(), Style::default().fg(COLOR_TEXT)),
                 ]),
                 Line::default(),
                 Line::from(vec![
-                    Span::styled(format!("(p)"), Style::default().fg(COLOR_GREY_500)),
-                    Span::styled(format!("ushforce "), Style::default().fg(COLOR_TEXT)),
-                    Span::styled(format!("(r)"), Style::default().fg(COLOR_GREY_500)),
-                    Span::styled(format!("eload"), Style::default().fg(COLOR_TEXT)),
+                    Span::styled("(p)".to_string(), Style::default().fg(COLOR_GREY_500)),
+                    Span::styled("ushforce ".to_string(), Style::default().fg(COLOR_TEXT)),
+                    Span::styled("(r)".to_string(), Style::default().fg(COLOR_GREY_500)),
+                    Span::styled("eload".to_string(), Style::default().fg(COLOR_TEXT)),
                 ]),
             ]; 
         } 

@@ -68,19 +68,19 @@ impl App {
             for file in self.uncommitted.staged.modified.iter() {
                 lines_status_top.push(Line::from(vec![
                     Span::styled("~ ", Style::default().fg(COLOR_BLUE)),
-                    Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
+                    Span::styled(truncate_with_ellipsis(file, max_text_width), Style::default().fg(COLOR_TEXT)),
                 ]));
             }
             for file in self.uncommitted.staged.added.iter() {
                 lines_status_top.push(Line::from(vec![
                     Span::styled("+ ", Style::default().fg(COLOR_GREEN)),
-                    Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
+                    Span::styled(truncate_with_ellipsis(file, max_text_width), Style::default().fg(COLOR_TEXT)),
                 ]));
             }
             for file in self.uncommitted.staged.deleted.iter() {
                 lines_status_top.push(Line::from(vec![
                     Span::styled("- ", Style::default().fg(COLOR_RED)),
-                    Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
+                    Span::styled(truncate_with_ellipsis(file, max_text_width), Style::default().fg(COLOR_TEXT)),
                 ]));
             }
             
@@ -103,19 +103,19 @@ impl App {
             for file in self.uncommitted.unstaged.modified.iter() {
                 lines_status_bottom.push(Line::from(vec![
                     Span::styled("~ ", Style::default().fg(COLOR_BLUE)),
-                    Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
+                    Span::styled(truncate_with_ellipsis(file, max_text_width), Style::default().fg(COLOR_TEXT)),
                 ]));
             }
             for file in self.uncommitted.unstaged.added.iter() {
                 lines_status_bottom.push(Line::from(vec![
                     Span::styled("+ ", Style::default().fg(COLOR_GREEN)),
-                    Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
+                    Span::styled(truncate_with_ellipsis(file, max_text_width), Style::default().fg(COLOR_TEXT)),
                 ]));
             }
             for file in self.uncommitted.unstaged.deleted.iter() {
                 lines_status_bottom.push(Line::from(vec![
                     Span::styled("- ", Style::default().fg(COLOR_RED)),
-                    Span::styled(truncate_with_ellipsis(&file, max_text_width), Style::default().fg(COLOR_TEXT)),
+                    Span::styled(truncate_with_ellipsis(file, max_text_width), Style::default().fg(COLOR_TEXT)),
                 ]));
             }
             

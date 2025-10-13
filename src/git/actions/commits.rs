@@ -206,7 +206,7 @@ pub fn fetch_over_ssh(
             Cred::ssh_key_from_agent(username_from_url.unwrap())
         });
 
-        callbacks.transfer_progress(|stats| {
+        callbacks.transfer_progress(|_stats| {
             // println!("Received {}/{} objects", stats.received_objects(), stats.total_objects());
             true
         });
@@ -232,7 +232,7 @@ pub fn push_over_ssh(
     // Clone inputs so they can move into the thread safely
     let repo_path = repo_path.to_string();
     let remote_name = remote_name.to_string();
-    let branch = "main".to_string();
+    let branch = branch.to_string();
 
     thread::spawn(move || {
         // Open the repository
@@ -241,11 +241,11 @@ pub fn push_over_ssh(
 
         // Configure SSH authentication
         let mut callbacks = RemoteCallbacks::new();
-        callbacks.credentials(|_url, username_from_url, _| Cred::ssh_key_from_agent("git"));
+        callbacks.credentials(|_url, _username_from_url, _| Cred::ssh_key_from_agent("git"));
 
         // Track progress
-        callbacks.push_update_reference(|refname, status| {
-            if let Some(err) = status {
+        callbacks.push_update_reference(|_refname, status| {
+            if let Some(_err) = status {
                 // eprintln!("Failed to update {refname}: {err}");
             } else {
                 // println!("Updated {refname}");

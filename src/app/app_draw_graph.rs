@@ -101,7 +101,7 @@ impl App {
 
         // Setup the table
         let table = Table::new(rows, [
-                ratatui::layout::Constraint::Length(width as u16),
+                ratatui::layout::Constraint::Length(width),
                 ratatui::layout::Constraint::Min(0),
             ]).block(
                 Block::default()

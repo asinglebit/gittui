@@ -138,12 +138,11 @@ pub fn get_filenames_diff_at_oid(repo: &Repository, oid: Oid) -> Vec<FileChange>
         let is_folder = !path.contains('.');
 
         // Recursively collect folder contents if applicable
-        if is_folder {
-            if let Ok(tree_obj) = repo.find_tree(delta.new_file().id()) {
+        if is_folder
+            && let Ok(tree_obj) = repo.find_tree(delta.new_file().id()) {
                 walk_tree(repo, &tree_obj, &path, &mut changes);
                 continue;
             }
-        }
 
         // Record file and its change status
         changes.push(FileChange {

@@ -43,7 +43,7 @@ impl App {
             .or_default();
         let mut lines = vec![
             Line::from(vec![
-                Span::styled(format!("select a branch to checkout"), Style::default().fg(COLOR_TEXT))
+                Span::styled("select a branch to checkout".to_string(), Style::default().fg(COLOR_TEXT))
             ]),
             Line::from("")
         ];

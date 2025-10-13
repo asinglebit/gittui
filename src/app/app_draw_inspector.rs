@@ -104,8 +104,8 @@ impl App {
                 .into_iter() // turns Option<&HashSet<String>> into an iterator (empty if None)
                 .flat_map(|branches| branches.iter())
                 .for_each(|branch| {
-                    if let Some(oid_tip) = self.branch_oid_map.get(branch) {
-                        if let Some(color) = self.tip_colors.get(oid_tip) {
+                    if let Some(oid_tip) = self.branch_oid_map.get(branch)
+                        && let Some(color) = self.tip_colors.get(oid_tip) {
                             lines.push(Line::from(vec![
                                 Span::styled(
                                     truncate_with_ellipsis(&format!("● {}", branch), max_text_width),
@@ -113,7 +113,6 @@ impl App {
                                 )
                             ]));
                         }
-                    }
                 });
 
             lines.extend(vec![

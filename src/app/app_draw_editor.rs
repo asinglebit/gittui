@@ -36,8 +36,8 @@ impl App {
 
     pub fn draw_editor(&mut self, frame: &mut Frame) {
 
-        let height = self.layout.graph.height as u16 - 2;
-        let width = self.layout.graph.width as u16 - 2;
+        // let height = self.layout.graph.height - 2;
+        // let width = self.layout.graph.width - 2;
 
         // Modal block
         Block::default()
