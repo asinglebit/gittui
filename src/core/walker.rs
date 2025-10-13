@@ -35,7 +35,6 @@ use crate::{
         },
         renderers::{
             render_uncommitted,
-            render_buffer,
             render_graph,
         },
         buffer::{
@@ -145,9 +144,6 @@ pub struct Walker {
 
     // Walker lines
     pub lines_graph: Vec<Line<'static>>,
-    pub lines_branches: Vec<Line<'static>>,
-    pub lines_messages: Vec<Line<'static>>,
-    pub lines_buffers: Vec<Line<'static>>,
 
     // Pagination
     pub amount: usize,
@@ -163,10 +159,8 @@ pub struct WalkerOutput {
     pub oid_branch_map: HashMap<Oid, HashSet<String>>,
     pub uncommitted: UncommittedChanges,
     pub lines_graph: Vec<Line<'static>>,
-    pub lines_branches: Vec<Line<'static>>,
-    pub lines_messages: Vec<Line<'static>>,
-    pub lines_buffers: Vec<Line<'static>>,
     pub again: bool, // Indicates whether more commits remain to walk
+    pub buffer: RefCell<Buffer>,
 }
 
 impl Walker {
@@ -192,9 +186,6 @@ impl Walker {
             branch_oid_map: HashMap::new(),
             uncommitted,
             lines_graph: Vec::new(),
-            lines_branches: Vec::new(),
-            lines_messages: Vec::new(),
-            lines_buffers: Vec::new(),
             amount,
         })
     }
@@ -222,11 +213,7 @@ impl Walker {
         if self.oids.len() == 1 {
             render_uncommitted(
                 head_oid,
-                &self.uncommitted,
                 &mut self.lines_graph,
-                &mut self.lines_branches,
-                &mut self.lines_messages,
-                &mut self.lines_buffers,
             );
             self.buffer
                 .borrow_mut()
@@ -477,9 +464,9 @@ impl Walker {
 
             // Render
             render_graph(&oid, &mut self.lines_graph, spans_graph);
-            // render_buffer(&self.buffer, &mut self.lines_buffers);
         }
 
+        self.buffer.borrow_mut().backup();
         // Indicate whether repeats are needed
         // Too lazy to make an off by one mistake here, zero is fine
         !sorted.is_empty()

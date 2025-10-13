@@ -19,8 +19,7 @@ impl Buffer {
 
     pub fn update(&mut self, metadata: Chunk) {
 
-        // Append immutable snapshot to history
-        self.history.push_back(self.curr.clone());
+        self.backup();
 
         // Erase trailing dummy metadata
         while self.curr.last().is_some_and(|c| c.is_dummy()) {
@@ -93,5 +92,11 @@ impl Buffer {
         }
 
         self.curr = curr;
+    }
+
+    pub fn backup(&mut self) {
+
+        // Append immutable snapshot to history
+        self.history.push_back(self.curr.clone());
     }
 }

@@ -16,6 +16,7 @@ use ratatui::{
         Table,
     },
 };
+use crate::core::renderers::render_buffer_range;
 #[rustfmt::skip]
 use crate::{
     helpers::{
@@ -50,6 +51,9 @@ impl App {
         // Calculate scroll
         let start = self.graph_scroll.get().min(total_lines.saturating_sub(visible_height));
         let end = (start + visible_height).min(total_lines);
+        
+        let a = self.buffer.borrow().history.clone();
+        let b = render_buffer_range( &a, start, end + 1);
 
         // Start with fake commit row
         let mut rows = Vec::with_capacity(end - start + 1); // preallocate for efficiency
@@ -70,6 +74,7 @@ impl App {
                 })
                 .max()
                 .unwrap_or(0) as u16;
+
 
             for (i, graph) in self.lines_graph[start..end]
                 .iter()
@@ -122,12 +127,11 @@ impl App {
                     message = Line::from(uncommited_line_spans);
                 }
 
-                // let a = self.lines_buffers.get(actual_index).unwrap();
-                // let message = Line::from(a.clone());
+                let range_buffer = b.get(i + 1).cloned().unwrap_or_default();
 
                 let mut row = Row::new(vec![
                     WidgetCell::from(graph),
-                    WidgetCell::from(message)
+                    WidgetCell::from(range_buffer)
                 ]);
                 if actual_index == self.graph_selected {
                     row = row.style(Style::default().bg(COLOR_GREY_800));
