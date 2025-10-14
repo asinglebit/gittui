@@ -140,7 +140,7 @@ impl App {
             lines = vec![
                 Line::from(vec![
                     Span::styled("you are here: ", Style::default().fg(COLOR_TEXT)),
-                    Span::styled(format!("#{:.6}", oid), Style::default().fg(*self.oid_colors.get(&oid).unwrap()))
+                    Span::styled(format!("#{:.6}", oid), Style::default().fg(COLOR_TEXT))
                 ]),
                 Line::default(),
                 Line::from(vec![

@@ -74,7 +74,47 @@ pub fn render_graph_range(
             continue;
         }
 
+        // Find branching lanes
+        let mut branching_lanes: Vec<usize> = Vec::new();
+        for (lane_idx, chunk) in last.iter().enumerate() {
+            if chunk.is_dummy() {
+                if let Some(prev_snapshot) = prev
+                    && let Some(prev) = prev_snapshot.get(lane_idx)
+                {
+                    if (prev.parent_a.is_some() && prev.parent_b.is_none())
+                        || (prev.parent_a.is_none() && prev.parent_b.is_some())
+                    {
+                        branching_lanes.push(lane_idx);
+                    }
+                }
+            }
+        }
+
+
         for chunk in last.iter() {
+            if is_commit_found && !branching_lanes.is_empty() {
+
+                if let Some(&closest_lane) = branching_lanes.first() {
+                    if closest_lane == lane_idx {
+                        branching_lanes.remove(0);
+                    } else {
+                        if lane_idx < closest_lane {
+                            layers.merge(SYM_EMPTY, closest_lane);
+                            layers.merge(SYM_EMPTY, closest_lane);
+                            layers.commit(SYM_EMPTY, closest_lane);
+                            layers.commit(SYM_EMPTY, closest_lane);
+                            layers.pipe(SYM_HORIZONTAL, closest_lane);
+                            layers.pipe(SYM_HORIZONTAL, closest_lane);
+                            lane_idx += 1;
+                            continue;
+                        }
+                    }
+
+                }
+
+                
+            }
+
             if chunk.is_dummy() {
                 if let Some(prev_snapshot) = prev
                     && let Some(prev) = prev_snapshot.get(lane_idx)
@@ -157,9 +197,15 @@ pub fn render_graph_range(
                                         && chunk_nested.parent_b.is_some()))
                                     && (chunk.parent_a.as_ref() == chunk_nested.parent_a.as_ref()
                                         || chunk.parent_b.as_ref()
-                                            == chunk_nested.parent_a.as_ref())
-                                {
-                                    layers.merge(SYM_MERGE_RIGHT_FROM, merger_idx);
+                                            == chunk_nested.parent_a.as_ref()) {
+
+                                    // We need to find if the merger is further to the left than on the next lane
+                                    if chunk_nested_idx == merger_idx {
+                                        layers.merge(SYM_MERGE_RIGHT_FROM, merger_idx);
+                                    } else {
+                                        layers.merge(SYM_HORIZONTAL, merger_idx);
+                                    }
+
                                     if chunk_nested_idx + 1 == mergee_idx {
                                         layers.merge(SYM_EMPTY, merger_idx);
                                     } else {
@@ -286,17 +332,24 @@ pub fn render_graph_range(
 
 #[allow(dead_code)]
 pub fn render_buffer_range(
+    oids: &[Oid],
     history: &Vector<Vector<Chunk>>,
     start: usize,
     end: usize,
-) -> Vec<Line<'_>> {
+) -> Vec<Line<'static>> {
     // Clamp the range to valid indices
     let start = start.min(history.len());
     let end = end.min(history.len());
     let mut lines_buffer: Vec<Line> = Vec::new();
+    let mut idx = start;
     // Iterate over the selected snapshots
     for snapshot in history.iter().skip(start).take(end - start) {
         let mut spans = Vec::new();
+
+        spans.push(Span::styled(
+            format!("{:.2} ", *oids.get(idx).unwrap_or(&Oid::zero())),
+            Style::default().fg(COLOR_TEXT),
+        ));
 
         let formatted_snapshot: String = snapshot
             .iter()
@@ -323,6 +376,7 @@ pub fn render_buffer_range(
             Style::default().fg(COLOR_TEXT),
         ));
         lines_buffer.push(Line::from(spans));
+        idx += 1;
     }
 
     lines_buffer
