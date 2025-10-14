@@ -2,6 +2,8 @@
 
 **Beautiful and cozy terminal-based Git client** – for fun, productivity, and pure Rust joy.  
 
+![untitled(1)](https://github.com/user-attachments/assets/e39b0ebb-52dc-45bd-a430-0f592d5fc315)
+
 ---
 
 ## 🌟 Motivation
@@ -56,7 +58,6 @@ cargo build --release path-to-your-repo
 ---
 
 ## 🖼️ Screenshots
-![untitled(1)](https://github.com/user-attachments/assets/e39b0ebb-52dc-45bd-a430-0f592d5fc315)
 
 <img width="1920" height="1080" alt="1" src="https://github.com/user-attachments/assets/87db026a-f419-46e3-8f20-f6389f3fa967" />
 <img width="1920" height="1080" alt="2" src="https://github.com/user-attachments/assets/6cfbc5c0-222c-437d-a569-870446ed35ed" />
