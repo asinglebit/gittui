@@ -212,15 +212,9 @@ impl App {
                 && let Ok(result) = rx.try_recv() {
                     self.oids = result.oids;
                     self.tips = result.tips;
-                    self.oid_colors = result.oid_colors;
-                    self.tip_colors = result.tip_colors;
                     self.branch_oid_map = result.branch_oid_map;
-                    self.oid_branch_map = result.oid_branch_map;
                     self.uncommitted = result.uncommitted;
-                    self.lines_graph = result.lines_graph;
-                    self.lines_branches = result.lines_branches;
-                    self.lines_messages = result.lines_messages;
-                    self.lines_buffers = result.lines_buffers;
+                    self.buffer = result.buffer;
 
                     if !result.again {
                         self.walker_rx = None;
@@ -331,7 +325,7 @@ impl App {
         // Spawn a thread that computes something
         thread::spawn(move || {
             // Create the walker
-            let mut walk_ctx = Walker::new(path, 10000).expect("Error");
+            let mut walk_ctx = Walker::new(path, 5000).expect("Error");
 
             // Pagination loop
             loop {
@@ -342,15 +336,9 @@ impl App {
                 tx.send(WalkerOutput {
                     oids: walk_ctx.oids.clone(),
                     tips: walk_ctx.tips.clone(),
-                    oid_colors: walk_ctx.oid_colors.clone(),
-                    tip_colors: walk_ctx.tip_colors.clone(),
-                    oid_branch_map: walk_ctx.oid_branch_map.clone(),
                     branch_oid_map: walk_ctx.branch_oid_map.clone(),
                     uncommitted: walk_ctx.uncommitted.clone(),
-                    lines_graph: walk_ctx.lines_graph.clone(),
-                    lines_branches: walk_ctx.lines_branches.clone(),
-                    lines_messages: walk_ctx.lines_messages.clone(),
-                    lines_buffers: walk_ctx.lines_buffers.clone(),
+                    buffer: walk_ctx.buffer.clone(),
                     again,
                 })
                 .expect("Error");

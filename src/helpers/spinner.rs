@@ -1,5 +1,8 @@
 use std::{
-    sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
     thread,
     time::Duration,
 };
@@ -8,6 +11,12 @@ pub struct Spinner {
     pub char_state: Arc<Mutex<char>>,
     pub running: Arc<AtomicBool>,
     handle: Option<thread::JoinHandle<()>>,
+}
+
+impl Default for Spinner {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Spinner {
@@ -52,7 +61,7 @@ impl Spinner {
     pub fn get_char(&self) -> char {
         *self.char_state.lock().unwrap()
     }
-    
+
     pub fn is_running(&self) -> bool {
         self.running.load(std::sync::atomic::Ordering::SeqCst)
     }

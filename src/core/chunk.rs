@@ -10,32 +10,36 @@ pub enum Markers {
 
 #[derive(Clone)]
 pub struct Chunk {
-    pub oid: Oid,
-    pub parents: Vec<Oid>,
+    pub oid: Option<Oid>,
+    pub parent_a: Option<Oid>,
+    pub parent_b: Option<Oid>,
     pub marker: Markers,
 }
 
 impl Chunk {
-    pub fn uncommitted(parents: Vec<Oid>) -> Self {
+    pub fn uncommitted(parent_a: Option<Oid>, parent_b: Option<Oid>) -> Self {
         Chunk {
-            oid: Oid::zero(),
-            parents,
+            oid: None,
+            parent_a,
+            parent_b,
             marker: Markers::Uncommitted,
         }
     }
 
-    pub fn commit(oid: Oid, parents: Vec<Oid>) -> Self {
+    pub fn commit(oid: Option<Oid>, parent_a: Option<Oid>, parent_b: Option<Oid>) -> Self {
         Chunk {
             oid,
-            parents,
+            parent_a,
+            parent_b,
             marker: Markers::Commit,
         }
     }
 
     pub fn dummy() -> Self {
         Chunk {
-            oid: Oid::zero(),
-            parents: Vec::new(),
+            oid: None,
+            parent_a: None,
+            parent_b: None,
             marker: Markers::Dummy,
         }
     }

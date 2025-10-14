@@ -71,15 +71,16 @@ impl App {
             let committer = commit.committer();
             let summary = commit.summary().unwrap_or("⊘ no summary").to_string();
             let body = commit.body().unwrap_or("⊘ no body").to_string();
+            let color = self.oid_colors.get(&oid);
 
             // Assemble lines
             lines = vec![
                 Line::from(vec![Span::styled("commit sha:", Style::default().fg(COLOR_GREY_500))]),
                 Line::from(vec![Span::styled(
                     truncate_with_ellipsis(&format!("#{}", oid), max_text_width),
-                    Style::default().fg(*self.oid_colors.get(&oid).unwrap()),
+                    Style::default().fg(if color.is_some() { *color.unwrap() } else { COLOR_TEXT }),
                 )]),
-                Line::from(""),
+                Line::default(),
                 Line::from(vec![Span::styled("parent shas:", Style::default().fg(COLOR_GREY_500))]),
             ];
 
@@ -90,33 +91,27 @@ impl App {
                 )]));
             }
 
-            lines.extend(vec![
-                Line::from(""),
-            ]);
-
-            lines.push(Line::from(vec![Span::styled(
-                "featured branches:",
-                Style::default().fg(COLOR_GREY_500),
-            )]));
-
-            self.oid_branch_map
-                .get(&oid)
-                .into_iter() // turns Option<&HashSet<String>> into an iterator (empty if None)
-                .flat_map(|branches| branches.iter())
-                .for_each(|branch| {
-                    if let Some(oid_tip) = self.branch_oid_map.get(branch)
-                        && let Some(color) = self.tip_colors.get(oid_tip) {
-                            lines.push(Line::from(vec![
-                                Span::styled(
-                                    truncate_with_ellipsis(&format!("● {}", branch), max_text_width),
-                                    Style::default().fg(*color),
-                                )
-                            ]));
-                        }
-                });
+            if let Some(branches) = self.tips.get(&oid)
+                && let Some(color) = self.tip_colors.get(&oid) {
+                    lines.extend(vec![
+                        Line::default(),
+                    ]);
+                    lines.push(Line::from(vec![Span::styled(
+                        "featured branches:",
+                        Style::default().fg(COLOR_GREY_500),
+                    )]));
+                    for branch in branches {
+                        lines.push(Line::from(vec![
+                            Span::styled(
+                                truncate_with_ellipsis(&format!("● {}", branch), max_text_width),
+                                Style::default().fg(*color),
+                            )
+                        ]));
+                    }
+                }
 
             lines.extend(vec![
-                Line::from(""),
+                Line::default(),
             ]);
 
             lines.extend(vec![
@@ -132,7 +127,7 @@ impl App {
                     timestamp_to_utc(author.when()),
                     Style::default().fg(COLOR_TEXT),
                 )]),
-                Line::from(""),
+                Line::default(),
                 Line::from(vec![Span::styled(
                     format!("committed by: {}", committer.name().unwrap_or("-")),
                     Style::default().fg(COLOR_GREY_500),
@@ -145,7 +140,7 @@ impl App {
                     timestamp_to_utc(committer.when()).to_string(),
                     Style::default().fg(COLOR_TEXT),
                 )]),
-                Line::from(""),
+                Line::default(),
                 Line::from(vec![Span::styled(
                     "message summary:",
                     Style::default().fg(COLOR_GREY_500),
@@ -161,7 +156,7 @@ impl App {
             }
             
             lines.extend(vec![
-                Line::from(""),
+                Line::default(),
                 Line::from(vec![Span::styled(
                     "message body:",
                     Style::default().fg(COLOR_GREY_500),

@@ -161,7 +161,7 @@ impl App {
             KeyCode::Char('j') | KeyCode::Down => match self.focus {
                 Focus::Viewport => match self.viewport {
                     Viewport::Graph => {
-                        if self.graph_selected + 1 < self.lines_branches.len() {
+                        if self.graph_selected + 1 < self.oids.len() {
                             self.graph_selected += 1;
                         }
                         if self.graph_selected != 0 && self.graph_selected < self.oids.len() {
@@ -455,8 +455,8 @@ impl App {
                 match self.focus {
                     Focus::Viewport => match self.viewport {
                         Viewport::Graph => {
-                            if !self.lines_branches.is_empty() {
-                                self.graph_selected = self.lines_branches.len() - 1;
+                            if !self.oids.is_empty() {
+                                self.graph_selected = self.oids.len() - 1;
                             }
                             if self.graph_selected != 0 && self.graph_selected < self.oids.len() {
                                 let oid = self.oids.get(self.graph_selected).unwrap();
@@ -536,10 +536,10 @@ impl App {
                         let page = self.layout.graph.height as usize - 3;
                         match self.viewport {
                             Viewport::Graph => {
-                                if self.graph_selected + page < self.lines_branches.len() {
+                                if self.graph_selected + page < self.oids.len() {
                                     self.graph_selected += page;
                                 } else {
-                                    self.graph_selected = self.lines_branches.len() - 1;
+                                    self.graph_selected = self.oids.len() - 1;
                                 }
                                 if self.graph_selected != 0 && self.graph_selected < self.oids.len() {
                                     let oid = self.oids.get(self.graph_selected).unwrap();
