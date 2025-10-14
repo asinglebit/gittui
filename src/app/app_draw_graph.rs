@@ -113,6 +113,10 @@ impl App {
                 ]);
                 if idx + start == self.graph_selected {
                     row = row.style(Style::default().bg(COLOR_GREY_800));
+                } else {
+                    if idx % 2 == 0 {
+                        row = row.style(Style::default().bg(COLOR_GREY_900));
+                    }
                 }
                 rows.push(row);
             }

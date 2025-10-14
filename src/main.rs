@@ -11,6 +11,7 @@ mod app {
     pub mod app_draw_graph;
     pub mod app_draw_editor;
     pub mod app_draw_viewer;
+    pub mod app_draw_settings;
     pub mod app_draw_inspector;
     pub mod app_draw_status;
     pub mod app_draw_statusbar;

@@ -10,9 +10,6 @@ use ratatui::{
         Line,
         Span,
     },
-    layout::{
-        Alignment,
-    },
     widgets::{
         Block,
         Borders,
@@ -23,14 +20,14 @@ use ratatui::{
         ListItem
     },
 };
-use crate::helpers::text::wrap_words;
 #[rustfmt::skip]
 use crate::{
     helpers::{
         palette::*,
         text::{
             truncate_with_ellipsis,
-            sanitize
+            sanitize,
+            wrap_words
         },
         time::timestamp_to_utc
     },
@@ -209,20 +206,20 @@ impl App {
             .block(
                 Block::default()
                     .padding(padding)
-                    .title(vec![
-                        Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                        Span::styled(
-                            " (i)nspector ",
-                            Style::default().fg(if self.focus == Focus::Inspector {
-                                COLOR_GREY_500
-                            } else {
-                                COLOR_TEXT
-                            }),
-                        ),
-                        Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                    ])
-                    .title_alignment(Alignment::Right)
-                    .title_style(Style::default().fg(COLOR_GREY_500))
+                    // .title(vec![
+                    //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
+                    //     Span::styled(
+                    //         " (i)nspector ",
+                    //         Style::default().fg(if self.focus == Focus::Inspector {
+                    //             COLOR_GREY_500
+                    //         } else {
+                    //             COLOR_TEXT
+                    //         }),
+                    //     ),
+                    //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
+                    // ])
+                    // .title_alignment(Alignment::Right)
+                    // .title_style(Style::default().fg(COLOR_GREY_500))
                     .borders(if self.is_status {
                         Borders::RIGHT | Borders::TOP
                     } else {

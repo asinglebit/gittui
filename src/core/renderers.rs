@@ -90,10 +90,8 @@ pub fn render_graph_range(
             }
         }
 
-
         for chunk in last.iter() {
             if is_commit_found && !branching_lanes.is_empty() {
-
                 if let Some(&closest_lane) = branching_lanes.first() {
                     if closest_lane == lane_idx {
                         branching_lanes.remove(0);
@@ -109,10 +107,7 @@ pub fn render_graph_range(
                             continue;
                         }
                     }
-
                 }
-
-                
             }
 
             if chunk.is_dummy() {
@@ -197,8 +192,8 @@ pub fn render_graph_range(
                                         && chunk_nested.parent_b.is_some()))
                                     && (chunk.parent_a.as_ref() == chunk_nested.parent_a.as_ref()
                                         || chunk.parent_b.as_ref()
-                                            == chunk_nested.parent_a.as_ref()) {
-
+                                            == chunk_nested.parent_a.as_ref())
+                                {
                                     // We need to find if the merger is further to the left than on the next lane
                                     if chunk_nested_idx == merger_idx {
                                         layers.merge(SYM_MERGE_RIGHT_FROM, merger_idx);

@@ -20,18 +20,25 @@ use edtui::{
     EditorEventHandler,
     EditorState
 };
-use crate::{core::buffer::Buffer, helpers::{colors::ColorPicker, spinner::Spinner}, layers};
 #[rustfmt::skip]
 use crate::{
+    layers,
     app::app::{
         App,
         Layout,
         Focus
     },
     core::{
+        buffer::{
+            Buffer
+        },
         walker::{
             LazyWalker
         }
+    },
+    helpers::{
+        colors::ColorPicker,
+        spinner::Spinner
     },
     git::{
         queries::{
@@ -84,8 +91,8 @@ impl Default for App {
             spinner: Spinner::new(),
 
             // User
-            name: "rattleworks".to_string(),
-            email: "gasimov.abdulali@gmail.com".to_string(),
+            name: String::new(),
+            email: String::new(),
 
             // Walker utilities    
             color: Rc::new(RefCell::new(ColorPicker::default())),
@@ -118,8 +125,8 @@ impl Default for App {
             
             // Focus
             is_minimal: false,
-            is_status: true,
-            is_inspector: true,
+            is_status: false,
+            is_inspector: false,
             viewport: Viewport::Graph,
             focus: Focus::Viewport,
             

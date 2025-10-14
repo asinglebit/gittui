@@ -98,3 +98,12 @@ pub fn get_timestamps(
         })
         .collect()
 }
+
+pub fn get_git_user_info(
+    repo: &Repository,
+) -> Result<(Option<String>, Option<String>), git2::Error> {
+    let config = repo.config()?;
+    let name = config.get_string("user.name").ok();
+    let email = config.get_string("user.email").ok();
+    Ok((name, email))
+}

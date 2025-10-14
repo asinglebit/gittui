@@ -7,15 +7,18 @@ use ratatui::{
 #[rustfmt::skip]
 use crate::app::app::{
     App,
-    Layout
+    Layout,
+    Viewport
 };
 
 impl App {
 
     pub fn layout(&mut self, frame: &mut Frame) {
 
-        let is_inspector = self.is_inspector && self.graph_selected != 0;
-        let is_pane_visible = is_inspector || self.is_status;
+        let is_settings = self.viewport == Viewport::Settings;
+        let is_inspector = !is_settings && self.is_inspector && self.graph_selected != 0;
+        let is_status = !is_settings && self.is_status;
+        let is_right_pane = is_inspector || is_status;
 
         let chunks_vertical = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
@@ -37,16 +40,16 @@ impl App {
         let chunks_horizontal = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Horizontal)
             .constraints([
-                ratatui::layout::Constraint::Percentage(if is_pane_visible { 70 } else { 100 }),
-                ratatui::layout::Constraint::Percentage(if is_pane_visible { 30 } else { 0 }),
+                ratatui::layout::Constraint::Percentage(if is_right_pane { 70 } else { 100 }),
+                ratatui::layout::Constraint::Percentage(if is_right_pane { 30 } else { 0 }),
             ])
             .split(chunks_vertical[1]);
 
         let chunks_pane = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
             .constraints([
-                ratatui::layout::Constraint::Percentage(if is_inspector { if !self.is_status { 100 } else { 30 } } else { 0 }),
-                ratatui::layout::Constraint::Percentage(if self.is_status { if !is_inspector { 100 } else { 70 } } else { 0 }),
+                ratatui::layout::Constraint::Percentage(if is_inspector { if !is_status { 100 } else { 30 } } else { 0 }),
+                ratatui::layout::Constraint::Percentage(if is_status { if !is_inspector { 100 } else { 70 } } else { 0 }),
             ])
             .split(chunks_horizontal[1]);
 

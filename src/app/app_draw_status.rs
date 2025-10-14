@@ -2,7 +2,6 @@
 use ratatui::{
     Frame,
     style::Style,
-    layout::Alignment,
     text::{
         Span,
         Line
@@ -206,18 +205,18 @@ impl App {
                 .block(
                     Block::default()
                         .padding(padding)
-                        .title(vec![
-                            Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                            Span::styled(if self.graph_selected == 0 { " (s)taged " } else { " (s)tatus " }, Style::default().fg(if self.focus == Focus::StatusTop { COLOR_GREY_500 } else { COLOR_TEXT } )),
-                            Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                        ])
-                        .title_bottom(if self.graph_selected == 0 {vec![
-                            Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                            Span::styled(" unstaged ", Style::default().fg(if self.focus == Focus::StatusBottom { COLOR_GREY_500 } else { COLOR_TEXT } )),
-                            Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                        ]} else {vec![]})
-                        .title_alignment(Alignment::Right)
-                        .title_style(Style::default().fg(COLOR_GREY_500))
+                        // .title(vec![
+                        //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
+                        //     Span::styled(if self.graph_selected == 0 { " (s)taged " } else { " (s)tatus " }, Style::default().fg(if self.focus == Focus::StatusTop { COLOR_GREY_500 } else { COLOR_TEXT } )),
+                        //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
+                        // ])
+                        // .title_bottom(if self.graph_selected == 0 {vec![
+                        //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
+                        //     Span::styled(" unstaged ", Style::default().fg(if self.focus == Focus::StatusBottom { COLOR_GREY_500 } else { COLOR_TEXT } )),
+                        //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
+                        // ]} else {vec![]})
+                        // .title_alignment(Alignment::Right)
+                        // .title_style(Style::default().fg(COLOR_GREY_500))
                         .borders(Borders::BOTTOM | Borders::RIGHT | Borders::TOP)
                         .border_style(Style::default().fg(COLOR_BORDER))
                         .border_type(ratatui::widgets::BorderType::Rounded),

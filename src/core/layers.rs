@@ -83,15 +83,18 @@ impl LayersContext {
             .add(LayerTypes::Pipes, sym.to_string(), lane, Some(color));
     }
     pub fn bake(&mut self, spans: &mut Vec<Span>) {
-         // Trim trailing empty symbols for each layer
+        // Trim trailing empty symbols for each layer
         for layer in [LayerTypes::Commits, LayerTypes::Merges, LayerTypes::Pipes] {
             if let Some(tokens) = self.builder.layers.get_mut(&layer) {
-                while tokens.last().map_or(false, |(sym, _)| sym.trim().is_empty()) {
+                while tokens
+                    .last()
+                    .map_or(false, |(sym, _)| sym.trim().is_empty())
+                {
                     tokens.pop();
                 }
             }
         }
-        
+
         // Determine max length across all layers
         let max_len = [LayerTypes::Commits, LayerTypes::Merges, LayerTypes::Pipes]
             .iter()

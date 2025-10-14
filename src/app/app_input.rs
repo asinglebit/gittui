@@ -54,7 +54,7 @@ use crate::{
 impl App {
     pub fn handle_events(&mut self) -> io::Result<()> {
         match event::read()? {
-            Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
+            Event::Key(key_event) if matches!(key_event.kind, KeyEventKind::Press) => {
                 self.handle_key_event(key_event)
             }
             _ => {}
@@ -586,9 +586,18 @@ impl App {
                         self.focus = Focus::Viewport;
                     }
                     _ => {
-                        self.viewport = Viewport::Graph;
-                        self.focus = Focus::Viewport;
-                        self.file_name = None;
+                        match self.viewport {
+                            Viewport::Graph => {
+                                self.viewport = Viewport::Settings;
+                                self.focus = Focus::Viewport;
+                                self.file_name = None;
+                            }
+                            _ => {
+                                self.viewport = Viewport::Graph;
+                                self.focus = Focus::Viewport;
+                                self.file_name = None;
+                            }
+                        }
                     }
                 };
             }

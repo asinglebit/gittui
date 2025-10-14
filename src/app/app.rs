@@ -21,8 +21,6 @@ use std::{
     io,
 };
 #[rustfmt::skip]
-use crossterm::event::poll;
-#[rustfmt::skip]
 use edtui::{
     EditorEventHandler,
     EditorState
@@ -38,6 +36,7 @@ use ratatui::{
     Frame,
     layout::Rect,
     style::Color,
+    crossterm::event,
     widgets::{
         ListItem
     },
@@ -76,7 +75,8 @@ use crate::{
                 get_filenames_diff_at_workdir
             },
             commits::{
-                get_tip_oids
+                get_tip_oids,
+                get_git_user_info
             },
             helpers::{
                 FileChange,
@@ -98,11 +98,12 @@ pub struct Layout {
     pub statusbar_right: Rect,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum Viewport {
     Graph,
     Viewer,
     Editor,
+    Settings
 }
 
 #[derive(PartialEq, Eq)]
@@ -207,6 +208,11 @@ impl App {
 
         // Main loop
         while !self.is_exit {
+
+            if event::poll(Duration::from_millis(50)).unwrap_or(false) {
+                    self.handle_events()?;
+            }
+
             // Check if the background walk is done
             if let Some(rx) = &self.walker_rx
                 && let Ok(result) = rx.try_recv() {
@@ -217,21 +223,13 @@ impl App {
                     self.buffer = result.buffer;
 
                     if !result.again {
-                        self.walker_rx = None;
+                        // self.walker_rx = None;
                         self.spinner.stop();
                     }
                 }
 
             // Draw the user interface
             terminal.draw(|frame| self.draw(frame))?;
-
-            // Poll for events with a timeout
-            if poll(Duration::from_millis(100))? {
-                // Handle events
-                self.handle_events()?;
-            }
-
-            std::thread::sleep(Duration::from_millis(10));
         }
 
         Ok(())
@@ -240,6 +238,9 @@ impl App {
     pub fn draw(&mut self, frame: &mut Frame) {
         // Compute the layout
         self.layout(frame);
+
+        // Main layout
+        self.draw_title(frame);
 
         // Viewport
         match self.viewport {
@@ -252,16 +253,25 @@ impl App {
             Viewport::Editor => {
                 self.draw_editor(frame);
             }
+            Viewport::Settings => {
+                self.draw_settings(frame);
+            }
         }
 
-        // Main layout
-        self.draw_title(frame);
-        if self.is_status {
-            self.draw_status(frame);
+        // Panes
+        match self.viewport {
+            Viewport::Settings => {}
+            _ => {
+                if self.is_status {
+                    self.draw_status(frame);
+                }
+                if self.is_inspector && self.graph_selected != 0 {
+                    self.draw_inspector(frame);
+                }
+            }
         }
-        if self.is_inspector && self.graph_selected != 0 {
-            self.draw_inspector(frame);
-        }
+
+        // Status bar
         self.draw_statusbar(frame);
 
         // Modals
@@ -281,6 +291,12 @@ impl App {
 
     pub fn reload(&mut self) {
         if self.spinner.is_running() { return; }
+
+        // Get user credentials
+        let (name, email) = get_git_user_info(&self.repo).expect("Error");
+        self.name = name.unwrap();
+        self.email = email.unwrap();
+
         // Reset the walker
         self.walker
             .reset(self.repo.clone())
@@ -308,7 +324,6 @@ impl App {
         self.lines_messages = Vec::new();
         self.lines_buffers = Vec::new();
         // Restart the spinner
-        self.spinner.stop();
         self.spinner.start();
         // First walk
         self.walk();
@@ -325,7 +340,7 @@ impl App {
         // Spawn a thread that computes something
         thread::spawn(move || {
             // Create the walker
-            let mut walk_ctx = Walker::new(path, 5000).expect("Error");
+            let mut walk_ctx = Walker::new(path, 10000).expect("Error");
 
             // Pagination loop
             loop {
