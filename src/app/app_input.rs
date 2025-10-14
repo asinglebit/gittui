@@ -3,13 +3,13 @@ use std::{
     io,
 };
 #[rustfmt::skip]
-use crossterm::event::{
+use ratatui::crossterm::event::{
     self,
     Event,
     KeyCode,
     KeyEvent,
     KeyEventKind,
-    KeyModifiers
+    KeyModifiers,
 };
 #[rustfmt::skip]
 use edtui::{
