@@ -38,10 +38,10 @@ pub mod git {
 pub mod helpers {
     pub mod colors;
     pub mod palette;
+    pub mod spinner;
     pub mod symbols;
     pub mod text;
     pub mod time;
-    pub mod spinner;
 }
 
 use crate::app::app::App;

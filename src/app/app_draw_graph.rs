@@ -13,7 +13,7 @@ use ratatui::{
         Table,
     },
 };
-use crate::core::renderers::{render_buffer_range, render_graph_range, render_message_range};
+use crate::core::renderers::{render_graph_range, render_message_range};
 #[rustfmt::skip]
 use crate::{
     helpers::{
@@ -59,7 +59,7 @@ impl App {
         let head = self.repo.head().unwrap().target().unwrap();
 
         // Rendered lines
-        let buffer_range = render_buffer_range(&history, start, end + 1);
+        // let buffer_range = render_buffer_range(&history, start, end + 1);
         let graph_range = render_graph_range(
             &self.oids,
             &self.tips,

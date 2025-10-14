@@ -38,7 +38,7 @@ use crate::{
 };
 
 pub fn render_graph_range(
-    oids: &Vec<Oid>,
+    oids: &[Oid],
     tips: &HashMap<Oid, Vec<String>>,
     tip_colors: &mut HashMap<Oid, Color>,
     history: &Vector<Vector<Chunk>>,
@@ -54,9 +54,7 @@ pub fn render_graph_range(
     let color = Rc::new(RefCell::new(ColorPicker::default()));
 
     // Go through the commits, inferring the graph
-    for global_idx in start..end {
-        let oid = &oids[global_idx];
-
+    for (global_idx, oid) in oids.iter().enumerate().take(end).skip(start) {
         layers.clear();
         let mut spans = vec![Span::raw(" ")];
 
@@ -78,32 +76,31 @@ pub fn render_graph_range(
 
         for chunk in last.iter() {
             if chunk.is_dummy() {
-                if let Some(prev_snapshot) = prev {
-                    if let Some(prev) = prev_snapshot.get(lane_idx) {
-                        if (prev.parent_a.is_some() && prev.parent_b.is_none())
-                            || (prev.parent_a.is_none() && prev.parent_b.is_some())
-                        {
-                            layers.commit(SYM_EMPTY, lane_idx);
-                            layers.commit(SYM_EMPTY, lane_idx);
-                            layers.pipe(SYM_BRANCH_UP, lane_idx);
-                            layers.pipe(SYM_EMPTY, lane_idx);
-                        } else {
-                            layers.commit(SYM_EMPTY, lane_idx);
-                            layers.commit(SYM_EMPTY, lane_idx);
-                            layers.pipe(SYM_EMPTY, lane_idx);
-                            layers.pipe(SYM_EMPTY, lane_idx);
-                        }
+                if let Some(prev_snapshot) = prev
+                    && let Some(prev) = prev_snapshot.get(lane_idx)
+                {
+                    if (prev.parent_a.is_some() && prev.parent_b.is_none())
+                        || (prev.parent_a.is_none() && prev.parent_b.is_some())
+                    {
+                        layers.commit(SYM_EMPTY, lane_idx);
+                        layers.commit(SYM_EMPTY, lane_idx);
+                        layers.pipe(SYM_BRANCH_UP, lane_idx);
+                        layers.pipe(SYM_EMPTY, lane_idx);
+                    } else {
+                        layers.commit(SYM_EMPTY, lane_idx);
+                        layers.commit(SYM_EMPTY, lane_idx);
+                        layers.pipe(SYM_EMPTY, lane_idx);
+                        layers.pipe(SYM_EMPTY, lane_idx);
                     }
                 }
             } else if Some(oid) == chunk.oid.as_ref() {
                 is_commit_found = true;
                 let is_two_parents = chunk.parent_a.is_some() && chunk.parent_b.is_some();
-                if is_two_parents && !tips.contains_key(&oid) {
+                if is_two_parents && !tips.contains_key(oid) {
                     layers.commit(SYM_MERGE, lane_idx);
-                } else if tips.contains_key(&oid) {
+                } else if tips.contains_key(oid) {
                     layers.commit(SYM_COMMIT_BRANCH, lane_idx);
                     tip_colors.insert(*oid, color.borrow().get(lane_idx));
-
                 } else {
                     layers.commit(SYM_COMMIT, lane_idx);
                 }
@@ -266,7 +263,7 @@ pub fn render_graph_range(
         }
 
         if !is_commit_found {
-            if tips.contains_key(&oid) {
+            if tips.contains_key(oid) {
                 layers.commit(SYM_COMMIT_BRANCH, lane_idx);
                 tip_colors.insert(*oid, color.borrow().get(lane_idx));
             } else {
@@ -287,7 +284,12 @@ pub fn render_graph_range(
     lines
 }
 
-pub fn render_buffer_range(history: &Vector<Vector<Chunk>>, start: usize, end: usize) -> Vec<Line> {
+#[allow(dead_code)]
+pub fn render_buffer_range(
+    history: &Vector<Vector<Chunk>>,
+    start: usize,
+    end: usize,
+) -> Vec<Line<'_>> {
     // Clamp the range to valid indices
     let start = start.min(history.len());
     let end = end.min(history.len());
@@ -326,9 +328,10 @@ pub fn render_buffer_range(history: &Vector<Vector<Chunk>>, start: usize, end: u
     lines_buffer
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn render_message_range(
     repo: &Repository,
-    oids: &Vec<Oid>,
+    oids: &[Oid],
     tips: &HashMap<Oid, Vec<String>>,
     tip_colors: &mut HashMap<Oid, Color>,
     history: &Vector<Vector<Chunk>>,
@@ -354,7 +357,11 @@ pub fn render_message_range(
                 for branch in branches {
                     spans.push(Span::styled(
                         format!("{} {} ", SYM_COMMIT_BRANCH, branch),
-                        Style::default().fg(if let Some(color) = tip_colors.get(&oid) {*color} else { COLOR_TEXT }),
+                        Style::default().fg(if let Some(color) = tip_colors.get(&oid) {
+                            *color
+                        } else {
+                            COLOR_TEXT
+                        }),
                     ));
                 }
             }

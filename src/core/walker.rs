@@ -177,29 +177,29 @@ impl Walker {
             let mut merger_oid: Option<Oid> = None;
             let commit = self.repo.find_commit(oid).unwrap();
             let parents: Vec<Oid> = commit.parent_ids().collect();
-            let chunk = Chunk::commit(Some(oid), parents.get(0).cloned(), parents.get(1).cloned());
+            let chunk = Chunk::commit(Some(oid), parents.first().cloned(), parents.get(1).cloned());
 
             // Update
             self.buffer.borrow_mut().update(chunk);
 
             for chunk in &self.buffer.borrow().curr {
-                if !chunk.is_dummy() && Some(&oid) == chunk.oid.as_ref() {
-                    if chunk.parent_a.is_some() && chunk.parent_b.is_some() {
-                        let mut is_merger_found = false;
-                        for chunk_nested in &self.buffer.borrow().curr {
-                            if ((chunk_nested.parent_a.is_some()
-                                && chunk_nested.parent_b.is_none())
-                                || (chunk_nested.parent_a.is_none()
-                                    && chunk_nested.parent_b.is_some()))
-                                && chunk.parent_b.as_ref() == chunk_nested.parent_a.as_ref()
-                            {
-                                is_merger_found = true;
-                                break;
-                            }
+                if !chunk.is_dummy()
+                    && Some(&oid) == chunk.oid.as_ref()
+                    && chunk.parent_a.is_some()
+                    && chunk.parent_b.is_some()
+                {
+                    let mut is_merger_found = false;
+                    for chunk_nested in &self.buffer.borrow().curr {
+                        if ((chunk_nested.parent_a.is_some() && chunk_nested.parent_b.is_none())
+                            || (chunk_nested.parent_a.is_none() && chunk_nested.parent_b.is_some()))
+                            && chunk.parent_b.as_ref() == chunk_nested.parent_a.as_ref()
+                        {
+                            is_merger_found = true;
+                            break;
                         }
-                        if !is_merger_found {
-                            merger_oid = chunk.oid;
-                        }
+                    }
+                    if !is_merger_found {
+                        merger_oid = chunk.oid;
                     }
                 }
             }

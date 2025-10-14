@@ -1,10 +1,5 @@
 #[rustfmt::skip]
-use std::{
-    collections::{
-        HashMap,
-        HashSet
-    }
-};
+use std::collections::HashMap;
 #[rustfmt::skip]
 use git2::{
     BranchType,
