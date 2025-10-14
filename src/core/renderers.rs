@@ -1,19 +1,21 @@
 #[rustfmt::skip]
+use im::Vector;
+#[rustfmt::skip]
 use std::{
     cell::RefCell,
     collections::HashMap,
     rc::Rc
 };
-use git2::Repository;
 #[rustfmt::skip]
 use git2::{
     Oid,
+    Repository
 };
-use im::Vector;
 #[rustfmt::skip]
 use ratatui::{
     style::{
-        Style
+        Style,
+        Color
     },
     text::{
         Line,
@@ -38,6 +40,7 @@ use crate::{
 pub fn render_graph_range(
     oids: &Vec<Oid>,
     tips: &HashMap<Oid, Vec<String>>,
+    tip_colors: &mut HashMap<Oid, Color>,
     history: &Vector<Vector<Chunk>>,
     head_oid: Oid,
     start: usize,
@@ -48,6 +51,7 @@ pub fn render_graph_range(
     let end = end.min(history.len().saturating_sub(1));
     let mut layers = layers!(Rc::new(RefCell::new(ColorPicker::default())));
     let mut lines: Vec<Line> = Vec::new();
+    let color = Rc::new(RefCell::new(ColorPicker::default()));
 
     // Go through the commits, inferring the graph
     for global_idx in start..end {
@@ -98,6 +102,8 @@ pub fn render_graph_range(
                     layers.commit(SYM_MERGE, lane_idx);
                 } else if tips.contains_key(&oid) {
                     layers.commit(SYM_COMMIT_BRANCH, lane_idx);
+                    tip_colors.insert(*oid, color.borrow().get(lane_idx));
+
                 } else {
                     layers.commit(SYM_COMMIT, lane_idx);
                 }
@@ -262,6 +268,7 @@ pub fn render_graph_range(
         if !is_commit_found {
             if tips.contains_key(&oid) {
                 layers.commit(SYM_COMMIT_BRANCH, lane_idx);
+                tip_colors.insert(*oid, color.borrow().get(lane_idx));
             } else {
                 layers.commit(SYM_COMMIT, lane_idx);
             };
@@ -323,8 +330,8 @@ pub fn render_message_range(
     repo: &Repository,
     oids: &Vec<Oid>,
     tips: &HashMap<Oid, Vec<String>>,
+    tip_colors: &mut HashMap<Oid, Color>,
     history: &Vector<Vector<Chunk>>,
-    head_oid: Oid,
     start: usize,
     end: usize,
     selected: usize,
@@ -347,11 +354,7 @@ pub fn render_message_range(
                 for branch in branches {
                     spans.push(Span::styled(
                         format!("{} {} ", SYM_COMMIT_BRANCH, branch),
-                        Style::default().fg(if global_idx == selected {
-                            COLOR_GREY_400
-                        } else {
-                            COLOR_TEXT
-                        }),
+                        Style::default().fg(if let Some(color) = tip_colors.get(&oid) {*color} else { COLOR_TEXT }),
                     ));
                 }
             }

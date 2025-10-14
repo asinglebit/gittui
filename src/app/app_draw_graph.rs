@@ -60,13 +60,21 @@ impl App {
 
         // Rendered lines
         let buffer_range = render_buffer_range(&history, start, end + 1);
-        let graph_range = render_graph_range(&self.oids, &self.tips, &history, head, start, end);
+        let graph_range = render_graph_range(
+            &self.oids,
+            &self.tips,
+            &mut self.tip_colors,
+            &history,
+            head,
+            start,
+            end,
+        );
         let message_range = render_message_range(
             &self.repo,
             &self.oids,
             &self.tips,
+            &mut self.tip_colors,
             &history,
-            head,
             start,
             end,
             self.graph_selected,

@@ -212,7 +212,6 @@ impl App {
                 && let Ok(result) = rx.try_recv() {
                     self.oids = result.oids;
                     self.tips = result.tips;
-                    self.tip_colors = result.tip_colors;
                     self.branch_oid_map = result.branch_oid_map;
                     self.uncommitted = result.uncommitted;
                     self.buffer = result.buffer;
@@ -326,7 +325,7 @@ impl App {
         // Spawn a thread that computes something
         thread::spawn(move || {
             // Create the walker
-            let mut walk_ctx = Walker::new(path, 10000).expect("Error");
+            let mut walk_ctx = Walker::new(path, 5000).expect("Error");
 
             // Pagination loop
             loop {
@@ -337,7 +336,6 @@ impl App {
                 tx.send(WalkerOutput {
                     oids: walk_ctx.oids.clone(),
                     tips: walk_ctx.tips.clone(),
-                    tip_colors: walk_ctx.tip_colors.clone(),
                     branch_oid_map: walk_ctx.branch_oid_map.clone(),
                     uncommitted: walk_ctx.uncommitted.clone(),
                     buffer: walk_ctx.buffer.clone(),

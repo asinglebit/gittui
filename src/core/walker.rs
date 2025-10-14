@@ -19,10 +19,6 @@ use git2::{
     Revwalk,
 };
 #[rustfmt::skip]
-use ratatui::{
-    style::Color
-};
-#[rustfmt::skip]
 use crate::{
     core::{
         buffer::{
@@ -30,11 +26,6 @@ use crate::{
         },
         chunk::{
             Chunk
-        }
-    },
-    helpers::{
-        colors::{
-            ColorPicker
         }
     },
     git::{
@@ -115,13 +106,11 @@ pub struct Walker {
     pub walker: LazyWalker,
 
     // Walker utilities
-    pub color: Rc<RefCell<ColorPicker>>,
     pub buffer: RefCell<Buffer>,
 
     // Walker data
     pub oids: Vec<Oid>,
     pub tips: HashMap<Oid, Vec<String>>,
-    pub tip_colors: HashMap<Oid, Color>,
     pub branch_oid_map: HashMap<String, Oid>,
     pub uncommitted: UncommittedChanges,
 
@@ -133,10 +122,9 @@ pub struct Walker {
 pub struct WalkerOutput {
     pub oids: Vec<Oid>,
     pub tips: HashMap<Oid, Vec<String>>,
-    pub tip_colors: HashMap<Oid, Color>,
     pub branch_oid_map: HashMap<String, Oid>,
     pub uncommitted: UncommittedChanges,
-    pub again: bool, // Indicates whether more commits remain to walk
+    pub again: bool,
     pub buffer: RefCell<Buffer>,
 }
 
@@ -152,11 +140,9 @@ impl Walker {
         Ok(Self {
             repo,
             walker,
-            color: Rc::new(RefCell::new(ColorPicker::default())),
             buffer: RefCell::new(Buffer::default()),
             oids: vec![Oid::zero()],
             tips,
-            tip_colors: HashMap::new(),
             branch_oid_map: HashMap::new(),
             uncommitted,
             amount,
@@ -196,24 +182,9 @@ impl Walker {
             // Update
             self.buffer.borrow_mut().update(chunk);
 
-            // Iterate over the buffer chunks, rendering the graph line
-            let mut is_commit_found = false;
-            let mut lane_idx = 0;
-
             for chunk in &self.buffer.borrow().curr {
                 if !chunk.is_dummy() && Some(&oid) == chunk.oid.as_ref() {
-                    is_commit_found = true;
-
-                    let is_two_parents = chunk.parent_a.is_some() && chunk.parent_b.is_some();
-
-                    if !(is_two_parents && !self.tips.contains_key(&oid))
-                        && self.tips.contains_key(&oid)
-                    {
-                        self.tip_colors
-                            .insert(oid, self.color.borrow().get(lane_idx));
-                    }
-
-                    if is_two_parents {
+                    if chunk.parent_a.is_some() && chunk.parent_b.is_some() {
                         let mut is_merger_found = false;
                         for chunk_nested in &self.buffer.borrow().curr {
                             if ((chunk_nested.parent_a.is_some()
@@ -230,16 +201,6 @@ impl Walker {
                             merger_oid = chunk.oid;
                         }
                     }
-                }
-
-                lane_idx += 1;
-            }
-
-            if !is_commit_found {
-                if self.tips.contains_key(&oid) {
-                    self.color.borrow_mut().alternate(lane_idx);
-                    self.tip_colors
-                        .insert(oid, self.color.borrow().get(lane_idx));
                 }
             }
 
