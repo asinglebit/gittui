@@ -42,16 +42,13 @@ pub fn get_tip_oids(repo: &Repository) -> HashMap<Oid, Vec<String>> {
 }
 
 // Outcomes:
-// Update oid_branch_map: commit OIDs to the branch names that contain them
 // Update branch_oid_map: branch names to their latest commit OID
 // Update the oids vector
 #[allow(clippy::too_many_arguments)]
 pub fn get_branches_and_sorted_oids(
-    repo: &Repository,
     walker: &LazyWalker,
     tips: &HashMap<Oid, Vec<String>>,
     oids: &mut [Oid],
-    oid_branch_map: &mut HashMap<Oid, HashSet<String>>,
     branch_oid_map: &mut HashMap<String, Oid>,
     sorted: &mut Vec<Oid>,
     amount: usize,
@@ -69,29 +66,12 @@ pub fn get_branches_and_sorted_oids(
             for name in branches {
                 branch_oid_map.entry(name.clone()).or_insert(*oid);
             }
-            oid_branch_map
-                .entry(*oid)
-                .or_default()
-                .extend(branches.iter().cloned());
         }
     }
 
     // Walk all commits topologically and propagate branch membership backwards
     for oid in chunk {
         sorted.push(oid);
-
-        // Get the branch names that currently reach this commit
-        let branches_here = oid_branch_map.get(&oid).cloned().unwrap_or_default();
-
-        // Propagate those branch names to parents
-        let commit = repo.find_commit(oid).unwrap();
-        for i in 0..commit.parent_count() {
-            let parent_oid = commit.parent_id(i).unwrap();
-            oid_branch_map
-                .entry(parent_oid)
-                .or_default()
-                .extend(branches_here.iter().cloned());
-        }
     }
 }
 

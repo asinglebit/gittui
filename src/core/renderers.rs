@@ -1,3 +1,4 @@
+use std::rc::Rc;
 #[rustfmt::skip]
 use std::{
     cell::RefCell,
@@ -5,15 +6,12 @@ use std::{
 };
 #[rustfmt::skip]
 use git2::{
-    Commit,
     Oid,
-    Time
 };
 use im::Vector;
 #[rustfmt::skip]
 use ratatui::{
     style::{
-        Color,
         Style
     },
     text::{
@@ -21,84 +19,261 @@ use ratatui::{
         Span
     },
 };
-use crate::core::chunk::Chunk;
+use crate::{core::chunk::Chunk, helpers::colors::ColorPicker, layers};
 #[rustfmt::skip]
 use crate::{
-    core::buffer::Buffer,
-    git::{
-        queries::{
-            helpers::{
-                UncommittedChanges
-            }
-        }
-    },
     helpers::{
         palette::*,
         symbols::*
     }
 };
 
-pub fn render_uncommitted(
-    head_oid: Oid,
-    lines_graph: &mut Vec<Line>,
-) {
-    lines_graph.push(Line::from(vec![
-        Span::styled(" ", Style::default().fg(COLOR_TEXT)),
-        Span::styled(SYM_UNCOMMITED, Style::default().fg(COLOR_GREY_400)),
-    ]));
-}
-
-pub fn render_graph(oid: &Oid, graph: &mut Vec<Line>, spans_graph: Vec<Span<'static>>) {
-    // let span_oid = Span::styled(oid.to_string()[..6].to_string(), COLOR_TEXT);
-    let mut spans = Vec::new();
-    // spans.push(span_oid);
-    spans.push(Span::raw(" ".to_string()));
-    spans.extend(spans_graph);
-    graph.push(Line::from(spans));
-}
-
 pub fn render_graph_range(
+    oids: &Vec<Oid>,
+    tips: &HashMap<Oid, Vec<String>>,
     history: &Vector<Vector<Chunk>>,
+    head_oid: Oid,
     start: usize,
-    end: usize, // exclusive
-) -> Vec<Line> {
-
+    end: usize,
+) -> Vec<Line<'static>> {
     // Clamp the range to valid indices
     let start = start.min(history.len());
-    let end = end.min(history.len());
+    let end = end.min(history.len().saturating_sub(1));
+    let mut layers = layers!(Rc::new(RefCell::new(ColorPicker::default())));
+    let mut lines: Vec<Line> = Vec::new();
 
-    if start >= end {
-        return Vec::new(); // nothing to render
+    // Go through the commits, inferring the graph
+    for global_idx in start..end {
+        let oid = &oids[global_idx];
+
+        layers.clear();
+
+        let mut spans_graph = Vec::new();
+
+        // Iterate over the buffer chunks, rendering the graph line
+        let mut is_commit_found = false;
+        let mut is_merged_before = false;
+        let mut lane_idx = 0;
+
+        let prev = history.get(global_idx);
+        let last = history.get(global_idx + 1).unwrap();
+
+        for chunk in last.iter() {
+            if chunk.is_dummy() {
+                if let Some(prev_snapshot) = prev {
+                    if let Some(prev) = prev_snapshot.get(lane_idx) {
+                        if (prev.parent_a.is_some() && prev.parent_b.is_none())
+                            || (prev.parent_a.is_none() && prev.parent_b.is_some())
+                        {
+                            layers.commit(SYM_EMPTY, lane_idx);
+                            layers.commit(SYM_EMPTY, lane_idx);
+                            layers.pipe(SYM_BRANCH_UP, lane_idx);
+                            layers.pipe(SYM_EMPTY, lane_idx);
+                        } else {
+                            layers.commit(SYM_EMPTY, lane_idx);
+                            layers.commit(SYM_EMPTY, lane_idx);
+                            layers.pipe(SYM_EMPTY, lane_idx);
+                            layers.pipe(SYM_EMPTY, lane_idx);
+                        }
+                    }
+                }
+            } else if Some(oid) == chunk.oid.as_ref() {
+                is_commit_found = true;
+                let is_two_parents = chunk.parent_a.is_some() && chunk.parent_b.is_some();
+                if is_two_parents && !tips.contains_key(&oid) {
+                    layers.commit(SYM_MERGE, lane_idx);
+                } else if tips.contains_key(&oid) {
+                    layers.commit(SYM_COMMIT_BRANCH, lane_idx);
+                } else {
+                    layers.commit(SYM_COMMIT, lane_idx);
+                }
+                layers.commit(SYM_EMPTY, lane_idx);
+                layers.pipe(SYM_EMPTY, lane_idx);
+                layers.pipe(SYM_EMPTY, lane_idx);
+
+                // Check if commit is being merged into
+                let mut is_mergee_found = false;
+                let mut is_drawing = false;
+                if is_two_parents {
+                    let mut is_merger_found = false;
+                    let mut merger_idx: usize = 0;
+
+                    for chunk_nested in last {
+                        if ((chunk_nested.parent_a.is_some() && chunk_nested.parent_b.is_none())
+                            || (chunk_nested.parent_a.is_none() && chunk_nested.parent_b.is_some()))
+                            && chunk.parent_b.as_ref() == chunk_nested.parent_a.as_ref()
+                        {
+                            is_merger_found = true;
+                            break;
+                        }
+                        merger_idx += 1;
+                    }
+
+                    let mut mergee_idx: usize = 0;
+                    for chunk_nested in last {
+                        if Some(oid) == chunk_nested.oid.as_ref() {
+                            break;
+                        }
+                        mergee_idx += 1;
+                    }
+
+                    for (chunk_nested_idx, chunk_nested) in last.iter().enumerate() {
+                        if !is_mergee_found {
+                            if Some(oid) == chunk_nested.oid.as_ref() {
+                                is_mergee_found = true;
+                                if is_merger_found {
+                                    is_drawing = !is_drawing;
+                                }
+                                if !is_drawing {
+                                    is_merged_before = true;
+                                }
+                                layers.merge(SYM_EMPTY, merger_idx);
+                                layers.merge(SYM_EMPTY, merger_idx);
+                            } else {
+                                // Before the commit
+                                if !is_merger_found {
+                                    layers.merge(SYM_EMPTY, merger_idx);
+                                    layers.merge(SYM_EMPTY, merger_idx);
+                                } else if ((chunk_nested.parent_a.is_some()
+                                    && chunk_nested.parent_b.is_none())
+                                    || (chunk_nested.parent_a.is_none()
+                                        && chunk_nested.parent_b.is_some()))
+                                    && (chunk.parent_a.as_ref() == chunk_nested.parent_a.as_ref()
+                                        || chunk.parent_b.as_ref()
+                                            == chunk_nested.parent_a.as_ref())
+                                {
+                                    layers.merge(SYM_MERGE_RIGHT_FROM, merger_idx);
+                                    if chunk_nested_idx + 1 == mergee_idx {
+                                        layers.merge(SYM_EMPTY, merger_idx);
+                                    } else {
+                                        layers.merge(SYM_HORIZONTAL, merger_idx);
+                                    }
+                                    is_drawing = true;
+                                } else if is_drawing {
+                                    if chunk_nested_idx + 1 == mergee_idx {
+                                        layers.merge(SYM_HORIZONTAL, merger_idx);
+                                        layers.merge(SYM_EMPTY, merger_idx);
+                                    } else {
+                                        layers.merge(SYM_HORIZONTAL, merger_idx);
+                                        layers.merge(SYM_HORIZONTAL, merger_idx);
+                                    }
+                                } else {
+                                    layers.merge(SYM_EMPTY, merger_idx);
+                                    layers.merge(SYM_EMPTY, merger_idx);
+                                }
+                            }
+                        } else {
+                            // After the commit
+                            if is_merger_found && !is_merged_before {
+                                if ((chunk_nested.parent_a.is_some()
+                                    && chunk_nested.parent_b.is_none())
+                                    || (chunk_nested.parent_a.is_none()
+                                        && chunk_nested.parent_b.is_some()))
+                                    && (chunk.parent_a.as_ref() == chunk_nested.parent_a.as_ref()
+                                        || chunk.parent_b.as_ref()
+                                            == chunk_nested.parent_a.as_ref())
+                                {
+                                    layers.merge(SYM_MERGE_LEFT_FROM, merger_idx);
+                                    layers.merge(SYM_EMPTY, merger_idx);
+                                    is_drawing = false;
+                                } else if is_drawing {
+                                    layers.merge(SYM_HORIZONTAL, merger_idx);
+                                    layers.merge(SYM_HORIZONTAL, merger_idx);
+                                } else {
+                                    layers.merge(SYM_EMPTY, merger_idx);
+                                    layers.merge(SYM_EMPTY, merger_idx);
+                                }
+                            }
+                        }
+                    }
+
+                    if !is_merger_found {
+                        // Count how many dummies in the end to get the real last element, append there
+                        let mut idx = last.len() - 1;
+                        let mut trailing_dummies = 0;
+                        for (i, c) in last.iter().enumerate().rev() {
+                            if !c.is_dummy() {
+                                idx = i;
+                                break;
+                            } else {
+                                trailing_dummies += 1;
+                            }
+                        }
+
+                        if trailing_dummies > 0
+                            && prev.is_some()
+                            && prev.unwrap().len() > idx
+                            && prev.unwrap()[idx + 1].is_dummy()
+                        {
+                            layers.merge(SYM_BRANCH_DOWN, idx + 1);
+                            layers.merge(SYM_EMPTY, idx + 1);
+                        } else if trailing_dummies > 0 {
+                            // Calculate how many lanes before we reach the branch character
+                            for _ in lane_idx..idx {
+                                layers.merge(SYM_HORIZONTAL, idx + 1);
+                                layers.merge(SYM_HORIZONTAL, idx + 1);
+                            }
+
+                            layers.merge(SYM_MERGE_LEFT_FROM, idx + 1);
+                            layers.merge(SYM_EMPTY, idx + 1);
+                        } else {
+                            // Calculate how many lanes before we reach the branch character
+                            for _ in lane_idx..idx {
+                                layers.merge(SYM_HORIZONTAL, idx + 1);
+                                layers.merge(SYM_HORIZONTAL, idx + 1);
+                            }
+
+                            layers.merge(SYM_BRANCH_DOWN, idx + 1);
+                            layers.merge(SYM_EMPTY, idx + 1);
+                        }
+                    }
+                }
+            } else {
+                layers.commit(SYM_EMPTY, lane_idx);
+                layers.commit(SYM_EMPTY, lane_idx);
+                if (chunk.parent_a.as_ref() == Some(&head_oid)
+                    || chunk.parent_b.as_ref() == Some(&head_oid))
+                    && lane_idx == 0
+                {
+                    layers.pipe_custom(SYM_VERTICAL_DOTTED, lane_idx, COLOR_GREY_500);
+                } else {
+                    layers.pipe(SYM_VERTICAL, lane_idx);
+                }
+                layers.pipe(SYM_EMPTY, lane_idx);
+            }
+
+            lane_idx += 1;
+        }
+
+        if !is_commit_found {
+            if tips.contains_key(&oid) {
+                layers.commit(SYM_COMMIT_BRANCH, lane_idx);
+            } else {
+                layers.commit(SYM_COMMIT, lane_idx);
+            };
+            layers.commit(SYM_EMPTY, lane_idx);
+            layers.pipe(SYM_EMPTY, lane_idx);
+            layers.pipe(SYM_EMPTY, lane_idx);
+        }
+
+        // Blend layers into the graph
+        layers.bake(&mut spans_graph);
+
+        // Render
+        lines.push(Line::from(spans_graph));
     }
 
-    let mut lines_graph: Vec<Line> = Vec::new();
-
-    // // Iterate over the selected snapshots
-    // for snapshot in history.iter().skip(start).take(end - start) {
-    //     let mut spans = Vec::new();
-
-
-    //     lines_graph.push(Line::from(spans));
-    // }
-
-    lines_graph
+    lines
 }
-
 
 pub fn render_buffer_range(
     history: &Vector<Vector<Chunk>>,
     start: usize,
-    end: usize, // exclusive
+    end: usize,
 ) -> Vec<Line> {
-
     // Clamp the range to valid indices
     let start = start.min(history.len());
     let end = end.min(history.len());
-
-    if start >= end {
-        return Vec::new(); // nothing to render
-    }
-
     let mut lines_buffer: Vec<Line> = Vec::new();
     // Iterate over the selected snapshots
     for snapshot in history.iter().skip(start).take(end - start) {
@@ -119,16 +294,15 @@ pub fn render_buffer_range(
                     (None, None) => "--,--".to_string(),
                 };
 
-                format!(
-                    "{}({:<5})",
-                    &oid_str[..2],
-                    parents_formatted
-                )
+                format!("{}({:<5})", &oid_str[..2], parents_formatted)
             })
             .collect::<Vec<String>>()
             .join(" ");
 
-        spans.push(Span::styled(formatted_snapshot, Style::default().fg(COLOR_TEXT)));
+        spans.push(Span::styled(
+            formatted_snapshot,
+            Style::default().fg(COLOR_TEXT),
+        ));
         lines_buffer.push(Line::from(spans));
     }
 

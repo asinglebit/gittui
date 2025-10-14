@@ -16,7 +16,7 @@ use ratatui::{
         Table,
     },
 };
-use crate::core::renderers::render_buffer_range;
+use crate::core::renderers::{render_buffer_range, render_graph_range};
 #[rustfmt::skip]
 use crate::{
     helpers::{
@@ -60,10 +60,16 @@ impl App {
 
         // Add the rest of the commits
         let mut width = 0;
+
+        self.lines_graph = render_graph_range(&self.oids, &self.tips, &a, self.repo.head().unwrap().target().unwrap(), start, end);
+        let graph_slice = &self.lines_graph;
+
         
         if !self.lines_graph.is_empty() {
+            
+            // let graph_slice = &self.lines_graph[start..end];
 
-            width = self.lines_graph[start..end]
+            width = self.lines_graph
                 .iter()
                 .map(|line| {
                     line.spans
@@ -76,10 +82,7 @@ impl App {
                 .unwrap_or(0) as u16;
 
 
-            for (i, graph) in self.lines_graph[start..end]
-                .iter()
-                .enumerate()
-            {
+            for (i, graph) in graph_slice.iter().enumerate() {
                 let actual_index = start + i;
 
                 let graph = if actual_index == self.graph_selected {
@@ -89,43 +92,43 @@ impl App {
                     graph.clone()
                 };
 
-                let mut message = Line::default();
-                if *self.oids.get(actual_index).unwrap() != Oid::zero() {
-                    let commit = self.repo.find_commit(*self.oids.get(actual_index).unwrap()).unwrap();
-                    message = if actual_index == self.graph_selected {
-                        Line::from(Span::styled(commit.summary().unwrap_or("⊘ no message").to_string(), Style::default().fg(COLOR_GRASS)))
-                    } else {
-                        Line::from(Span::styled(commit.summary().unwrap_or("⊘ no message").to_string(), Style::default().fg(COLOR_TEXT)))
-                    };
-                } else {
-                    let mut uncommited_line_spans = vec![Span::styled(
-                        format!("{} ", SYM_UNCOMMITED),
-                        Style::default().fg(COLOR_GREY_400),
-                    )];
+                // let mut message = Line::default();
+                // if *self.oids.get(actual_index).unwrap() != Oid::zero() {
+                //     let commit = self.repo.find_commit(*self.oids.get(actual_index).unwrap()).unwrap();
+                //     message = if actual_index == self.graph_selected {
+                //         Line::from(Span::styled(commit.summary().unwrap_or("⊘ no message").to_string(), Style::default().fg(COLOR_GRASS)))
+                //     } else {
+                //         Line::from(Span::styled(commit.summary().unwrap_or("⊘ no message").to_string(), Style::default().fg(COLOR_TEXT)))
+                //     };
+                // } else {
+                //     let mut uncommited_line_spans = vec![Span::styled(
+                //         format!("{} ", SYM_UNCOMMITED),
+                //         Style::default().fg(COLOR_GREY_400),
+                //     )];
 
-                    if self.uncommitted.modified_count > 0 {
-                        uncommited_line_spans.push(Span::styled("~ ", Style::default().fg(COLOR_BLUE)));
-                        uncommited_line_spans.push(Span::styled(
-                            format!("{} ", self.uncommitted.modified_count),
-                            Style::default().fg(COLOR_GREY_600),
-                        ));
-                    }
-                    if self.uncommitted.added_count > 0 {
-                        uncommited_line_spans.push(Span::styled("+ ", Style::default().fg(COLOR_GREEN)));
-                        uncommited_line_spans.push(Span::styled(
-                            format!("{} ", self.uncommitted.added_count),
-                            Style::default().fg(COLOR_GREY_600),
-                        ));
-                    }
-                    if self.uncommitted.deleted_count > 0 {
-                        uncommited_line_spans.push(Span::styled("- ", Style::default().fg(COLOR_RED)));
-                        uncommited_line_spans.push(Span::styled(
-                            format!("{} ", self.uncommitted.deleted_count),
-                            Style::default().fg(COLOR_GREY_600),
-                        ));
-                    }
-                    message = Line::from(uncommited_line_spans);
-                }
+                //     if self.uncommitted.modified_count > 0 {
+                //         uncommited_line_spans.push(Span::styled("~ ", Style::default().fg(COLOR_BLUE)));
+                //         uncommited_line_spans.push(Span::styled(
+                //             format!("{} ", self.uncommitted.modified_count),
+                //             Style::default().fg(COLOR_GREY_600),
+                //         ));
+                //     }
+                //     if self.uncommitted.added_count > 0 {
+                //         uncommited_line_spans.push(Span::styled("+ ", Style::default().fg(COLOR_GREEN)));
+                //         uncommited_line_spans.push(Span::styled(
+                //             format!("{} ", self.uncommitted.added_count),
+                //             Style::default().fg(COLOR_GREY_600),
+                //         ));
+                //     }
+                //     if self.uncommitted.deleted_count > 0 {
+                //         uncommited_line_spans.push(Span::styled("- ", Style::default().fg(COLOR_RED)));
+                //         uncommited_line_spans.push(Span::styled(
+                //             format!("{} ", self.uncommitted.deleted_count),
+                //             Style::default().fg(COLOR_GREY_600),
+                //         ));
+                //     }
+                //     message = Line::from(uncommited_line_spans);
+                // }
 
                 let range_buffer = b.get(i + 1).cloned().unwrap_or_default();
 
