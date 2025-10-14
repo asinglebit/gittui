@@ -1,7 +1,62 @@
 # guita╭
 
-#### Beautiful and cozy terminal based git client for fun and productivity, written in pure rust as an exercise.
+**Beautiful and cozy terminal-based Git client** – for fun, productivity, and pure Rust joy.  
 
+---
+
+## 🌟 Motivation
+
+I am building **guita╭** as a personal exercise in procrastination that quickly turned into a delightful little tool for anyone who spends their life in the terminal.
+
+The goal is simple:
+
+- Render Git commit graphs beautifully and efficiently in the terminal.  
+- Traverse massive repositories instantly – hundreds of thousands of commits spanning decades.  
+- Jump anywhere in history without lag.  
+- Enjoy a cozy experience with pleasing colors and smooth, terminal-friendly navigation.  
+- Include a fast, built-in diff viewer.  
+
+**Why guita╭?** Because working with Git in the terminal should feel fun, not frustrating.
+
+---
+
+## ⚠️ Work in Progress
+
+**Guita╭** is still a work in progress. Some areas that need attention include:
+
+- 🔧 **Graph rendering adjustments** – commits and branches may not always display perfectly in complex histories.  
+- 🧪 **Testing** – many parts of the app are experimental and require thorough testing, especially on large repositories.  
+- 🔑 **Authentication experience** – handling SSH/HTTPS credentials could be smoother.  
+
+Use it with caution, and feel free to report issues or contribute improvements!
+
+---
+
+## 🎨 Features
+
+- 🖼️ **Beautiful graph rendering** – visualize commit history clearly.  
+- 🚀 **Blazing-fast traversal** – works smoothly with very large repositories.  
+- ⏩ **Immediate jumps** – move through history without waiting.  
+- 🎨 **Vibrant, terminal-friendly colors** – easy on the eyes for long coding sessions.  
+- 🧰 **Built-in diff viewer** – inspect changes without leaving the terminal.  
+- 🦀 **Written in Rust** – safety, speed, and fun.  
+- 🖥️ **Pure TUI experience** – ratatui based rendering.
+
+---
+
+## 🚀 Installation
+
+Clone the repo and build with Cargo:
+
+```bash
+git clone https://github.com/asinglebit/guitar.git
+cd guitar
+cargo build --release path-to-your-repo
+```
+---
+
+## 🖼️ Screenshots
+![untitled(1)](https://github.com/user-attachments/assets/e39b0ebb-52dc-45bd-a430-0f592d5fc315)
 
 <img width="1920" height="1080" alt="1" src="https://github.com/user-attachments/assets/87db026a-f419-46e3-8f20-f6389f3fa967" />
 <img width="1920" height="1080" alt="2" src="https://github.com/user-attachments/assets/6cfbc5c0-222c-437d-a569-870446ed35ed" />
@@ -11,28 +66,29 @@
 <img width="1920" height="1080" alt="6" src="https://github.com/user-attachments/assets/93c4e948-e3f3-49dd-aa63-a6fef5f6c1c4" />
 <img width="1920" height="1080" alt="7" src="https://github.com/user-attachments/assets/b1534ac9-15a0-406d-97d4-8e15205b2d8d" />
 
-    Some things I still need to implement
+---
 
-    - lazy traversal with background threads
-    - logging window
-    - credential manager
-    - manage remotes
-    - shortcut manager
-    - theme manager
-    - add tests
-    - features
-        - create branch
-        - delete branch
-        - rename branch
-        - pull branch
-        - rebase branch
-        - merge branch
-        - cherrypick commit
-        - hide branch
-        - show branch
-        - solo branch
-        - rename branch
-        - stash
-        - pop
-    - some bugs left with graph rendering
-    
+## 📝 TODOs
+
+Some things I still need to implement:
+
+- 🖥️ **Logging window** – show detailed logs and messages in-app.  
+- 🔐 **Credential manager** – smooth handling of SSH/HTTPS credentials.  
+- 🌐 **Manage remotes** – add, remove, and inspect Git remotes.  
+- ⌨️ **Shortcut manager** – customize keybindings for better workflow.  
+- 🎨 **Theme manager** – allow changing colors and styles.  
+- 🧪 **Add tests** – improve reliability and catch edge cases.  
+- ⚙️ **Git features**:
+    - Create branch  
+    - Delete branch  
+    - Rename branch  
+    - Pull branch  
+    - Rebase branch  
+    - Merge branch  
+    - Cherry-pick commit  
+    - Hide branch  
+    - Show branch  
+    - Solo branch  
+    - Stash  
+    - Pop  
+- 🐛 **Graph rendering fixes** – some bugs remain with complex histories.
