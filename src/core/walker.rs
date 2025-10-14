@@ -202,21 +202,26 @@ impl Walker {
 
             for chunk in &self.buffer.borrow().curr {
                 if !chunk.is_dummy() && Some(&oid) == chunk.oid.as_ref() {
-
                     is_commit_found = true;
 
                     let is_two_parents = chunk.parent_a.is_some() && chunk.parent_b.is_some();
 
-                    if !(is_two_parents && !self.tips.contains_key(&oid)) && self.tips.contains_key(&oid) {
-                        self.tip_colors.insert(oid, self.color.borrow().get(lane_idx));
+                    if !(is_two_parents && !self.tips.contains_key(&oid))
+                        && self.tips.contains_key(&oid)
+                    {
+                        self.tip_colors
+                            .insert(oid, self.color.borrow().get(lane_idx));
                     }
 
                     if is_two_parents {
                         let mut is_merger_found = false;
                         for chunk_nested in &self.buffer.borrow().curr {
-                            if ((chunk_nested.parent_a.is_some() && chunk_nested.parent_b.is_none()) ||
-                                (chunk_nested.parent_a.is_none() && chunk_nested.parent_b.is_some()))
-                                && chunk.parent_b.as_ref() == chunk_nested.parent_a.as_ref() {
+                            if ((chunk_nested.parent_a.is_some()
+                                && chunk_nested.parent_b.is_none())
+                                || (chunk_nested.parent_a.is_none()
+                                    && chunk_nested.parent_b.is_some()))
+                                && chunk.parent_b.as_ref() == chunk_nested.parent_a.as_ref()
+                            {
                                 is_merger_found = true;
                                 break;
                             }
@@ -233,7 +238,8 @@ impl Walker {
             if !is_commit_found {
                 if self.tips.contains_key(&oid) {
                     self.color.borrow_mut().alternate(lane_idx);
-                    self.tip_colors.insert(oid, self.color.borrow().get(lane_idx));
+                    self.tip_colors
+                        .insert(oid, self.color.borrow().get(lane_idx));
                 }
             }
 

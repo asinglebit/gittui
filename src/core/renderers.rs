@@ -1,9 +1,10 @@
-use std::rc::Rc;
 #[rustfmt::skip]
 use std::{
     cell::RefCell,
-    collections::HashMap
+    collections::HashMap,
+    rc::Rc
 };
+use git2::Repository;
 #[rustfmt::skip]
 use git2::{
     Oid,
@@ -19,7 +20,13 @@ use ratatui::{
         Span
     },
 };
-use crate::{core::chunk::Chunk, helpers::colors::ColorPicker, layers};
+#[rustfmt::skip]
+use crate::{
+    core::chunk::Chunk,
+    git::queries::helpers::UncommittedChanges,
+    helpers::colors::ColorPicker,
+    layers,
+};
 #[rustfmt::skip]
 use crate::{
     helpers::{
@@ -47,8 +54,7 @@ pub fn render_graph_range(
         let oid = &oids[global_idx];
 
         layers.clear();
-
-        let mut spans_graph = Vec::new();
+        let mut spans = vec![Span::raw(" ")];
 
         // Iterate over the buffer chunks, rendering the graph line
         let mut is_commit_found = false;
@@ -57,6 +63,14 @@ pub fn render_graph_range(
 
         let prev = history.get(global_idx);
         let last = history.get(global_idx + 1).unwrap();
+
+        if *oid == Oid::zero() {
+            lines.push(Line::from(Span::styled(
+                " ◌",
+                Style::default().fg(COLOR_GREY_400),
+            )));
+            continue;
+        }
 
         for chunk in last.iter() {
             if chunk.is_dummy() {
@@ -257,20 +271,16 @@ pub fn render_graph_range(
         }
 
         // Blend layers into the graph
-        layers.bake(&mut spans_graph);
+        layers.bake(&mut spans);
 
         // Render
-        lines.push(Line::from(spans_graph));
+        lines.push(Line::from(spans));
     }
 
     lines
 }
 
-pub fn render_buffer_range(
-    history: &Vector<Vector<Chunk>>,
-    start: usize,
-    end: usize,
-) -> Vec<Line> {
+pub fn render_buffer_range(history: &Vector<Vector<Chunk>>, start: usize, end: usize) -> Vec<Line> {
     // Clamp the range to valid indices
     let start = start.min(history.len());
     let end = end.min(history.len());
@@ -307,4 +317,85 @@ pub fn render_buffer_range(
     }
 
     lines_buffer
+}
+
+pub fn render_message_range(
+    repo: &Repository,
+    oids: &Vec<Oid>,
+    tips: &HashMap<Oid, Vec<String>>,
+    history: &Vector<Vector<Chunk>>,
+    head_oid: Oid,
+    start: usize,
+    end: usize,
+    selected: usize,
+    uncommitted: &UncommittedChanges,
+) -> Vec<Line<'static>> {
+    // Clamp the range to valid indices
+    let start = start.min(history.len());
+    let end = end.min(history.len().saturating_sub(1));
+    let mut lines: Vec<Line> = Vec::new();
+
+    // Go through the commits, inferring the graph
+    for global_idx in start..end {
+        let oid = *oids.get(global_idx).unwrap();
+        let mut spans = Vec::new();
+
+        if oid != Oid::zero() {
+            let commit = repo.find_commit(*oids.get(global_idx).unwrap()).unwrap();
+
+            if let Some(branches) = tips.get(&oid) {
+                for branch in branches {
+                    spans.push(Span::styled(
+                        format!("{} {} ", SYM_COMMIT_BRANCH, branch),
+                        Style::default().fg(if global_idx == selected {
+                            COLOR_GREY_400
+                        } else {
+                            COLOR_TEXT
+                        }),
+                    ));
+                }
+            }
+
+            spans.push(Span::styled(
+                commit.summary().unwrap_or("⊘ no message").to_string(),
+                Style::default().fg(if global_idx == selected {
+                    COLOR_GREY_400
+                } else {
+                    COLOR_TEXT
+                }),
+            ));
+
+            lines.push(Line::from(spans));
+        } else {
+            let color = if global_idx == selected {
+                COLOR_GREY_400
+            } else {
+                COLOR_GREY_600
+            };
+            if uncommitted.modified_count > 0 {
+                spans.push(Span::styled("~ ", Style::default().fg(COLOR_BLUE)));
+                spans.push(Span::styled(
+                    format!("{} ", uncommitted.modified_count),
+                    Style::default().fg(color),
+                ));
+            }
+            if uncommitted.added_count > 0 {
+                spans.push(Span::styled("+ ", Style::default().fg(COLOR_GREEN)));
+                spans.push(Span::styled(
+                    format!("{} ", uncommitted.added_count),
+                    Style::default().fg(color),
+                ));
+            }
+            if uncommitted.deleted_count > 0 {
+                spans.push(Span::styled("- ", Style::default().fg(COLOR_RED)));
+                spans.push(Span::styled(
+                    format!("{} ", uncommitted.deleted_count),
+                    Style::default().fg(color),
+                ));
+            }
+            lines.push(Line::from(spans));
+        }
+    }
+
+    lines
 }

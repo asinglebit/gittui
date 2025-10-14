@@ -1,10 +1,7 @@
-use git2::Oid;
-use ratatui::text::Line;
 #[rustfmt::skip]
 use ratatui::{
     Frame,
     style::Style,
-    text::Span,
     widgets::{
         Block,
         Borders,
@@ -16,12 +13,11 @@ use ratatui::{
         Table,
     },
 };
-use crate::core::renderers::{render_buffer_range, render_graph_range};
+use crate::core::renderers::{render_buffer_range, render_graph_range, render_message_range};
 #[rustfmt::skip]
 use crate::{
     helpers::{
         palette::*,
-        symbols::*
     },
 };
 #[rustfmt::skip]
@@ -31,9 +27,7 @@ use crate::app::app::{
 };
 
 impl App {
-
     pub fn draw_graph(&mut self, frame: &mut Frame) {
-
         // Get vertical dimensions
         let total_lines = self.oids.len();
         let visible_height = self.layout.graph.height as usize - 2;
@@ -46,14 +40,38 @@ impl App {
         }
 
         // Trap selection
-        self.trap_selection(self.graph_selected, &self.graph_scroll, total_lines, visible_height);
+        self.trap_selection(
+            self.graph_selected,
+            &self.graph_scroll,
+            total_lines,
+            visible_height,
+        );
 
         // Calculate scroll
-        let start = self.graph_scroll.get().min(total_lines.saturating_sub(visible_height));
+        let start = self
+            .graph_scroll
+            .get()
+            .min(total_lines.saturating_sub(visible_height));
         let end = (start + visible_height).min(total_lines);
-        
-        let a = self.buffer.borrow().history.clone();
-        let b = render_buffer_range( &a, start, end + 1);
+
+        // History
+        let history = self.buffer.borrow().history.clone();
+        let head = self.repo.head().unwrap().target().unwrap();
+
+        // Rendered lines
+        let buffer_range = render_buffer_range(&history, start, end + 1);
+        let graph_range = render_graph_range(&self.oids, &self.tips, &history, head, start, end);
+        let message_range = render_message_range(
+            &self.repo,
+            &self.oids,
+            &self.tips,
+            &history,
+            head,
+            start,
+            end,
+            self.graph_selected,
+            &self.uncommitted,
+        );
 
         // Start with fake commit row
         let mut rows = Vec::with_capacity(end - start + 1); // preallocate for efficiency
@@ -61,115 +79,76 @@ impl App {
         // Add the rest of the commits
         let mut width = 0;
 
-        self.lines_graph = render_graph_range(&self.oids, &self.tips, &a, self.repo.head().unwrap().target().unwrap(), start, end);
-        let graph_slice = &self.lines_graph;
-
-        
-        if !self.lines_graph.is_empty() {
-            
-            // let graph_slice = &self.lines_graph[start..end];
-
-            width = self.lines_graph
-                .iter()
-                .map(|line| {
-                    line.spans
-                        .iter()
-                        .filter(|span| !span.content.is_empty()) // only non-empty spans
-                        .map(|span| span.content.chars().count()) // use chars() for wide characters
-                        .sum::<usize>()
-                })
-                .max()
-                .unwrap_or(0) as u16;
-
-
-            for (i, graph) in graph_slice.iter().enumerate() {
-                let actual_index = start + i;
-
-                let graph = if actual_index == self.graph_selected {
-                    let graph_spans: Vec<Span> = graph.spans.iter().map(|span| { Span::styled(span.content.clone(), span.style)}).collect();
-                    Line::from(graph_spans)
-                } else {
-                    graph.clone()
-                };
-
-                // let mut message = Line::default();
-                // if *self.oids.get(actual_index).unwrap() != Oid::zero() {
-                //     let commit = self.repo.find_commit(*self.oids.get(actual_index).unwrap()).unwrap();
-                //     message = if actual_index == self.graph_selected {
-                //         Line::from(Span::styled(commit.summary().unwrap_or("⊘ no message").to_string(), Style::default().fg(COLOR_GRASS)))
-                //     } else {
-                //         Line::from(Span::styled(commit.summary().unwrap_or("⊘ no message").to_string(), Style::default().fg(COLOR_TEXT)))
-                //     };
-                // } else {
-                //     let mut uncommited_line_spans = vec![Span::styled(
-                //         format!("{} ", SYM_UNCOMMITED),
-                //         Style::default().fg(COLOR_GREY_400),
-                //     )];
-
-                //     if self.uncommitted.modified_count > 0 {
-                //         uncommited_line_spans.push(Span::styled("~ ", Style::default().fg(COLOR_BLUE)));
-                //         uncommited_line_spans.push(Span::styled(
-                //             format!("{} ", self.uncommitted.modified_count),
-                //             Style::default().fg(COLOR_GREY_600),
-                //         ));
-                //     }
-                //     if self.uncommitted.added_count > 0 {
-                //         uncommited_line_spans.push(Span::styled("+ ", Style::default().fg(COLOR_GREEN)));
-                //         uncommited_line_spans.push(Span::styled(
-                //             format!("{} ", self.uncommitted.added_count),
-                //             Style::default().fg(COLOR_GREY_600),
-                //         ));
-                //     }
-                //     if self.uncommitted.deleted_count > 0 {
-                //         uncommited_line_spans.push(Span::styled("- ", Style::default().fg(COLOR_RED)));
-                //         uncommited_line_spans.push(Span::styled(
-                //             format!("{} ", self.uncommitted.deleted_count),
-                //             Style::default().fg(COLOR_GREY_600),
-                //         ));
-                //     }
-                //     message = Line::from(uncommited_line_spans);
-                // }
-
-                let range_buffer = b.get(i + 1).cloned().unwrap_or_default();
+        if !graph_range.is_empty() {
+            for idx in 0..graph_range.len() {
+                width = graph_range
+                    .iter()
+                    .map(|line| {
+                        line.spans
+                            .iter()
+                            .filter(|span| !span.content.is_empty()) // only non-empty spans
+                            .map(|span| span.content.chars().count()) // use chars() for wide characters
+                            .sum::<usize>()
+                    })
+                    .max()
+                    .unwrap_or(0) as u16;
 
                 let mut row = Row::new(vec![
-                    WidgetCell::from(graph),
-                    WidgetCell::from(range_buffer)
+                    WidgetCell::from(graph_range.get(idx).cloned().unwrap_or_default()),
+                    WidgetCell::from(message_range.get(idx).cloned().unwrap_or_default()),
                 ]);
-                if actual_index == self.graph_selected {
+                if idx + start == self.graph_selected {
                     row = row.style(Style::default().bg(COLOR_GREY_800));
                 }
                 rows.push(row);
-            }            
-        };
+            }
+        }
 
         // Setup the table
-        let table = Table::new(rows, [
+        let table = Table::new(
+            rows,
+            [
                 ratatui::layout::Constraint::Length(width),
                 ratatui::layout::Constraint::Min(0),
-            ]).block(
-                Block::default()
-                    // .title(vec![
-                    //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                    //     Span::styled(" graph ", Style::default().fg(if self.focus == Focus::Viewport { COLOR_GREY_500 } else { COLOR_TEXT } )),
-                    //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                    // ])
-                    // .title_alignment(ratatui::layout::Alignment::Right)
-                    // .title_style(Style::default().fg(COLOR_GREY_400))
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(COLOR_BORDER))
-                    .border_type(ratatui::widgets::BorderType::Rounded),
-            )
-            .column_spacing(5);
+            ],
+        )
+        .block(
+            Block::default()
+                // .title(vec![
+                //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
+                //     Span::styled(" graph ", Style::default().fg(if self.focus == Focus::Viewport { COLOR_GREY_500 } else { COLOR_TEXT } )),
+                //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
+                // ])
+                // .title_alignment(ratatui::layout::Alignment::Right)
+                // .title_style(Style::default().fg(COLOR_GREY_400))
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(COLOR_BORDER))
+                .border_type(ratatui::widgets::BorderType::Rounded),
+        )
+        .column_spacing(5);
 
         // Render the table
         frame.render_widget(table, self.layout.graph);
 
         if total_lines > visible_height {
-            let mut scrollbar_state = ScrollbarState::new(total_lines.saturating_sub(visible_height)).position(self.graph_scroll.get());
+            let mut scrollbar_state =
+                ScrollbarState::new(total_lines.saturating_sub(visible_height))
+                    .position(self.graph_scroll.get());
             let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .begin_symbol(if (self.is_inspector && self.graph_selected != 0) || self.is_status { Some("─") } else { Some("╮") })
-                .end_symbol(if (self.is_inspector && self.graph_selected != 0) || self.is_status { Some("─") } else { Some("╯") })
+                .begin_symbol(
+                    if (self.is_inspector && self.graph_selected != 0) || self.is_status {
+                        Some("─")
+                    } else {
+                        Some("╮")
+                    },
+                )
+                .end_symbol(
+                    if (self.is_inspector && self.graph_selected != 0) || self.is_status {
+                        Some("─")
+                    } else {
+                        Some("╯")
+                    },
+                )
                 .track_symbol(Some("│"))
                 .thumb_symbol("▌")
                 .thumb_style(Style::default().fg(if self.focus == Focus::Viewport {
