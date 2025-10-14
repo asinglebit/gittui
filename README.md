@@ -6,7 +6,7 @@
 
 ## 🌟 Motivation
 
-I am building **guita╭** as a personal exercise in procrustination that quickly turned into a delightful little tool for anyone who spends their life in the terminal.
+I am building **guita╭** as a personal exercise in procrustination.
 
 The goal is simple:
 
