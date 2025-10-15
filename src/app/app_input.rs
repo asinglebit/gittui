@@ -254,6 +254,9 @@ impl App {
             KeyCode::Char('.') => {
                 self.is_minimal = !self.is_minimal;
             }
+            KeyCode::Char('`') => {
+                self.is_branches = !self.is_branches;
+            }
             KeyCode::Char('s') => {
                 self.is_status = !self.is_status;
                 if !self.is_status

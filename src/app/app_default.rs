@@ -125,6 +125,7 @@ impl Default for App {
             
             // Focus
             is_minimal: false,
+            is_branches: false,
             is_status: false,
             is_inspector: false,
             viewport: Viewport::Graph,

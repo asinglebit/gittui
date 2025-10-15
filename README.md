@@ -79,6 +79,7 @@ Some things I still need to implement:
 - ⌨️ **Shortcut manager** – customize keybindings for better workflow.  
 - 🎨 **Theme manager** – allow changing colors and styles.  
 - 🧪 **Add tests** – improve reliability and catch edge cases.  
+- 🐛 **Graph rendering fixes** – some bugs remain with complex histories.
 - ⚙️ **Git features**:
     - Create branch  
     - Delete branch  
@@ -92,4 +93,3 @@ Some things I still need to implement:
     - Solo branch  
     - Stash  
     - Pop  
-- 🐛 **Graph rendering fixes** – some bugs remain with complex histories.

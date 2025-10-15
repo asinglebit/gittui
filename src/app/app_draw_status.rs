@@ -42,7 +42,7 @@ impl App {
         // Padding
         let padding = ratatui::widgets::Padding {
             left: 1,
-            right: 1,
+            right: 0,
             top: 0,
             bottom: 0,
         };
@@ -217,9 +217,8 @@ impl App {
                         // ]} else {vec![]})
                         // .title_alignment(Alignment::Right)
                         // .title_style(Style::default().fg(COLOR_GREY_500))
-                        .borders(Borders::BOTTOM | Borders::RIGHT | Borders::TOP)
+                        .borders(if self.is_inspector && self.graph_selected != 0 { Borders::TOP } else { Borders::NONE })
                         .border_style(Style::default().fg(COLOR_BORDER))
-                        .border_type(ratatui::widgets::BorderType::Rounded),
                 );
 
             frame.render_widget(list, self.layout.status_top);
@@ -242,7 +241,7 @@ impl App {
                 }));
 
             // Render the scrollbar
-            frame.render_stateful_widget(scrollbar, self.layout.status_top, &mut scrollbar_state);
+            frame.render_stateful_widget(scrollbar, self.layout.status_top_scrollbar, &mut scrollbar_state);
         }
 
         // Render status bottom
@@ -285,9 +284,8 @@ impl App {
                     .block(
                         Block::default()
                             .padding(padding)
-                            .borders(Borders::BOTTOM | Borders::RIGHT)
+                            .borders(Borders::TOP)
                             .border_style(Style::default().fg(COLOR_BORDER))
-                            .border_type(ratatui::widgets::BorderType::Rounded),
                     );
 
                 frame.render_widget(list, self.layout.status_bottom);
@@ -310,7 +308,7 @@ impl App {
                     }));
 
                 // Render the scrollbar
-                frame.render_stateful_widget(scrollbar, self.layout.status_bottom, &mut scrollbar_state);
+                frame.render_stateful_widget(scrollbar, self.layout.status_bottom_scrollbar, &mut scrollbar_state);
             }
         }
     }

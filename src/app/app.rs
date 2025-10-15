@@ -30,6 +30,7 @@ use git2::{
     Oid,
     Repository
 };
+use ratatui::{style::Style, widgets::{Block, Borders}};
 #[rustfmt::skip]
 use ratatui::{
     DefaultTerminal,
@@ -45,6 +46,7 @@ use ratatui::{
         Span
     },
 };
+use crate::helpers::palette::COLOR_BORDER;
 #[rustfmt::skip]
 use crate::{
     layers,
@@ -90,10 +92,15 @@ use crate::{
 pub struct Layout {
     pub title_left: Rect,
     pub title_right: Rect,
+    pub app: Rect,
     pub graph: Rect,
+    pub graph_scrollbar: Rect,
     pub inspector: Rect,
+    pub inspector_scrollbar: Rect,
     pub status_top: Rect,
+    pub status_top_scrollbar: Rect,
     pub status_bottom: Rect,
+    pub status_bottom_scrollbar: Rect,
     pub statusbar_left: Rect,
     pub statusbar_right: Rect,
 }
@@ -112,6 +119,7 @@ pub enum Focus {
     Inspector,
     StatusTop,
     StatusBottom,
+    Branches,
     ModalActions,
     ModalCheckout,
     ModalCommit,
@@ -161,6 +169,7 @@ pub struct App {
 
     // Focus
     pub is_minimal: bool,
+    pub is_branches: bool,
     pub is_status: bool,
     pub is_inspector: bool,
     pub viewport: Viewport,
@@ -238,6 +247,19 @@ impl App {
     pub fn draw(&mut self, frame: &mut Frame) {
         // Compute the layout
         self.layout(frame);
+
+        frame.render_widget( Block::default()
+            // .title(vec![
+            //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
+            //     Span::styled(" graph ", Style::default().fg(if self.focus == Focus::Viewport { COLOR_GREY_500 } else { COLOR_TEXT } )),
+            //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
+            // ])
+            // .title_alignment(ratatui::layout::Alignment::Right)
+            // .title_style(Style::default().fg(COLOR_GREY_400))
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(COLOR_BORDER))
+            .border_type(ratatui::widgets::BorderType::Rounded), self.layout.app);
+                
 
         // Main layout
         self.draw_title(frame);

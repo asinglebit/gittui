@@ -220,13 +220,6 @@ impl App {
                     // ])
                     // .title_alignment(Alignment::Right)
                     // .title_style(Style::default().fg(COLOR_GREY_500))
-                    .borders(if self.is_status {
-                        Borders::RIGHT | Borders::TOP
-                    } else {
-                        Borders::RIGHT | Borders::TOP | Borders::BOTTOM
-                    })
-                    .border_style(Style::default().fg(COLOR_BORDER))
-                    .border_type(ratatui::widgets::BorderType::Rounded),
             );
 
         frame.render_widget(list, self.layout.inspector);
@@ -245,6 +238,6 @@ impl App {
             }));
 
         // Render the scrollbar
-        frame.render_stateful_widget(scrollbar, self.layout.inspector, &mut scrollbar_state);
+        frame.render_stateful_widget(scrollbar, self.layout.inspector_scrollbar, &mut scrollbar_state);
     }
 }

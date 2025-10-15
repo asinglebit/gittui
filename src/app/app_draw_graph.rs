@@ -1,3 +1,4 @@
+use ratatui::{symbols::line::BOTTOM_LEFT, widgets::Padding};
 #[rustfmt::skip]
 use ratatui::{
     Frame,
@@ -36,7 +37,7 @@ impl App {
     pub fn draw_graph(&mut self, frame: &mut Frame) {
         // Get vertical dimensions
         let total_lines = self.oids.len();
-        let visible_height = self.layout.graph.height as usize - 2;
+        let visible_height = self.layout.graph.height as usize;
 
         // Clamp selection
         if total_lines == 0 {
@@ -114,7 +115,7 @@ impl App {
                 if idx + start == self.graph_selected {
                     row = row.style(Style::default().bg(COLOR_GREY_800));
                 } else {
-                    if idx % 2 == 0 {
+                    if (idx + start) % 2 == 0 {
                         row = row.style(Style::default().bg(COLOR_GREY_900));
                     }
                 }
@@ -139,7 +140,7 @@ impl App {
                 // ])
                 // .title_alignment(ratatui::layout::Alignment::Right)
                 // .title_style(Style::default().fg(COLOR_GREY_400))
-                .borders(Borders::ALL)
+                .borders(Borders::RIGHT | Borders::LEFT)
                 .border_style(Style::default().fg(COLOR_BORDER))
                 .border_type(ratatui::widgets::BorderType::Rounded),
         )
@@ -176,7 +177,7 @@ impl App {
                 }));
 
             // Render the scrollbar
-            frame.render_stateful_widget(scrollbar, self.layout.graph, &mut scrollbar_state);
+            frame.render_stateful_widget(scrollbar, self.layout.graph_scrollbar, &mut scrollbar_state);
         }
     }
 }

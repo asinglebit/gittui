@@ -94,6 +94,7 @@ impl Buffer {
     }
 
     pub fn backup(&mut self) {
+        
         // Append immutable snapshot to history
         self.history.push_back(self.curr.clone());
     }
