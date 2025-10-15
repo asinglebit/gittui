@@ -107,23 +107,23 @@ impl App {
             list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("                       L#                   ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));
             list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!(".##5#^.  .#   .#  :C  #C6#   #?##:          ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));
             list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("#B   #G  C#   #B  #7   B?        G#         ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("#4   B5  B5   B5  B5   B5    1B5B#G  .a###  ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("#b   5?  ?B   B5  B5   B5   ##   ##  B?     ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!(".#B~6G!  .#6#~G.  #5   ~##  .##Y~#.  !#     ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("    .##                              !B     ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("   ~G#                               ~?     ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));
+            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("#4   B5  B5   B5  B5   B5    1B5B#G  .a###  ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));
+            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("#b   5?  ?B   B5  B5   B5   ##   ##  B?     ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));
+            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!(".#B~6G!  .#6#~G.  #5   ~##  .##Y~#.  !#     ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));
+            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("    .##                              !B     ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));
+            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("   ~G#                               ~?     ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));
         } else {
             list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("                                :GG~        .?Y.                                ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));    
             list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("      ....        ..      ..   .....      . ^BG: ..       .....                 ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));    
             list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("   .7555YY7JP^   ~PJ     ~PJ  ?YY5PP~    7YY5BGYYYYJ.   J555YY557.              ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));    
             list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("  .5B?.  :JBB~   !#5     !#5  ...PB~     ...^BG:....    ~:.   .7#5           :^^").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));    
             list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("  7#5     .GB~   !B5     !B5     PB~        :BG.        .~7??J?JBG:      .~JPPPY").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));    
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("  ?#Y      PB~   !B5     !B5     PB~        :BG.       7GP7~^^^!BG:     ~5GY!:. ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));    
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("  ^GB~    7BB~   ^BG.   .YB5     5#7        :BB:       P#!     JBG:    ^GG7     ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));    
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("   ^5G5JJYJPB~    JBP???YYB5     ^5GYJJ?.    7GPJ???.  ~PGJ77?5J5B!    JG5      ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));    
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("     .^~^..GB:     :~!!~. ^^       :~~~~      .^~~~~    .^!!!~. .^:    JG5      ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));    
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("   .?!^^^!5G7                                                          YB5      ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));    
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("   .!?JJJ?!:                                                           75?      ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));    
+            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("  ?#Y      PB~   !B5     !B5     PB~        :BG.       7GP7~^^^!BG:     ~5GY!:. ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));    
+            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("  ^GB~    7BB~   ^BG.   .YB5     5#7        :BB:       P#!     JBG:    ^GG7     ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));    
+            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("   ^5G5JJYJPB~    JBP???YYB5     ^5GYJJ?.    7GPJ???.  ~PGJ77?5J5B!    JG5      ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));    
+            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("     .^~^..GB:     :~!!~. ^^       :~~~~      .^~~~~    .^!!!~. .^:    JG5      ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));    
+            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("   .?!^^^!5G7                                                          YB5      ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));    
+            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("   .!?JJJ?!:                                                           75?      ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));    
         }
         list_items.push(ListItem::from(Line::default()));
         list_items.push(ListItem::from(Line::from(vec![
