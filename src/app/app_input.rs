@@ -488,7 +488,7 @@ impl App {
             KeyCode::PageUp => {
                 match self.focus {
                     Focus::Viewport => {
-                        let page = self.layout.graph.height as usize - 3;
+                        let page = self.layout.graph.height as usize - 1;
                         match self.viewport {
                             Viewport::Graph => {
                                 if self.graph_selected >= page {
@@ -536,7 +536,7 @@ impl App {
             KeyCode::PageDown => {
                 match self.focus {
                     Focus::Viewport => {
-                        let page = self.layout.graph.height as usize - 3;
+                        let page = self.layout.graph.height as usize - 1;
                         match self.viewport {
                             Viewport::Graph => {
                                 if self.graph_selected + page < self.oids.len() {

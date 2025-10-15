@@ -40,7 +40,7 @@ impl App {
         let chunks_horizontal = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Horizontal)
             .constraints([
-                ratatui::layout::Constraint::Length(if self.is_branches { 30 } else { 0 }),
+                ratatui::layout::Constraint::Length(if self.is_branches && self.viewport != Viewport::Settings { 30 } else { 0 }),
                 ratatui::layout::Constraint::Max(200),
                 ratatui::layout::Constraint::Length(if is_right_pane { 45 } else { 0 }),
             ])
@@ -49,8 +49,8 @@ impl App {
         let chunks_pane = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
             .constraints([
-                ratatui::layout::Constraint::Percentage(if is_inspector { if !is_status { 100 } else { 30 } } else { 0 }),
-                ratatui::layout::Constraint::Percentage(if is_status { if !is_inspector { 100 } else { 70 } } else { 0 }),
+                ratatui::layout::Constraint::Percentage(if is_inspector { if !is_status { 100 } else { 35 } } else { 0 }),
+                ratatui::layout::Constraint::Percentage(if is_status { if !is_inspector { 100 } else { 65 } } else { 0 }),
             ])
             .split(chunks_horizontal[2]);
 
@@ -70,6 +70,11 @@ impl App {
             ])
             .split(chunks_vertical[2]);
 
+        let mut branches_scrollbar = chunks_horizontal[0];
+        branches_scrollbar.width += 1;
+        let mut branches = chunks_horizontal[0];
+        branches.y += 1; 
+        // branches.height = branches.height.saturating_sub(2); 
 
         let graph_scrollbar = chunks_horizontal[1];
         let mut graph = chunks_horizontal[1];
@@ -107,6 +112,8 @@ impl App {
             title_left: chunks_title_bar[0],
             title_right: chunks_title_bar[1],
             app: chunks_vertical[1],
+            branches,
+            branches_scrollbar,
             graph,
             graph_scrollbar,
             inspector,

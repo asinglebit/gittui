@@ -66,7 +66,7 @@ impl App {
 
         // Get vertical dimensions
         let total_lines = self.viewer_lines.len();
-        let visible_height = self.layout.graph.height as usize - 2;
+        let visible_height = self.layout.graph.height as usize;
 
         // Clamp selection
         if total_lines == 0 {
@@ -108,7 +108,7 @@ impl App {
                     // ])
                     // .title_alignment(ratatui::layout::Alignment::Right)
                     // .title_style(Style::default().fg(COLOR_GREY_400))
-                    .borders(Borders::ALL)
+                    .borders(Borders::RIGHT | Borders::LEFT)
                     .border_style(Style::default().fg(COLOR_BORDER))
                     .border_type(ratatui::widgets::BorderType::Rounded),
             );
@@ -130,7 +130,7 @@ impl App {
             }));
 
         // Render the scrollbar
-        frame.render_stateful_widget(scrollbar, self.layout.graph, &mut scrollbar_state);
+        frame.render_stateful_widget(scrollbar, self.layout.graph_scrollbar, &mut scrollbar_state);
     }
 
     pub fn open_viewer(&mut self) {

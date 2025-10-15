@@ -93,6 +93,8 @@ pub struct Layout {
     pub title_left: Rect,
     pub title_right: Rect,
     pub app: Rect,
+    pub branches: Rect,
+    pub branches_scrollbar: Rect,
     pub graph: Rect,
     pub graph_scrollbar: Rect,
     pub inspector: Rect,
@@ -284,6 +286,9 @@ impl App {
         match self.viewport {
             Viewport::Settings => {}
             _ => {
+                if self.is_branches {
+                    self.draw_branches(frame);
+                }
                 if self.is_status {
                     self.draw_status(frame);
                 }
