@@ -8,7 +8,8 @@ use std::{
         RefCell
     },
     collections::{
-        HashMap
+        HashMap,
+        HashSet
     }
 };
 #[rustfmt::skip]
@@ -51,16 +52,16 @@ pub struct LazyWalker {
 
 impl LazyWalker {
     // Creates a new LazyWalker by building a revwalk from the repo
-    pub fn new(repo: Rc<Repository>) -> Result<Self, git2::Error> {
-        let revwalk = Self::build_revwalk(&repo)?;
+    pub fn new(repo: Rc<Repository>, visible_oid_branches: HashSet<Oid>) -> Result<Self, git2::Error> {
+        let revwalk = Self::build_revwalk(&repo, visible_oid_branches)?;
         Ok(Self {
             revwalk: Mutex::new(revwalk),
         })
     }
 
     // Reset the revwalk
-    pub fn reset(&self, repo: Rc<Repository>) -> Result<(), git2::Error> {
-        let revwalk = Self::build_revwalk(&repo)?;
+    pub fn reset(&self, repo: Rc<Repository>, visible_oid_branches: HashSet<Oid>) -> Result<(), git2::Error> {
+        let revwalk = Self::build_revwalk(&repo, visible_oid_branches)?;
         let mut guard = self.revwalk.lock().unwrap();
         *guard = revwalk;
         Ok(())
@@ -77,7 +78,7 @@ impl LazyWalker {
     }
 
     // Internal helper to build a revwalk for all branch tips
-    fn build_revwalk(repo: &Repository) -> Result<Revwalk<'static>, git2::Error> {
+    fn build_revwalk(repo: &Repository, visible_oid_branches: HashSet<Oid>) -> Result<Revwalk<'static>, git2::Error> {
         // Safge: we keep repo alive in Rc, so transmute to 'static is safe
         let repo_ref: &'static Repository =
             unsafe { std::mem::transmute::<&Repository, &'static Repository>(repo) };
@@ -85,10 +86,12 @@ impl LazyWalker {
 
         // Push all local and remote branch tips
         for branch_type in [BranchType::Local, BranchType::Remote] {
-            for branch in repo.branches(Some(branch_type))? {
-                let (branch, _) = branch?;
+            for branch_result in repo.branches(Some(branch_type))? {
+                let (branch, _) = branch_result?;
                 if let Some(oid) = branch.get().target() {
-                    revwalk.push(oid)?;
+                    if visible_oid_branches.contains(&oid) {
+                        revwalk.push(oid)?;
+                    }
                 }
             }
         }
@@ -130,10 +133,10 @@ pub struct WalkerOutput {
 
 impl Walker {
     // Creates a new walker
-    pub fn new(path: String, amount: usize) -> Result<Self, git2::Error> {
+    pub fn new(path: String, amount: usize, visible_oid_branches: HashSet<Oid>) -> Result<Self, git2::Error> {
         let path = path.clone();
         let repo = Rc::new(Repository::open(path).expect("Failed to open repo"));
-        let walker = LazyWalker::new(repo.clone()).expect("Error");
+        let walker = LazyWalker::new(repo.clone(), visible_oid_branches).expect("Error");
         let tips = get_tip_oids(&repo);
         let uncommitted = get_filenames_diff_at_workdir(&repo).expect("Error");
 

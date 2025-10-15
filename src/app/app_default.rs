@@ -1,6 +1,9 @@
 #[rustfmt::skip]
 use std::{
-    collections::HashMap,
+    collections::{
+        HashMap,
+        HashSet
+    },
     env,
     path::PathBuf,
     rc::Rc,
@@ -79,14 +82,11 @@ impl Default for App {
             Span::styled("╭", Style::default().fg(COLOR_GREEN))
         ];
 
-        let walker = LazyWalker::new(repo.clone()).expect("Error");
-
         App {
             // General
             logo,
             path: absolute_path.display().to_string(),
             repo,
-            walker,
             hint: String::new(),
             spinner: Spinner::new(),
 
@@ -109,16 +109,12 @@ impl Default for App {
             oid_branch_map: HashMap::new(),
             uncommitted: UncommittedChanges::default(),
 
-            // Walker lines
-            lines_graph: Vec::new(),
-            lines_branches: Vec::new(),
-            lines_messages: Vec::new(),
-            lines_buffers: Vec::new(),
-
             // Cache
             current_diff: Vec::new(),
             file_name: None,
             viewer_lines: Vec::new(),
+            oid_branch_vec: Vec::new(),
+            visible_branch_oids: HashSet::new(),
 
             // Interface
             layout: Layout::default(),
@@ -130,6 +126,10 @@ impl Default for App {
             is_inspector: false,
             viewport: Viewport::Graph,
             focus: Focus::Viewport,
+
+            // Branches
+            branches_selected: 0,
+            branches_scroll: 0.into(),
             
             // Graph
             graph_selected: 0,

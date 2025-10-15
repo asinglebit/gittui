@@ -132,7 +132,6 @@ pub struct App {
     pub logo: Vec<Span<'static>>,
     pub path: String,
     pub repo: Rc<Repository>,
-    pub walker: LazyWalker,
     pub hint: String,
     pub spinner: Spinner,
 
@@ -155,16 +154,12 @@ pub struct App {
     pub oid_branch_map: HashMap<Oid, HashSet<String>>,
     pub uncommitted: UncommittedChanges,
 
-    // Walker lines
-    pub lines_graph: Vec<Line<'static>>,
-    pub lines_branches: Vec<Line<'static>>,
-    pub lines_messages: Vec<Line<'static>>,
-    pub lines_buffers: Vec<Line<'static>>,
-
     // Cache
     pub current_diff: Vec<FileChange>,
     pub file_name: Option<String>,
     pub viewer_lines: Vec<ListItem<'static>>,
+    pub oid_branch_vec: Vec<(Oid, String)>,
+    pub visible_branch_oids: HashSet<Oid>,
 
     // Interface
     pub layout: Layout,
@@ -176,6 +171,10 @@ pub struct App {
     pub is_inspector: bool,
     pub viewport: Viewport,
     pub focus: Focus,
+
+    // Branches
+    pub branches_selected: usize,
+    pub branches_scroll: Cell<usize>,
 
     // Graph
     pub graph_selected: usize,
@@ -212,7 +211,7 @@ pub struct App {
     pub is_exit: bool,
 }
 
-impl App {
+impl App  {
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
     
         self.reload();
@@ -232,6 +231,9 @@ impl App {
                     self.branch_oid_map = result.branch_oid_map;
                     self.uncommitted = result.uncommitted;
                     self.buffer = result.buffer;
+                    self.oid_branch_vec = self.tips.iter().flat_map(|(oid, branches)| {
+                        branches.iter().map(move |branch| (*oid, branch.clone()))
+                    }).collect();
 
                     if !result.again {
                         // self.walker_rx = None;
@@ -324,10 +326,6 @@ impl App {
         self.name = name.unwrap();
         self.email = email.unwrap();
 
-        // Reset the walker
-        self.walker
-            .reset(self.repo.clone())
-            .expect("Failed to reset walker");
         // Reset utilities
         self.color = Rc::new(RefCell::new(ColorPicker::default()));
         self.buffer = RefCell::new(Buffer::default());
@@ -345,11 +343,6 @@ impl App {
         self.branch_oid_map = HashMap::new();
         // Get uncomitted changes info
         self.uncommitted = get_filenames_diff_at_workdir(&self.repo).expect("Error");
-        // Walker lines
-        self.lines_graph = Vec::new();
-        self.lines_branches = Vec::new();
-        self.lines_messages = Vec::new();
-        self.lines_buffers = Vec::new();
         // Restart the spinner
         self.spinner.start();
         // First walk
@@ -363,11 +356,12 @@ impl App {
 
         // Copy the repo path
         let path = self.path.clone();
+        let visible_branch_oids = self.visible_branch_oids.clone();
 
         // Spawn a thread that computes something
         thread::spawn(move || {
             // Create the walker
-            let mut walk_ctx = Walker::new(path, 10000).expect("Error");
+            let mut walk_ctx = Walker::new(path, 10000, visible_branch_oids).expect("Error");
 
             // Pagination loop
             loop {

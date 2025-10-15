@@ -159,6 +159,9 @@ impl App {
                 self.exit()
             }
             KeyCode::Char('j') | KeyCode::Down => match self.focus {
+                Focus::Branches => {
+                    self.branches_selected += 1;
+                }
                 Focus::Viewport => match self.viewport {
                     Viewport::Graph => {
                         if self.graph_selected + 1 < self.oids.len() {
@@ -200,6 +203,9 @@ impl App {
                 _ => {}
             },
             KeyCode::Char('k') | KeyCode::Up => match self.focus {
+                Focus::Branches => {
+                    self.branches_selected = self.branches_selected.saturating_sub(1);
+                }
                 Focus::Viewport => {
                     match self.viewport {
                         Viewport::Graph => {
@@ -224,19 +230,13 @@ impl App {
                     if self.viewport == Viewport::Graph {}
                 }
                 Focus::Inspector => {
-                    if self.inspector_selected > 0 {
-                        self.inspector_selected -= 1;
-                    }
+                    self.inspector_selected = self.inspector_selected.saturating_sub(1);
                 }
                 Focus::StatusTop => {
-                    if self.status_top_selected > 0 {
-                        self.status_top_selected -= 1;
-                    }
+                    self.status_top_selected = self.status_top_selected.saturating_sub(1);
                 }
                 Focus::StatusBottom => {
-                    if self.status_bottom_selected > 0 {
-                        self.status_bottom_selected -= 1;
-                    }
+                    self.status_bottom_selected = self.status_bottom_selected.saturating_sub(1);
                 }
                 Focus::ModalCheckout => {
                     let branches = self
@@ -372,6 +372,12 @@ impl App {
             },
             KeyCode::Enter => {
                 match self.focus {
+                    Focus::Branches => {
+                        let oid = self.oid_branch_vec.get(self.branches_selected).unwrap().0;
+                        if !self.visible_branch_oids.insert(oid) {
+                            self.visible_branch_oids.remove(&oid);
+                        }
+                    }
                     Focus::Viewport => {
                         if self.focus == Focus::Viewport && self.viewport == Viewport::Editor {
                             return;
@@ -401,6 +407,9 @@ impl App {
             }
             KeyCode::Tab => {
                 self.focus = match self.focus {
+                    Focus::Branches => {
+                        Focus::Viewport
+                    }
                     Focus::Viewport => {
                         if self.focus == Focus::Viewport && self.viewport == Viewport::Editor {
                             return;
@@ -409,6 +418,8 @@ impl App {
                             Focus::Inspector
                         } else if self.is_status {
                             Focus::StatusTop
+                        } else if self.is_branches{
+                            Focus::Branches
                         } else {
                             Focus::Viewport
                         }
@@ -427,12 +438,17 @@ impl App {
                             Focus::Viewport
                         }
                     }
-                    Focus::StatusBottom => Focus::Viewport,
+                    Focus::StatusBottom => {
+                        if self.is_branches { Focus::Branches } else { Focus::Viewport }
+                    }
                     _ => Focus::Viewport,
                 };
             }
             KeyCode::Home => {
                 match self.focus {
+                    Focus::Branches => {
+                        self.branches_selected = 0;
+                    }
                     Focus::Viewport => match self.viewport {
                         Viewport::Graph => {
                             self.graph_selected = 0;
@@ -456,6 +472,9 @@ impl App {
             }
             KeyCode::End => {
                 match self.focus {
+                    Focus::Branches => {
+                        self.branches_selected = usize::MAX;
+                    }
                     Focus::Viewport => match self.viewport {
                         Viewport::Graph => {
                             if !self.oids.is_empty() {
@@ -487,6 +506,10 @@ impl App {
             }
             KeyCode::PageUp => {
                 match self.focus {
+                    Focus::Branches => {
+                        let page = self.layout.branches.height as usize - 1;
+                        self.branches_selected = self.branches_selected.saturating_sub(page);
+                    }
                     Focus::Viewport => {
                         let page = self.layout.graph.height as usize - 1;
                         match self.viewport {
@@ -535,6 +558,10 @@ impl App {
             }
             KeyCode::PageDown => {
                 match self.focus {
+                    Focus::Branches => {
+                        let page = self.layout.branches.height as usize - 1;
+                        self.branches_selected += page;
+                    }
                     Focus::Viewport => {
                         let page = self.layout.graph.height as usize - 1;
                         match self.viewport {
