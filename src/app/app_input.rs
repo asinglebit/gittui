@@ -456,6 +456,8 @@ impl App {
                     Focus::Inspector => {
                         if self.is_status {
                             Focus::StatusTop
+                        } else if self.is_branches {
+                            Focus::Branches
                         } else {
                             Focus::Viewport
                         }
@@ -463,6 +465,8 @@ impl App {
                     Focus::StatusTop => {
                         if self.graph_selected == 0 {
                             Focus::StatusBottom
+                        } else if self.is_branches {
+                            Focus::Branches
                         } else {
                             Focus::Viewport
                         }
