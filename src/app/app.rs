@@ -226,70 +226,8 @@ impl App  {
                 self.handle_events()?;
             }
 
-            // Check if the background walk is done
-            if let Some(rx) = &self.walker_rx
-                && let Ok(result) = rx.try_recv() {
-                    self.oids = result.oids;
-                    
-                    self.tips_local = result.tips_local;
-                    self.tips_remote = result.tips_remote;
-                    
-                    if self.tips.is_empty() {
-                        // Combine local and remotes into combined
-                        for (oid, branches) in self.tips_local.iter() {
-                            self.tips.insert(*oid, branches.clone());
-                        }
-                        // Merge map2, appending branches if Oid already exists
-                        for (oid, branches) in self.tips_remote.iter() {
-                            self.tips
-                                .entry(*oid)
-                                .and_modify(|existing| existing.extend(branches.iter().cloned()))
-                                .or_insert_with(|| branches.clone());
-                        }
-                    }
-
-                    self.branch_oid_map = result.branch_oid_map;
-                    self.buffer = result.buffer;
-
-                    for (oid, lane_idx) in result.tip_lanes.iter() {
-                        self.tip_colors.insert(*oid, self.color.borrow().get(*lane_idx));
-                    }
-
-                    let mut local_oid_branch_tuples: Vec<(Oid, String)> = self
-                        .tips_local
-                        .iter()
-                        .flat_map(|(oid, branches)| {
-                            branches.iter().map(move |branch| (*oid, branch.clone()))
-                        })
-                        .collect();
-
-                    // Sort tuples if needed (for example, by branch name)
-                    local_oid_branch_tuples.sort_by(|a, b| a.1.cmp(&b.1));
-
-                    let mut remote_oid_branch_tuples: Vec<(Oid, String)> = self
-                        .tips_remote
-                        .iter()
-                        .flat_map(|(oid, branches)| {
-                            branches.iter().map(move |branch| (*oid, branch.clone()))
-                        })
-                        .collect();
-
-                    // Sort tuples if needed (for example, by branch name)
-                    remote_oid_branch_tuples.sort_by(|a, b| a.1.cmp(&b.1)); // sorts alphabetically by branch
-
-                    self.oid_branch_vec = local_oid_branch_tuples.into_iter().chain(remote_oid_branch_tuples.into_iter()).collect();
-                    
-                    if self.visible_branches.is_empty() {
-                        for (oid, branches) in self.tips.iter() {
-                            self.visible_branches.insert(*oid, branches.clone());
-                        }
-                    }
-
-                    if !result.again {
-                        // self.walker_rx = None;
-                        self.spinner.stop();
-                    }
-                }
+            // Handle background processes
+            self.sync();
 
             // Draw the user interface
             terminal.draw(|frame| self.draw(frame))?;
@@ -368,39 +306,17 @@ impl App  {
     }
 
     pub fn reload(&mut self) {
+        
         if self.spinner.is_running() { return; }
 
         // Get user credentials
         let (name, email) = get_git_user_info(&self.repo).expect("Error");
         self.name = name.unwrap();
         self.email = email.unwrap();
-
-        // Reset utilities
-        self.color = Rc::new(RefCell::new(ColorPicker::default()));
-        self.buffer = RefCell::new(Buffer::default());
-        self.layers = layers!(self.color.clone());
-        // Topologically sorted list of oids including the uncommited, for the sake of order
-        self.oids = vec![Oid::zero()];
-        // Mapping of tip oids of the branches to the branch names
-        self.tips_local = HashMap::new();
-        self.tips_remote = HashMap::new();
-        self.tips = HashMap::new();
-        // Mapping of oids to lanes
-        self.oid_colors = HashMap::new();
-        // Mapping of tip oids of the branches to the colors
-        self.tip_colors = HashMap::new();
-        // Mapping of every oid to every branch it is a part of
-        self.oid_branch_map = HashMap::new();
-        self.branch_oid_map = HashMap::new();
-        // Get uncomitted changes info
-        self.uncommitted = get_filenames_diff_at_workdir(&self.repo).expect("Error");
+        
         // Restart the spinner
         self.spinner.start();
-        // First walk
-        self.walk();
-    }
 
-    pub fn walk(&mut self) {
         // Create a channel
         let (tx, rx) = channel();
         self.walker_rx = Some(rx);
@@ -416,6 +332,7 @@ impl App  {
 
             // Pagination loop
             loop {
+                
                 // Parse a chunk
                 let again = walk_ctx.walk();
 
@@ -437,6 +354,97 @@ impl App  {
                 }
             }
         });
+    }
+
+    pub fn sync(&mut self) {
+        if let Some(rx) = &self.walker_rx && let Ok(result) = rx.try_recv() {
+
+            // Reset utilities
+            self.color = Rc::new(RefCell::new(ColorPicker::default()));
+            self.buffer = RefCell::new(Buffer::default());
+            self.layers = layers!(self.color.clone());
+
+            // Topologically sorted list of oids including the uncommited, for the sake of order
+            self.oids = vec![Oid::zero()];
+
+            // Mapping of tip oids of the branches to the branch names
+            self.tips_local = HashMap::new();
+            self.tips_remote = HashMap::new();
+            self.tips = HashMap::new();
+
+            // Mapping of oids to lanes
+            self.oid_colors = HashMap::new();
+
+            // Mapping of tip oids of the branches to the colors
+            self.tip_colors = HashMap::new();
+
+            // Mapping of every oid to every branch it is a part of
+            self.oid_branch_map = HashMap::new();
+            self.branch_oid_map = HashMap::new();
+
+            // Get uncomitted changes info
+            self.uncommitted = get_filenames_diff_at_workdir(&self.repo).expect("Error");
+
+            self.oids = result.oids;            
+            self.tips_local = result.tips_local;
+            self.tips_remote = result.tips_remote;
+            
+            if self.tips.is_empty() {
+                // Combine local and remotes into combined
+                for (oid, branches) in self.tips_local.iter() {
+                    self.tips.insert(*oid, branches.clone());
+                }
+                // Merge map2, appending branches if Oid already exists
+                for (oid, branches) in self.tips_remote.iter() {
+                    self.tips
+                        .entry(*oid)
+                        .and_modify(|existing| existing.extend(branches.iter().cloned()))
+                        .or_insert_with(|| branches.clone());
+                }
+            }
+
+            self.branch_oid_map = result.branch_oid_map;
+            self.buffer = result.buffer;
+
+            for (oid, lane_idx) in result.tip_lanes.iter() {
+                self.tip_colors.insert(*oid, self.color.borrow().get(*lane_idx));
+            }
+
+            let mut local_oid_branch_tuples: Vec<(Oid, String)> = self
+                .tips_local
+                .iter()
+                .flat_map(|(oid, branches)| {
+                    branches.iter().map(move |branch| (*oid, branch.clone()))
+                })
+                .collect();
+
+            // Sort tuples if needed (for example, by branch name)
+            local_oid_branch_tuples.sort_by(|a, b| a.1.cmp(&b.1));
+
+            let mut remote_oid_branch_tuples: Vec<(Oid, String)> = self
+                .tips_remote
+                .iter()
+                .flat_map(|(oid, branches)| {
+                    branches.iter().map(move |branch| (*oid, branch.clone()))
+                })
+                .collect();
+
+            // Sort tuples if needed (for example, by branch name)
+            remote_oid_branch_tuples.sort_by(|a, b| a.1.cmp(&b.1)); // sorts alphabetically by branch
+
+            self.oid_branch_vec = local_oid_branch_tuples.into_iter().chain(remote_oid_branch_tuples.into_iter()).collect();
+            
+            if self.visible_branches.is_empty() {
+                for (oid, branches) in self.tips.iter() {
+                    self.visible_branches.insert(*oid, branches.clone());
+                }
+            }
+
+            if !result.again {
+                // self.walker_rx = None;
+                self.spinner.stop();
+            }
+        }
     }
 
     pub fn exit(&mut self) {

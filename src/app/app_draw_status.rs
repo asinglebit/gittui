@@ -205,18 +205,6 @@ impl App {
                 .block(
                     Block::default()
                         .padding(padding)
-                        // .title(vec![
-                        //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                        //     Span::styled(if self.graph_selected == 0 { " (s)taged " } else { " (s)tatus " }, Style::default().fg(if self.focus == Focus::StatusTop { COLOR_GREY_500 } else { COLOR_TEXT } )),
-                        //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                        // ])
-                        // .title_bottom(if self.graph_selected == 0 {vec![
-                        //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                        //     Span::styled(" unstaged ", Style::default().fg(if self.focus == Focus::StatusBottom { COLOR_GREY_500 } else { COLOR_TEXT } )),
-                        //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                        // ]} else {vec![]})
-                        // .title_alignment(Alignment::Right)
-                        // .title_style(Style::default().fg(COLOR_GREY_500))
                         .borders(if self.is_inspector && self.graph_selected != 0 { Borders::TOP } else { Borders::NONE })
                         .border_style(Style::default().fg(COLOR_BORDER))
                 );

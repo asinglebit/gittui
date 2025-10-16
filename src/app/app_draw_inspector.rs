@@ -12,7 +12,6 @@ use ratatui::{
     },
     widgets::{
         Block,
-        Borders,
         Scrollbar,
         ScrollbarOrientation,
         ScrollbarState,
@@ -87,10 +86,6 @@ impl App {
                     Style::default().fg(*self.oid_colors.get(&parent_id).unwrap_or(&COLOR_TEXT)),
                 )]));
             }
-
-            let branches_local = self.tips_local.entry(oid).or_default();
-            let branches_remote = self.tips_remote.get(&oid).map(|v| v.as_slice()).unwrap_or(&[]);
-            let branches:Vec<_> = branches_local.iter().chain(branches_remote.iter()).collect();
 
             if let Some(branches) = self.tips.get(&oid)
                 && let Some(color) = self.tip_colors.get(&oid) {
@@ -210,20 +205,6 @@ impl App {
             .block(
                 Block::default()
                     .padding(padding)
-                    // .title(vec![
-                    //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                    //     Span::styled(
-                    //         " (i)nspector ",
-                    //         Style::default().fg(if self.focus == Focus::Inspector {
-                    //             COLOR_GREY_500
-                    //         } else {
-                    //             COLOR_TEXT
-                    //         }),
-                    //     ),
-                    //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
-                    // ])
-                    // .title_alignment(Alignment::Right)
-                    // .title_style(Style::default().fg(COLOR_GREY_500))
             );
 
         frame.render_widget(list, self.layout.inspector);

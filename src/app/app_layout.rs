@@ -74,7 +74,6 @@ impl App {
         branches_scrollbar.width += 1;
         let mut branches = chunks_horizontal[0];
         branches.y += 1; 
-        // branches.height = branches.height.saturating_sub(2); 
 
         let graph_scrollbar = chunks_horizontal[1];
         let mut graph = chunks_horizontal[1];

@@ -1,4 +1,3 @@
-use git2::Branch;
 #[rustfmt::skip]
 use ratatui::{
     Frame,

@@ -8,7 +8,6 @@ use ratatui::{
     },
     widgets::{
         Block,
-        Borders,
         Scrollbar,
         ScrollbarOrientation,
         ScrollbarState,
