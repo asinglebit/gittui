@@ -256,6 +256,11 @@ impl App {
             }
             KeyCode::Char('`') => {
                 self.is_branches = !self.is_branches;
+                if self.is_branches {
+                    self.focus = Focus::Branches;
+                } else {
+                    self.focus = Focus::Viewport;
+                }
             }
             KeyCode::Char('s') => {
                 self.is_status = !self.is_status;
@@ -373,10 +378,34 @@ impl App {
             KeyCode::Enter => {
                 match self.focus {
                     Focus::Branches => {
-                        let oid = self.oid_branch_vec.get(self.branches_selected).unwrap().0;
-                        if !self.visible_branch_oids.insert(oid) {
-                            self.visible_branch_oids.remove(&oid);
+                        let (oid, branch) = self.oid_branch_vec.get(self.branches_selected).unwrap();
+
+                        let branch = branch.clone(); // clone because we may insert/remove it
+
+                        self.visible_branches
+                            .entry(*oid)
+                            .and_modify(|branches| {
+                                if let Some(pos) = branches.iter().position(|b| b == &branch) {
+                                    branches.remove(pos);
+                                } else {
+                                    branches.push(branch.clone());
+                                }
+
+                                // remove oid entirely if empty
+                                if branches.is_empty() {
+                                    // can't remove while borrowing, so mark later
+                                }
+                            })
+                            .or_insert_with(|| vec![branch]);
+
+                        // cleanup pass (safe because we can't mutate while borrowed above)
+                        if let Some(branches) = self.visible_branches.get(oid) {
+                            if branches.is_empty() {
+                                self.visible_branches.remove(oid);
+                            }
                         }
+                        
+                        self.reload();
                     }
                     Focus::Viewport => {
                         if self.focus == Focus::Viewport && self.viewport == Viewport::Editor {

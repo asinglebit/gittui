@@ -1,3 +1,4 @@
+use git2::Branch;
 #[rustfmt::skip]
 use ratatui::{
     Frame,
@@ -74,6 +75,9 @@ impl App {
                     + self.uncommitted.unstaged.added.len()
                     + self.uncommitted.unstaged.deleted.len()
             }
+            Focus::Branches => {
+                self.oid_branch_vec.len()
+            }
             _ => 0,
         };
 
@@ -88,6 +92,9 @@ impl App {
                 },
                 Focus::StatusTop => self.status_top_selected + 1,
                 Focus::StatusBottom => self.status_bottom_selected + 1,
+                Focus::Branches => {
+                    self.visible_branches.values().map(|branches| branches.len()).sum()
+                }
                 _ => 0,
             }
         };

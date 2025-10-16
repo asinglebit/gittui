@@ -37,10 +37,9 @@ impl App {
         let oid = *self.oids.get(self.graph_selected).unwrap();
         let color = self.tip_colors.get(&oid).unwrap();
         let mut length = 39;
-        let branches = self
-            .tips
-            .entry(oid)
-            .or_default();
+        let branches_local = self.tips_local.entry(oid).or_default();
+        let branches_remote = self.tips_remote.get(&oid).map(|v| v.as_slice()).unwrap_or(&[]);
+        let branches: Vec<_> = branches_local.iter().chain(branches_remote.iter()).collect();
         let mut lines = vec![
             Line::from(vec![
                 Span::styled("select a branch to checkout".to_string(), Style::default().fg(COLOR_TEXT))

@@ -30,23 +30,25 @@ use git2::{
     Oid,
     Repository
 };
-use ratatui::{style::Style, widgets::{Block, Borders}};
 #[rustfmt::skip]
 use ratatui::{
     DefaultTerminal,
     Frame,
     layout::Rect,
-    style::Color,
+    style::{
+        Color,
+        Style
+    },
     crossterm::event,
     widgets::{
-        ListItem
+        ListItem,
+        Block,
+        Borders
     },
     text::{
-        Line,
         Span
     },
 };
-use crate::helpers::palette::COLOR_BORDER;
 #[rustfmt::skip]
 use crate::{
     layers,
@@ -55,7 +57,6 @@ use crate::{
             LayersContext,
         },
         walker::{
-            LazyWalker,
             Walker,
             WalkerOutput
         },
@@ -64,6 +65,7 @@ use crate::{
         },
     },
     helpers::{
+        palette::*,
         colors::{
             ColorPicker
         },
@@ -77,7 +79,6 @@ use crate::{
                 get_filenames_diff_at_workdir
             },
             commits::{
-                get_tip_oids,
                 get_git_user_info
             },
             helpers::{
@@ -147,6 +148,8 @@ pub struct App {
 
     // Walker data
     pub oids: Vec<Oid>,
+    pub tips_local: HashMap<Oid, Vec<String>>,
+    pub tips_remote: HashMap<Oid, Vec<String>>,
     pub tips: HashMap<Oid, Vec<String>>,
     pub oid_colors: HashMap<Oid, Color>,
     pub tip_colors: HashMap<Oid, Color>,
@@ -159,7 +162,7 @@ pub struct App {
     pub file_name: Option<String>,
     pub viewer_lines: Vec<ListItem<'static>>,
     pub oid_branch_vec: Vec<(Oid, String)>,
-    pub visible_branch_oids: HashSet<Oid>,
+    pub visible_branches: HashMap<Oid, Vec<String>>,
 
     // Interface
     pub layout: Layout,
@@ -220,20 +223,67 @@ impl App  {
         while !self.is_exit {
 
             if event::poll(Duration::from_millis(50)).unwrap_or(false) {
-                    self.handle_events()?;
+                self.handle_events()?;
             }
 
             // Check if the background walk is done
             if let Some(rx) = &self.walker_rx
                 && let Ok(result) = rx.try_recv() {
                     self.oids = result.oids;
-                    self.tips = result.tips;
+                    
+                    self.tips_local = result.tips_local;
+                    self.tips_remote = result.tips_remote;
+                    
+                    if self.tips.is_empty() {
+                        // Combine local and remotes into combined
+                        for (oid, branches) in self.tips_local.iter() {
+                            self.tips.insert(*oid, branches.clone());
+                        }
+                        // Merge map2, appending branches if Oid already exists
+                        for (oid, branches) in self.tips_remote.iter() {
+                            self.tips
+                                .entry(*oid)
+                                .and_modify(|existing| existing.extend(branches.iter().cloned()))
+                                .or_insert_with(|| branches.clone());
+                        }
+                    }
+
                     self.branch_oid_map = result.branch_oid_map;
-                    self.uncommitted = result.uncommitted;
                     self.buffer = result.buffer;
-                    self.oid_branch_vec = self.tips.iter().flat_map(|(oid, branches)| {
-                        branches.iter().map(move |branch| (*oid, branch.clone()))
-                    }).collect();
+
+                    for (oid, lane_idx) in result.tip_lanes.iter() {
+                        self.tip_colors.insert(*oid, self.color.borrow().get(*lane_idx));
+                    }
+
+                    let mut local_oid_branch_tuples: Vec<(Oid, String)> = self
+                        .tips_local
+                        .iter()
+                        .flat_map(|(oid, branches)| {
+                            branches.iter().map(move |branch| (*oid, branch.clone()))
+                        })
+                        .collect();
+
+                    // Sort tuples if needed (for example, by branch name)
+                    local_oid_branch_tuples.sort_by(|a, b| a.1.cmp(&b.1));
+
+                    let mut remote_oid_branch_tuples: Vec<(Oid, String)> = self
+                        .tips_remote
+                        .iter()
+                        .flat_map(|(oid, branches)| {
+                            branches.iter().map(move |branch| (*oid, branch.clone()))
+                        })
+                        .collect();
+
+                    // Sort tuples if needed (for example, by branch name)
+                    remote_oid_branch_tuples.sort_by(|a, b| a.1.cmp(&b.1)); // sorts alphabetically by branch
+
+                    self.oid_branch_vec = local_oid_branch_tuples.into_iter().chain(remote_oid_branch_tuples.into_iter()).collect();
+                    
+                    if self.visible_branches.is_empty() {
+                        for (oid, branches) in self.tips.iter() {
+                            self.visible_branches.insert(*oid, branches.clone());
+                        }
+                    }
 
                     if !result.again {
                         // self.walker_rx = None;
@@ -264,7 +314,6 @@ impl App  {
             .border_style(Style::default().fg(COLOR_BORDER))
             .border_type(ratatui::widgets::BorderType::Rounded), self.layout.app);
                 
-
         // Main layout
         self.draw_title(frame);
 
@@ -333,7 +382,9 @@ impl App  {
         // Topologically sorted list of oids including the uncommited, for the sake of order
         self.oids = vec![Oid::zero()];
         // Mapping of tip oids of the branches to the branch names
-        self.tips = get_tip_oids(&self.repo);
+        self.tips_local = HashMap::new();
+        self.tips_remote = HashMap::new();
+        self.tips = HashMap::new();
         // Mapping of oids to lanes
         self.oid_colors = HashMap::new();
         // Mapping of tip oids of the branches to the colors
@@ -356,12 +407,12 @@ impl App  {
 
         // Copy the repo path
         let path = self.path.clone();
-        let visible_branch_oids = self.visible_branch_oids.clone();
+        let visible_branches = self.visible_branches.clone();
 
         // Spawn a thread that computes something
         thread::spawn(move || {
             // Create the walker
-            let mut walk_ctx = Walker::new(path, 10000, visible_branch_oids).expect("Error");
+            let mut walk_ctx = Walker::new(path, 10000, visible_branches).expect("Error");
 
             // Pagination loop
             loop {
@@ -371,9 +422,10 @@ impl App  {
                 // Send the message to the main thread
                 tx.send(WalkerOutput {
                     oids: walk_ctx.oids.clone(),
-                    tips: walk_ctx.tips.clone(),
+                    tip_lanes: walk_ctx.tip_lanes.clone(),
+                    tips_local: walk_ctx.tips_local.clone(),
+                    tips_remote: walk_ctx.tips_remote.clone(),
                     branch_oid_map: walk_ctx.branch_oid_map.clone(),
-                    uncommitted: walk_ctx.uncommitted.clone(),
                     buffer: walk_ctx.buffer.clone(),
                     again,
                 })

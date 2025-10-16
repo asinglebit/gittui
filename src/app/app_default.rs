@@ -102,6 +102,8 @@ impl Default for App {
 
             // Walker data
             oids: Vec::new(),
+            tips_local: HashMap::new(),
+            tips_remote: HashMap::new(),
             tips: HashMap::new(),
             oid_colors: HashMap::new(),
             tip_colors: HashMap::new(),
@@ -114,7 +116,7 @@ impl Default for App {
             file_name: None,
             viewer_lines: Vec::new(),
             oid_branch_vec: Vec::new(),
-            visible_branch_oids: HashSet::new(),
+            visible_branches: HashMap::new(),
 
             // Interface
             layout: Layout::default(),

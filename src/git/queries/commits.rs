@@ -17,8 +17,9 @@ use crate::{
 };
 
 // Returns a map of commit OIDs to the branch names that point to them
-pub fn get_tip_oids(repo: &Repository) -> HashMap<Oid, Vec<String>> {
-    let mut tips: HashMap<Oid, Vec<String>> = HashMap::new();
+pub fn get_tip_oids(repo: &Repository) -> (HashMap<Oid, Vec<String>>, HashMap<Oid, Vec<String>>) {
+    let mut tips_local: HashMap<Oid, Vec<String>> = HashMap::new();
+    let mut tips_remote: HashMap<Oid, Vec<String>> = HashMap::new();
 
     // Iterate through both local and remote branches
     for branch_type in [BranchType::Local, BranchType::Remote] {
@@ -28,12 +29,16 @@ pub fn get_tip_oids(repo: &Repository) -> HashMap<Oid, Vec<String>> {
                 // Get branch name (or "unknown" if not available)
                 let name = branch.name().unwrap().unwrap_or("unknown").to_string();
                 // Map each OID to one or more branch names pointing to it
-                tips.entry(oid).or_default().push(name);
+                if branch_type == BranchType::Local {
+                    tips_local.entry(oid).or_default().push(name);
+                } else {
+                    tips_remote.entry(oid).or_default().push(name);
+                }
             }
         }
     }
 
-    tips
+    (tips_local, tips_remote)
 }
 
 // Outcomes:
@@ -42,7 +47,8 @@ pub fn get_tip_oids(repo: &Repository) -> HashMap<Oid, Vec<String>> {
 #[allow(clippy::too_many_arguments)]
 pub fn get_branches_and_sorted_oids(
     walker: &LazyWalker,
-    tips: &HashMap<Oid, Vec<String>>,
+    tips_local: &HashMap<Oid, Vec<String>>,
+    tips_remote: &HashMap<Oid, Vec<String>>,
     oids: &mut [Oid],
     branch_oid_map: &mut HashMap<String, Oid>,
     sorted: &mut Vec<Oid>,
@@ -57,7 +63,7 @@ pub fn get_branches_and_sorted_oids(
 
     // Seed each tip with its branch names
     if oids.len() == 1 {
-        for (oid, branches) in tips {
+        for (oid, branches) in tips_local.iter().chain(tips_remote) {
             for name in branches {
                 branch_oid_map.entry(name.clone()).or_insert(*oid);
             }

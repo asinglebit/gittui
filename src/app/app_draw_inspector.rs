@@ -88,6 +88,10 @@ impl App {
                 )]));
             }
 
+            let branches_local = self.tips_local.entry(oid).or_default();
+            let branches_remote = self.tips_remote.get(&oid).map(|v| v.as_slice()).unwrap_or(&[]);
+            let branches:Vec<_> = branches_local.iter().chain(branches_remote.iter()).collect();
+
             if let Some(branches) = self.tips.get(&oid)
                 && let Some(color) = self.tip_colors.get(&oid) {
                     lines.extend(vec![
@@ -193,8 +197,8 @@ impl App {
             .enumerate()
             .map(|(i, line)| {
                 if start + i == self.inspector_selected && self.focus == Focus::Inspector {
-                    let spans: Vec<Span> = line.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GRASS)) }).collect();
-                    ListItem::new(Line::from(spans)).style(Style::default().bg(COLOR_GREY_800).fg(COLOR_GREY_400))
+                    let spans: Vec<Span> = line.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GREY_500)) }).collect();
+                    ListItem::new(Line::from(spans)).style(Style::default().bg(COLOR_GREY_800).fg(COLOR_GREY_500))
                 } else {
                     ListItem::new(line.clone())
                 }

@@ -9,7 +9,6 @@ use std::{
     },
     collections::{
         HashMap,
-        HashSet
     }
 };
 #[rustfmt::skip]
@@ -19,6 +18,8 @@ use git2::{
     Repository,
     Revwalk,
 };
+#[rustfmt::skip]
+use ratatui::crossterm::style::Color;
 #[rustfmt::skip]
 use crate::{
     core::{
@@ -34,12 +35,6 @@ use crate::{
             commits::{
                 get_branches_and_sorted_oids,
                 get_tip_oids
-            },
-            diffs::{
-                get_filenames_diff_at_workdir
-            },
-            helpers::{
-                UncommittedChanges
             }
         }
     },
@@ -52,16 +47,16 @@ pub struct LazyWalker {
 
 impl LazyWalker {
     // Creates a new LazyWalker by building a revwalk from the repo
-    pub fn new(repo: Rc<Repository>, visible_oid_branches: HashSet<Oid>) -> Result<Self, git2::Error> {
-        let revwalk = Self::build_revwalk(&repo, visible_oid_branches)?;
+    pub fn new(repo: Rc<Repository>, visible_branches: HashMap<Oid, Vec<String>>) -> Result<Self, git2::Error> {
+        let revwalk = Self::build_revwalk(&repo, visible_branches)?;
         Ok(Self {
             revwalk: Mutex::new(revwalk),
         })
     }
 
     // Reset the revwalk
-    pub fn reset(&self, repo: Rc<Repository>, visible_oid_branches: HashSet<Oid>) -> Result<(), git2::Error> {
-        let revwalk = Self::build_revwalk(&repo, visible_oid_branches)?;
+    pub fn reset(&self, repo: Rc<Repository>, visible_branches: HashMap<Oid, Vec<String>>) -> Result<(), git2::Error> {
+        let revwalk = Self::build_revwalk(&repo, visible_branches)?;
         let mut guard = self.revwalk.lock().unwrap();
         *guard = revwalk;
         Ok(())
@@ -78,7 +73,7 @@ impl LazyWalker {
     }
 
     // Internal helper to build a revwalk for all branch tips
-    fn build_revwalk(repo: &Repository, visible_oid_branches: HashSet<Oid>) -> Result<Revwalk<'static>, git2::Error> {
+    fn build_revwalk(repo: &Repository, visible_branches: HashMap<Oid, Vec<String>>) -> Result<Revwalk<'static>, git2::Error> {
         // Safge: we keep repo alive in Rc, so transmute to 'static is safe
         let repo_ref: &'static Repository =
             unsafe { std::mem::transmute::<&Repository, &'static Repository>(repo) };
@@ -89,7 +84,7 @@ impl LazyWalker {
             for branch_result in repo.branches(Some(branch_type))? {
                 let (branch, _) = branch_result?;
                 if let Some(oid) = branch.get().target() {
-                    if visible_oid_branches.contains(&oid) {
+                    if visible_branches.is_empty() || visible_branches.contains_key(&oid) {
                         revwalk.push(oid)?;
                     }
                 }
@@ -113,9 +108,10 @@ pub struct Walker {
 
     // Walker data
     pub oids: Vec<Oid>,
-    pub tips: HashMap<Oid, Vec<String>>,
+    pub tip_lanes: HashMap<Oid, usize>,
+    pub tips_local: HashMap<Oid, Vec<String>>,
+    pub tips_remote: HashMap<Oid, Vec<String>>,
     pub branch_oid_map: HashMap<String, Oid>,
-    pub uncommitted: UncommittedChanges,
 
     // Pagination
     pub amount: usize,
@@ -124,30 +120,32 @@ pub struct Walker {
 // Output structure for walk results
 pub struct WalkerOutput {
     pub oids: Vec<Oid>,
-    pub tips: HashMap<Oid, Vec<String>>,
+    pub tip_lanes: HashMap<Oid, usize>,
+    pub tips_local: HashMap<Oid, Vec<String>>,
+    pub tips_remote: HashMap<Oid, Vec<String>>,
     pub branch_oid_map: HashMap<String, Oid>,
-    pub uncommitted: UncommittedChanges,
     pub again: bool,
     pub buffer: RefCell<Buffer>,
 }
 
 impl Walker {
     // Creates a new walker
-    pub fn new(path: String, amount: usize, visible_oid_branches: HashSet<Oid>) -> Result<Self, git2::Error> {
+    pub fn new(path: String, amount: usize, visible_branches: HashMap<Oid, Vec<String>>) -> Result<Self, git2::Error> {
         let path = path.clone();
         let repo = Rc::new(Repository::open(path).expect("Failed to open repo"));
-        let walker = LazyWalker::new(repo.clone(), visible_oid_branches).expect("Error");
-        let tips = get_tip_oids(&repo);
-        let uncommitted = get_filenames_diff_at_workdir(&repo).expect("Error");
+        let walker = LazyWalker::new(repo.clone(), visible_branches).expect("Error");
+        let tip_lanes = HashMap::new();
+        let (tips_local, tips_remote) = get_tip_oids(&repo);
 
         Ok(Self {
             repo,
             walker,
             buffer: RefCell::new(Buffer::default()),
             oids: vec![Oid::zero()],
-            tips,
+            tip_lanes,
+            tips_local,
+            tips_remote,
             branch_oid_map: HashMap::new(),
-            uncommitted,
             amount,
         })
     }
@@ -161,7 +159,8 @@ impl Walker {
         let mut sorted: Vec<Oid> = Vec::new();
         get_branches_and_sorted_oids(
             &self.walker,
-            &self.tips,
+            &self.tips_local,
+            &self.tips_remote,
             &mut self.oids,
             &mut self.branch_oid_map,
             &mut sorted,
@@ -182,29 +181,43 @@ impl Walker {
             let parents: Vec<Oid> = commit.parent_ids().collect();
             let chunk = Chunk::commit(Some(oid), parents.first().cloned(), parents.get(1).cloned());
 
+            let mut is_commit_found = false;
+            let mut lane_idx = 0;
+
             // Update
             self.buffer.borrow_mut().update(chunk);
 
             for chunk in &self.buffer.borrow().curr {
-                if !chunk.is_dummy()
-                    && Some(&oid) == chunk.oid.as_ref()
-                    && chunk.parent_a.is_some()
-                    && chunk.parent_b.is_some()
-                {
-                    let mut is_merger_found = false;
-                    for chunk_nested in &self.buffer.borrow().curr {
-                        if ((chunk_nested.parent_a.is_some() && chunk_nested.parent_b.is_none())
-                            || (chunk_nested.parent_a.is_none() && chunk_nested.parent_b.is_some()))
-                            && chunk.parent_b.as_ref() == chunk_nested.parent_a.as_ref()
-                        {
-                            is_merger_found = true;
-                            break;
+                if !chunk.is_dummy() && Some(&oid) == chunk.oid.as_ref() {
+                    
+                    is_commit_found = true;
+
+                    if self.tips_local.contains_key(&oid) || self.tips_remote.contains_key(&oid) {
+                        self.tip_lanes.insert(oid, lane_idx);
+                    }
+                
+                    if chunk.parent_a.is_some() && chunk.parent_b.is_some() {
+                        let mut is_merger_found = false;
+                        for chunk_nested in &self.buffer.borrow().curr {
+                            if ((chunk_nested.parent_a.is_some() && chunk_nested.parent_b.is_none())
+                                || (chunk_nested.parent_a.is_none() && chunk_nested.parent_b.is_some()))
+                                && chunk.parent_b.as_ref() == chunk_nested.parent_a.as_ref()
+                            {
+                                is_merger_found = true;
+                                break;
+                            }
+                        }
+                        if !is_merger_found {
+                            merger_oid = chunk.oid;
                         }
                     }
-                    if !is_merger_found {
-                        merger_oid = chunk.oid;
-                    }
                 }
+
+                lane_idx += 1;
+            }
+
+            if !is_commit_found {
+                self.tip_lanes.insert(oid, lane_idx);
             }
 
             // Now we can borrow mutably

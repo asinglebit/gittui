@@ -131,11 +131,11 @@ pub fn render_graph_range(
             } else if Some(oid) == chunk.oid.as_ref() {
                 is_commit_found = true;
                 let is_two_parents = chunk.parent_a.is_some() && chunk.parent_b.is_some();
-                if is_two_parents && !tips.contains_key(oid) {
+                if is_two_parents && !(tips.contains_key(oid)) {
                     layers.commit(SYM_MERGE, lane_idx);
-                } else if tips.contains_key(oid) {
+                } else if (tips.contains_key(oid)) {
                     layers.commit(SYM_COMMIT_BRANCH, lane_idx);
-                    tip_colors.insert(*oid, color.borrow().get(lane_idx));
+                    // tip_colors.insert(*oid, color.borrow().get(lane_idx));
                 } else {
                     layers.commit(SYM_COMMIT, lane_idx);
                 }
@@ -306,7 +306,7 @@ pub fn render_graph_range(
         if !is_commit_found {
             if tips.contains_key(oid) {
                 layers.commit(SYM_COMMIT_BRANCH, lane_idx);
-                tip_colors.insert(*oid, color.borrow().get(lane_idx));
+                // tip_colors.insert(*oid, color.borrow().get(lane_idx));
             } else {
                 layers.commit(SYM_COMMIT, lane_idx);
             };
@@ -381,7 +381,7 @@ pub fn render_buffer_range(
 pub fn render_message_range(
     repo: &Repository,
     oids: &[Oid],
-    tips: &HashMap<Oid, Vec<String>>,
+    visible_branches: &HashMap<Oid, Vec<String>>,
     tip_colors: &mut HashMap<Oid, Color>,
     history: &Vector<Vector<Chunk>>,
     start: usize,
@@ -402,23 +402,28 @@ pub fn render_message_range(
         if oid != Oid::zero() {
             let commit = repo.find_commit(*oids.get(global_idx).unwrap()).unwrap();
 
-            if let Some(branches) = tips.get(&oid) {
-                for branch in branches {
-                    spans.push(Span::styled(
-                        format!("{} {} ", SYM_COMMIT_BRANCH, branch),
-                        Style::default().fg(if let Some(color) = tip_colors.get(&oid) {
-                            *color
-                        } else {
-                            COLOR_TEXT
-                        }),
-                    ));
+            if let Some(visible) = visible_branches.get(&oid) {
+                for branch in visible {
+                    // Only render branches that are visible
+                    if visible.iter().any(|b| b == branch) {
+                        spans.push(Span::styled(
+                            format!("{} {} ", SYM_COMMIT_BRANCH, branch),
+                            Style::default().fg(
+                                if let Some(color) = tip_colors.get(&oid) {
+                                    *color
+                                } else {
+                                    COLOR_TEXT
+                                },
+                            ),
+                        ));
+                    }
                 }
             }
 
             spans.push(Span::styled(
                 commit.summary().unwrap_or("⊘ no message").to_string(),
                 Style::default().fg(if global_idx == selected {
-                    COLOR_GREY_400
+                    COLOR_GREY_500
                 } else {
                     COLOR_TEXT
                 }),
@@ -427,7 +432,7 @@ pub fn render_message_range(
             lines.push(Line::from(spans));
         } else {
             let color = if global_idx == selected {
-                COLOR_GREY_400
+                COLOR_GREY_500
             } else {
                 COLOR_GREY_600
             };

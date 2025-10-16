@@ -1,8 +1,4 @@
 #[rustfmt::skip]
-use git2::{
-    Oid
-};
-#[rustfmt::skip]
 use ratatui::{
     Frame,
     style::Style,
@@ -12,7 +8,6 @@ use ratatui::{
     },
     widgets::{
         Block,
-        Borders,
         Scrollbar,
         ScrollbarOrientation,
         ScrollbarState,
@@ -20,16 +15,11 @@ use ratatui::{
         ListItem
     },
 };
+use crate::helpers::text::truncate_with_ellipsis;
 #[rustfmt::skip]
 use crate::{
     helpers::{
-        palette::*,
-        text::{
-            truncate_with_ellipsis,
-            sanitize,
-            wrap_words
-        },
-        time::timestamp_to_utc
+        palette::*
     },
     app::app::{
         App,
@@ -56,15 +46,24 @@ impl App {
         // Lines
         let mut lines: Vec<Line<'_>> = Vec::new();
         for (oid, branch) in self.oid_branch_vec.iter() {
-            let is_visible = self.visible_branch_oids.contains(oid);
+            let is_visible = self
+                .visible_branches
+                .get(oid)
+                .map_or(false, |branches| branches.iter().any(|b| b == branch));
+
             lines.push(Line::from(vec![
-                Span::styled(format!("{} {}", if is_visible {"●"} else {"◌"}, branch), Style::default().fg(
-                    if is_visible {*self.tip_colors.get(&oid).unwrap_or(&COLOR_GRASS)}
-                    else {COLOR_TEXT}
-                ))
+                Span::styled(
+                    format!("{} {}", if is_visible { "●" } else { "◌" }, truncate_with_ellipsis(branch, max_text_width - 1)),
+                    Style::default().fg(
+                        if is_visible {
+                            *self.tip_colors.get(oid).unwrap_or(&COLOR_TEXT)
+                        } else {
+                            COLOR_TEXT
+                        },
+                    ),
+                ),
             ]));
         }
-        // Line::from(vec![Span::styled("commit sha:", Style::default().fg(COLOR_GREY_500))]);
 
         // Get vertical dimensions
         let total_lines = lines.len();
@@ -90,7 +89,7 @@ impl App {
             .enumerate()
             .map(|(i, line)| {
                 if start + i == self.branches_selected && self.focus == Focus::Branches {
-                    let spans: Vec<Span> = line.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GRASS)) }).collect();
+                    let spans: Vec<Span> = line.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GREY_500)) }).collect();
                     ListItem::new(Line::from(spans)).style(Style::default().bg(COLOR_GREY_800).fg(COLOR_GREY_400))
                 } else {
                     ListItem::new(line.clone())
