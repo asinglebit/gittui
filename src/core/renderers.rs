@@ -1,3 +1,4 @@
+use im::HashSet;
 #[rustfmt::skip]
 use im::Vector;
 #[rustfmt::skip]
@@ -322,7 +323,52 @@ pub fn render_graph_range(
         lines.push(Line::from(spans));
     }
 
+    remove_empty_columns(&mut lines);
     lines
+
+}
+
+pub fn remove_empty_columns(lines: &mut Vec<Line<'_>>) {
+    let mut non_empty_counts: HashMap<usize, usize> = HashMap::new();
+
+    // Count non-empty "pairs" of spans per column
+    for line in lines.iter() {
+        let spans = &line.spans;
+        let mut idx = 0;
+        while idx + 1 < spans.len() {
+            let a = &spans[idx];
+            let b = &spans[idx + 1];
+            let x = non_empty_counts.entry(idx).or_insert(0);
+            if a.content != " " && a.content != "─" || b.content != " " && b.content != "─" {
+                *x += 1;
+            }
+            idx += 2; // move to next pair
+        }
+    }
+
+    // Find indices (first span of pair) that are empty in all rows
+    let empty_indices: HashSet<usize> = non_empty_counts
+        .iter()
+        .filter_map(|(&idx, &count)| if count == 0 { Some(idx) } else { None })
+        .collect();
+
+    // Rebuild each line without empty span pairs
+    for line in lines.iter_mut() {
+        let mut new_spans: Vec<Span> = Vec::with_capacity(line.spans.len());
+        let mut idx = 0;
+        while idx + 1 < line.spans.len() {
+            if !empty_indices.contains(&idx) {
+                new_spans.push(line.spans[idx].clone());
+                new_spans.push(line.spans[idx + 1].clone());
+            }
+            idx += 2;
+        }
+        // Handle odd span at the end if exists
+        if idx < line.spans.len() {
+            new_spans.push(line.spans[idx].clone());
+        }
+        *line = Line::from(new_spans);
+    }
 }
 
 #[allow(dead_code)]

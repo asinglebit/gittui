@@ -29,20 +29,15 @@ impl Buffer {
 
         // If we have a planned merge later on
         if let Some(merger_idx) = curr.iter().position(|inner| {
-            self.mergers
-                .iter()
-                .any(|oid| Some(oid) == inner.oid.as_ref())
+            self.mergers.iter().any(|oid| Some(oid) == inner.oid.as_ref())
         }) {
-            if let Some(merger_pos) = self
-                .mergers
-                .iter()
-                .position(|oid| Some(oid) == curr[merger_idx].oid.as_ref())
-            {
+            if let Some(merger_pos) = self.mergers.iter().position(|oid| Some(oid) == curr[merger_idx].oid.as_ref()) {
                 self.mergers.remove(merger_pos);
             }
 
             let mut clone = curr[merger_idx].clone();
-            clone.parent_a = None;
+            clone.parent_a = clone.parent_b;
+            clone.parent_b = None;
 
             curr[merger_idx].parent_b = None;
             curr.push_back(clone);
@@ -51,7 +46,7 @@ impl Buffer {
         // Replace or append buffer metadata
         if let Some(first_idx) = curr.iter().position(|inner| {
             inner.parent_a.as_ref() == metadata.oid.as_ref()
-                || inner.parent_b.as_ref() == metadata.oid.as_ref()
+            // inner.parent_b.as_ref() == metadata.oid.as_ref()
         }) {
             let old_oid = metadata.oid;
 

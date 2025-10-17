@@ -210,10 +210,7 @@ impl Walker {
                     if chunk.parent_a.is_some() && chunk.parent_b.is_some() {
                         let mut is_merger_found = false;
                         for chunk_nested in &self.buffer.borrow().curr {
-                            if ((chunk_nested.parent_a.is_some()
-                                && chunk_nested.parent_b.is_none())
-                                || (chunk_nested.parent_a.is_none()
-                                    && chunk_nested.parent_b.is_some()))
+                            if chunk_nested.parent_a.is_some() && chunk_nested.parent_b.is_none()
                                 && chunk.parent_b.as_ref() == chunk_nested.parent_a.as_ref()
                             {
                                 is_merger_found = true;

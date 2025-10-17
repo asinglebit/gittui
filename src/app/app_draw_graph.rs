@@ -111,7 +111,7 @@ impl App {
 
                 let mut row = Row::new(vec![
                     WidgetCell::from(graph_range.get(idx).cloned().unwrap_or_default()),
-                    WidgetCell::from(buffer_range.get(idx).cloned().unwrap_or_default()),
+                    WidgetCell::from(message_range.get(idx).cloned().unwrap_or_default()),
                 ]);
                 if idx + start == self.graph_selected {
                     row = row.style(Style::default().bg(COLOR_GREY_800));
