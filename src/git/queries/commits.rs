@@ -2,7 +2,6 @@
 use std::collections::HashMap;
 #[rustfmt::skip]
 use git2::{
-    BranchType,
     Oid,
     Repository,
     Time
@@ -21,19 +20,16 @@ pub fn get_tip_oids(repo: &Repository) -> (HashMap<Oid, Vec<String>>, HashMap<Oi
     let mut tips_local: HashMap<Oid, Vec<String>> = HashMap::new();
     let mut tips_remote: HashMap<Oid, Vec<String>> = HashMap::new();
 
-    // Iterate through both local and remote branches
-    for branch_type in [BranchType::Local, BranchType::Remote] {
-        for branch in repo.branches(Some(branch_type)).unwrap() {
-            let (branch, _) = branch.unwrap();
-            if let Some(oid) = branch.get().target() {
-                // Get branch name (or "unknown" if not available)
-                let name = branch.name().unwrap().unwrap_or("unknown").to_string();
-                // Map each OID to one or more branch names pointing to it
-                if branch_type == BranchType::Local {
-                    tips_local.entry(oid).or_default().push(name);
-                } else {
-                    tips_remote.entry(oid).or_default().push(name);
-                }
+    // Iterate all refs once
+    for reference in repo.references().unwrap().flatten() {
+        // Only handle direct refs (skip symbolic ones like HEAD)
+        if let Some(oid) = reference.target() {
+            let name = reference.name().unwrap_or("unknown");
+
+            if let Some(stripped) = name.strip_prefix("refs/heads/") {
+                tips_local.entry(oid).or_default().push(stripped.to_string());
+            } else if let Some(stripped) = name.strip_prefix("refs/remotes/") {
+                tips_remote.entry(oid).or_default().push(stripped.to_string());
             }
         }
     }

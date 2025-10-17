@@ -124,7 +124,7 @@ impl Default for App {
             is_branches: false,
             is_status: false,
             is_inspector: false,
-            viewport: Viewport::Graph,
+            viewport: Viewport::Settings,
             focus: Focus::Viewport,
 
             // Branches

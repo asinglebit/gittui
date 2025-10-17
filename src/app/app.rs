@@ -350,7 +350,7 @@ impl App  {
             // Create the walker
             let mut walk_ctx = Walker::new(path, 10000, visible_branches).expect("Error");
 
-            // Pagination loop
+            // Walker loop
             loop {
                 if cancel_clone.load(std::sync::atomic::Ordering::SeqCst) {
                     break;
@@ -386,6 +386,13 @@ impl App  {
     pub fn sync(&mut self) {
         if let Some(rx) = &self.walker_rx && let Ok(result) = rx.try_recv() {
 
+            // Crude check to see if this is a first iteration
+            if self.tips.is_empty() {
+                if self.viewport == Viewport::Settings {
+                    self.viewport = Viewport::Graph;
+                }
+            }
+
             // Reset utilities
             self.color = Rc::new(RefCell::new(ColorPicker::default()));
             self.buffer = RefCell::new(Buffer::default());
@@ -417,6 +424,7 @@ impl App  {
             self.tips_remote = result.tips_remote;
             
             if self.tips.is_empty() {
+
                 // Combine local and remotes into combined
                 for (oid, branches) in self.tips_local.iter() {
                     self.tips.insert(*oid, branches.clone());

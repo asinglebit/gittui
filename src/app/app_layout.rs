@@ -41,8 +41,8 @@ impl App {
             .direction(ratatui::layout::Direction::Horizontal)
             .constraints([
                 ratatui::layout::Constraint::Length(if self.is_branches && self.viewport != Viewport::Settings { 45 } else { 0 }),
-                ratatui::layout::Constraint::Max(200),
-                ratatui::layout::Constraint::Length(if is_right_pane { 45 } else { 0 }),
+                ratatui::layout::Constraint::Max(500),
+                ratatui::layout::Constraint::Length(if is_right_pane { 46 } else { 0 }),
             ])
             .split(chunks_vertical[1]);
 
