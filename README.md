@@ -26,9 +26,8 @@ The goal is simple:
 
 **Guita╭** is still a work in progress. Some areas that need attention include:
 
-- 🔧 **Graph rendering adjustments** – commits and branches may not always display perfectly in complex histories.  
 - 🧪 **Testing** – many parts of the app are experimental and require thorough testing, especially on large repositories.  
-- 🔑 **Authentication experience** – handling SSH/HTTPS credentials could be smoother.  
+- 🔑 **Authentication experience** – handling SSH/HTTPS credentials could be customizable.  
 
 Use it with caution, and feel free to report issues or contribute improvements!
 
@@ -79,7 +78,6 @@ Some things I still need to implement:
 - ⌨️ **Shortcut manager** – customize keybindings for better workflow.  
 - 🎨 **Theme manager** – allow changing colors and styles.  
 - 🧪 **Add tests** – improve reliability and catch edge cases.  
-- 🐛 **Graph rendering fixes** – some bugs remain with complex histories.
 - ⚙️ **Git features**:
     - Create branch  
     - Delete branch  
@@ -88,8 +86,5 @@ Some things I still need to implement:
     - Rebase branch  
     - Merge branch  
     - Cherry-pick commit  
-    - Hide branch  
-    - Show branch  
-    - Solo branch  
     - Stash  
     - Pop  
