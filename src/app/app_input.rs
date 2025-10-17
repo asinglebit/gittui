@@ -431,7 +431,24 @@ impl App {
                     }
                 }
                 _ => {}
-            },
+            }
+            KeyCode::Char('o') => {
+                match self.focus {
+                    Focus::Branches => {
+                        self.visible_branches.clear();
+                        let (oid, branch) = self.oid_branch_vec.get(self.branches_selected).unwrap();
+                        self.visible_branches
+                            .entry(*oid)
+                            .and_modify(|branches| {
+                                branches.push(branch.clone())
+                            })
+                            .or_insert_with(|| vec![branch.clone()]);
+                        
+                        self.reload();
+                    }
+                    _ => {}
+                };
+            }
             KeyCode::Enter => {
                 match self.focus {
                     Focus::Branches => {

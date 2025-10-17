@@ -60,6 +60,9 @@ impl App {
         let mut lines_status_top: Vec<Line<'_>> = Vec::new();
         let mut lines_status_bottom: Vec<Line<'_>> = Vec::new();
 
+        let mut status_top_empty = false;
+        let mut status_bottom_empty = false;
+
         // If viewing uncommitted changes
         if is_showing_uncommitted {
             
@@ -85,6 +88,7 @@ impl App {
             
             // Handle no changes
             if lines_status_top.is_empty() {
+                status_top_empty = true;
                 let visible_height = self.layout.status_bottom.height as usize;
                 let blank_lines_before = visible_height.saturating_sub(3) / 2;
                 for _ in 0..blank_lines_before {
@@ -120,6 +124,7 @@ impl App {
             
             // Handle no changes
             if lines_status_bottom.is_empty() {
+                status_bottom_empty = true;
                 let visible_height = self.layout.status_top.height as usize;
                 let blank_lines_before = visible_height.saturating_sub(2) / 2;
                 for _ in 0..blank_lines_before {
@@ -152,6 +157,7 @@ impl App {
 
             // Handle no changes
             if lines_status_top.is_empty() {
+                status_top_empty = true;
                 let visible_height = self.layout.status_top.height as usize;
                 let blank_lines_before = visible_height.saturating_sub(3) / 2;
                 for _ in 0..blank_lines_before {
@@ -190,10 +196,16 @@ impl App {
             let list_items: Vec<ListItem> = lines_status_top[start..end]
                 .iter()
                 .enumerate()
-                .map(|(i, line)| {
-                    if is_staged_changes && start + i == self.status_top_selected && self.focus == Focus::StatusTop {
+                .map(|(idx, line)| {
+                    if is_staged_changes && start + idx == self.status_top_selected && self.focus == Focus::StatusTop {
                         let spans: Vec<Span> = line.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GREY_500)) }).collect();
                         ListItem::new(Line::from(spans)).style(Style::default().bg(COLOR_GREY_800).fg(COLOR_GREY_500))
+                    } else if !status_top_empty {
+                        if (idx + start) % 2 == 0 {
+                            ListItem::new(Line::from(line.clone().spans)).style(Style::default().bg(COLOR_GREY_900))
+                        } else {
+                            ListItem::new(line.clone())
+                        }
                     } else {
                         ListItem::new(line.clone())
                     }
@@ -257,12 +269,20 @@ impl App {
                 let list_items: Vec<ListItem> = lines_status_bottom[start..end]
                     .iter()
                     .enumerate()
-                    .map(|(i, line)| {
-                        if is_unstaged_changes && start + i == self.status_bottom_selected && self.focus == Focus::StatusBottom {
+                    .map(|(idx, line)| {
+                        if is_unstaged_changes && start + idx == self.status_bottom_selected && self.focus == Focus::StatusBottom {
                             let spans: Vec<Span> = line.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GREY_500)) }).collect();
                             ListItem::new(Line::from(spans)).style(Style::default().bg(COLOR_GREY_800).fg(COLOR_GREY_500))
                         } else {
-                            ListItem::new(line.clone())
+                            if !status_bottom_empty {
+                                if (idx + start) % 2 == 0 {
+                                    ListItem::new(Line::from(line.clone().spans)).style(Style::default().bg(COLOR_GREY_900))
+                                } else {
+                                    ListItem::new(line.clone())
+                                }
+                            } else {
+                                ListItem::new(line.clone())
+                            }
                         }
                     })
                     .collect();
