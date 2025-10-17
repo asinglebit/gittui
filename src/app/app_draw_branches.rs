@@ -33,7 +33,7 @@ impl App {
         
         // Padding
         let padding = ratatui::widgets::Padding {
-            left: 1,
+            left: 2,
             right: 1,
             top: 0,
             bottom: 0,
@@ -51,9 +51,11 @@ impl App {
                 .get(oid)
                 .map_or(false, |branches| branches.iter().any(|b| b == branch));
 
+            let is_local = self.tips_local.values().any(|branches| branches.iter().any(|b| b.as_str() == branch));
+
             lines.push(Line::from(vec![
                 Span::styled(
-                    format!("{} {}", if is_visible { "●" } else { "◌" }, truncate_with_ellipsis(branch, max_text_width - 1)),
+                    format!("{} {}", if is_visible { if is_local { "●" } else { "◆" } } else { if is_local { "○" } else { "◇" } }, truncate_with_ellipsis(branch, max_text_width - 1)),
                     Style::default().fg(
                         if is_visible {
                             *self.tip_colors.get(oid).unwrap_or(&COLOR_TEXT)

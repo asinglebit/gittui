@@ -37,23 +37,24 @@ impl App {
         let oid = *self.oids.get(self.graph_selected).unwrap();
         let color = self.tip_colors.get(&oid).unwrap();
         let mut length = 39;
-        let branches_local = self.tips_local.entry(oid).or_default();
-        let branches_remote = self.tips_remote.get(&oid).map(|v| v.as_slice()).unwrap_or(&[]);
-        let branches: Vec<_> = branches_local.iter().chain(branches_remote.iter()).collect();
         let mut lines = vec![
             Line::from(vec![
                 Span::styled("select a branch to checkout".to_string(), Style::default().fg(COLOR_TEXT))
             ]),
             Line::from("")
         ];
-        branches.iter().enumerate().for_each(|(idx, branch_name)| {
-            length = (10 + branch_name.len()).max(length);
+        let mut height = 6;
+        let branches = self.visible_branches.get(&oid).unwrap();
+
+        branches.iter().enumerate().for_each(|(idx, branch)| {
+            height += 1;
+            let is_local = self.tips_local.values().any(|branches| branches.iter().any(|b| b.as_str() == branch));
+            length = (10 + branch.len()).max(length);
             lines.push(Line::from(Span::styled(
-                format!("● {} ", branch_name),
+                format!("{} {} ", if is_local { "●" } else { "◆" }, branch),
                 Style::default().fg(if idx == self.modal_checkout_selected as usize { *color } else { COLOR_TEXT }),
             )));
         });
-        let height = branches.len() + 6;
 
         let bg_block = Block::default().style(Style::default().fg(COLOR_BORDER));
         bg_block.render(frame.area(), frame.buffer_mut());

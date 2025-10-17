@@ -158,7 +158,7 @@ impl App {
             KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.exit()
             }
-            KeyCode::Char('j') | KeyCode::Down => match self.focus {
+            KeyCode::Down => match self.focus {
                 Focus::Branches => {
                     self.branches_selected += 1;
                 }
@@ -190,9 +190,10 @@ impl App {
                 }
                 Focus::ModalCheckout => {
                     let branches = self
-                        .tips
+                        .visible_branches
                         .entry(*self.oids.get(self.graph_selected).unwrap())
                         .or_default();
+
                     self.modal_checkout_selected =
                         if self.modal_checkout_selected + 1 > branches.len() as i32 - 1 {
                             0
@@ -202,7 +203,7 @@ impl App {
                 }
                 _ => {}
             },
-            KeyCode::Char('k') | KeyCode::Up => match self.focus {
+            KeyCode::Up => match self.focus {
                 Focus::Branches => {
                     self.branches_selected = self.branches_selected.saturating_sub(1);
                 }
@@ -240,7 +241,7 @@ impl App {
                 }
                 Focus::ModalCheckout => {
                     let branches = self
-                        .tips
+                        .visible_branches
                         .entry(*self.oids.get(self.graph_selected).unwrap())
                         .or_default();
                     self.modal_checkout_selected = if self.modal_checkout_selected - 1 < 0 {
@@ -261,6 +262,16 @@ impl App {
                 } else {
                     self.focus = Focus::Viewport;
                 }
+            }
+            KeyCode::Char('j') => {
+                match self.focus {
+                    Focus::Branches => {
+                        self.viewport = Viewport::Graph;
+                        let oid = self.oid_branch_vec.get(self.branches_selected).unwrap().0;
+                        self.graph_selected = self.oids.iter().position(|o| o == &oid).unwrap_or(0);
+                    }
+                    _ => {}
+                };
             }
             KeyCode::Char('s') => {
                 self.is_status = !self.is_status;
@@ -298,26 +309,26 @@ impl App {
                         if self.focus == Focus::Viewport && self.viewport != Viewport::Graph {
                             return;
                         }
-
                         if self.graph_selected == 0 && self.uncommitted.is_staged {
                             self.focus = Focus::ModalCommit;
                             self.commit_editor.mode = EditorMode::Insert;
                             return;
                         }
+                        let oid = *self.oids.get(self.graph_selected).unwrap();
                         let branches = self
                             .tips
-                            .entry(*self.oids.get(self.graph_selected).unwrap())
+                            .entry(oid)
                             .or_default();
                         if self.graph_selected == 0 {
                             self.focus = Focus::Viewport;
                             return;
                         }
                         if branches.is_empty() {
-                            checkout_head(&self.repo, *self.oids.get(self.graph_selected).unwrap());
+                            checkout_head(&self.repo, oid);
                             self.focus = Focus::Viewport;
                             self.reload();
                         } else if branches.len() == 1 {
-                            checkout_branch(&self.repo, branches.first().unwrap()).expect("Error");
+                            checkout_branch(&self.repo, &mut self.visible_branches, oid, branches.first().unwrap()).expect("Error");
                             self.focus = Focus::Viewport;
                             self.reload();
                         } else {
@@ -414,12 +425,15 @@ impl App {
                         self.focus = Focus::ModalActions;
                     }
                     Focus::ModalCheckout => {
+                        let oid = *self.oids.get(self.graph_selected).unwrap();
                         let branches = self
                             .tips
-                            .entry(*self.oids.get(self.graph_selected).unwrap())
+                            .entry(oid)
                             .or_default();
                         checkout_branch(
                             &self.repo,
+                            &mut self.visible_branches,
+                            oid,
                             branches.get(self.modal_checkout_selected as usize).unwrap(),
                         )
                         .expect("Error");

@@ -40,7 +40,7 @@ impl App {
         let chunks_horizontal = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Horizontal)
             .constraints([
-                ratatui::layout::Constraint::Length(if self.is_branches && self.viewport != Viewport::Settings { 30 } else { 0 }),
+                ratatui::layout::Constraint::Length(if self.is_branches && self.viewport != Viewport::Settings { 45 } else { 0 }),
                 ratatui::layout::Constraint::Max(200),
                 ratatui::layout::Constraint::Length(if is_right_pane { 45 } else { 0 }),
             ])
@@ -105,7 +105,6 @@ impl App {
         status_bottom.y = status_bottom.y.saturating_sub(1);
         status_bottom.height = status_bottom.height + 1;
         status_bottom.width = status_bottom.width.saturating_sub(1);
-
 
         self.layout = Layout {
             title_left: chunks_title_bar[0],

@@ -1,8 +1,7 @@
 #[rustfmt::skip]
 use std::{
     collections::{
-        HashMap,
-        HashSet
+        HashMap
     },
     env,
     path::PathBuf,
@@ -34,9 +33,6 @@ use crate::{
     core::{
         buffer::{
             Buffer
-        },
-        walker::{
-            LazyWalker
         }
     },
     helpers::{
@@ -99,6 +95,8 @@ impl Default for App {
             buffer: RefCell::new(Buffer::default()),
             layers: layers!(Rc::new(RefCell::new(ColorPicker::default()))),
             walker_rx: None,
+            walker_cancel: None,
+            walker_handle: None,
 
             // Walker data
             oids: Vec::new(),

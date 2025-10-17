@@ -19,8 +19,6 @@ use git2::{
     Revwalk,
 };
 #[rustfmt::skip]
-use ratatui::crossterm::style::Color;
-#[rustfmt::skip]
 use crate::{
     core::{
         buffer::{
@@ -47,7 +45,10 @@ pub struct LazyWalker {
 
 impl LazyWalker {
     // Creates a new LazyWalker by building a revwalk from the repo
-    pub fn new(repo: Rc<Repository>, visible_branches: HashMap<Oid, Vec<String>>) -> Result<Self, git2::Error> {
+    pub fn new(
+        repo: Rc<Repository>,
+        visible_branches: HashMap<Oid, Vec<String>>,
+    ) -> Result<Self, git2::Error> {
         let revwalk = Self::build_revwalk(&repo, visible_branches)?;
         Ok(Self {
             revwalk: Mutex::new(revwalk),
@@ -55,7 +56,11 @@ impl LazyWalker {
     }
 
     // Reset the revwalk
-    pub fn reset(&self, repo: Rc<Repository>, visible_branches: HashMap<Oid, Vec<String>>) -> Result<(), git2::Error> {
+    pub fn reset(
+        &self,
+        repo: Rc<Repository>,
+        visible_branches: HashMap<Oid, Vec<String>>,
+    ) -> Result<(), git2::Error> {
         let revwalk = Self::build_revwalk(&repo, visible_branches)?;
         let mut guard = self.revwalk.lock().unwrap();
         *guard = revwalk;
@@ -73,7 +78,10 @@ impl LazyWalker {
     }
 
     // Internal helper to build a revwalk for all branch tips
-    fn build_revwalk(repo: &Repository, visible_branches: HashMap<Oid, Vec<String>>) -> Result<Revwalk<'static>, git2::Error> {
+    fn build_revwalk(
+        repo: &Repository,
+        visible_branches: HashMap<Oid, Vec<String>>,
+    ) -> Result<Revwalk<'static>, git2::Error> {
         // Safge: we keep repo alive in Rc, so transmute to 'static is safe
         let repo_ref: &'static Repository =
             unsafe { std::mem::transmute::<&Repository, &'static Repository>(repo) };
@@ -130,7 +138,11 @@ pub struct WalkerOutput {
 
 impl Walker {
     // Creates a new walker
-    pub fn new(path: String, amount: usize, visible_branches: HashMap<Oid, Vec<String>>) -> Result<Self, git2::Error> {
+    pub fn new(
+        path: String,
+        amount: usize,
+        visible_branches: HashMap<Oid, Vec<String>>,
+    ) -> Result<Self, git2::Error> {
         let path = path.clone();
         let repo = Rc::new(Repository::open(path).expect("Failed to open repo"));
         let walker = LazyWalker::new(repo.clone(), visible_branches).expect("Error");
@@ -189,18 +201,19 @@ impl Walker {
 
             for chunk in &self.buffer.borrow().curr {
                 if !chunk.is_dummy() && Some(&oid) == chunk.oid.as_ref() {
-                    
                     is_commit_found = true;
 
                     if self.tips_local.contains_key(&oid) || self.tips_remote.contains_key(&oid) {
                         self.tip_lanes.insert(oid, lane_idx);
                     }
-                
+
                     if chunk.parent_a.is_some() && chunk.parent_b.is_some() {
                         let mut is_merger_found = false;
                         for chunk_nested in &self.buffer.borrow().curr {
-                            if ((chunk_nested.parent_a.is_some() && chunk_nested.parent_b.is_none())
-                                || (chunk_nested.parent_a.is_none() && chunk_nested.parent_b.is_some()))
+                            if ((chunk_nested.parent_a.is_some()
+                                && chunk_nested.parent_b.is_none())
+                                || (chunk_nested.parent_a.is_none()
+                                    && chunk_nested.parent_b.is_some()))
                                 && chunk.parent_b.as_ref() == chunk_nested.parent_a.as_ref()
                             {
                                 is_merger_found = true;

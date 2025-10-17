@@ -381,6 +381,7 @@ pub fn render_buffer_range(
 pub fn render_message_range(
     repo: &Repository,
     oids: &[Oid],
+    tips_local: &HashMap<Oid, Vec<String>>,
     visible_branches: &HashMap<Oid, Vec<String>>,
     tip_colors: &mut HashMap<Oid, Color>,
     history: &Vector<Vector<Chunk>>,
@@ -406,15 +407,22 @@ pub fn render_message_range(
                 for branch in visible {
                     // Only render branches that are visible
                     if visible.iter().any(|b| b == branch) {
+                        // Check if the branch ios local
+                        let is_local = tips_local
+                            .values()
+                            .any(|branches| branches.iter().any(|b| b.as_str() == branch));
+
                         spans.push(Span::styled(
-                            format!("{} {} ", SYM_COMMIT_BRANCH, branch),
-                            Style::default().fg(
-                                if let Some(color) = tip_colors.get(&oid) {
-                                    *color
-                                } else {
-                                    COLOR_TEXT
-                                },
+                            format!(
+                                "{} {} ",
+                                if is_local { SYM_COMMIT_BRANCH } else { "◆" },
+                                branch
                             ),
+                            Style::default().fg(if let Some(color) = tip_colors.get(&oid) {
+                                *color
+                            } else {
+                                COLOR_TEXT
+                            }),
                         ));
                     }
                 }

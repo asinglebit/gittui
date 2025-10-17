@@ -1,5 +1,10 @@
 #[rustfmt::skip]
-use std::thread;
+use std::{
+    thread,
+    collections::{
+        HashMap
+    }
+};
 #[rustfmt::skip]
 use git2::{
     Oid,
@@ -31,7 +36,12 @@ pub fn checkout_head(repo: &Repository, oid: Oid) {
     .expect("Error checking out");
 }
 
-pub fn checkout_branch(repo: &Repository, branch_name: &str) -> Result<(), git2::Error> {
+pub fn checkout_branch(
+    repo: &Repository,
+    visible_branches: &mut HashMap<Oid, Vec<String>>,
+    oid: Oid,
+    branch_name: &str,
+) -> Result<(), git2::Error> {
     let local_branch_name = branch_name.strip_prefix("origin/").unwrap_or(branch_name);
 
     // Always try the local branch name first
@@ -53,6 +63,11 @@ pub fn checkout_branch(repo: &Repository, branch_name: &str) -> Result<(), git2:
 
             let mut local_branch = repo.branch(local_branch_name, &commit, false)?;
             local_branch.set_upstream(Some(remote_branch_name))?;
+
+            visible_branches
+                .entry(oid)
+                .or_insert_with(Vec::new)
+                .push(local_branch_name.to_string());
 
             repo.set_head(local_branch.get().name().unwrap())?;
         }

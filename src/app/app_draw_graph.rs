@@ -79,6 +79,7 @@ impl App {
         let message_range = render_message_range(
             &self.repo,
             &self.oids,
+            &self.tips_local,
             &self.visible_branches,
             &mut self.tip_colors,
             &history,

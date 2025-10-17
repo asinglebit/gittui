@@ -8,6 +8,10 @@ use std::{
     sync::{
         mpsc::{
             channel
+        },
+        Arc,
+        atomic::{
+            AtomicBool
         }
     },
     collections::{
@@ -145,6 +149,8 @@ pub struct App {
     pub buffer: RefCell<Buffer>,
     pub layers: LayersContext,
     pub walker_rx: Option<std::sync::mpsc::Receiver<WalkerOutput>>,
+    pub walker_cancel: Option<Arc<AtomicBool>>,
+    pub walker_handle: Option<std::thread::JoinHandle<()>>,
 
     // Walker data
     pub oids: Vec<Oid>,
@@ -306,38 +312,55 @@ impl App  {
     }
 
     pub fn reload(&mut self) {
-        
-        if self.spinner.is_running() { return; }
+        // Cancel any existing walker thread immediately
+        if let Some(cancel_flag) = &self.walker_cancel {
+            cancel_flag.store(true, std::sync::atomic::Ordering::SeqCst);
+        }
+
+        // Try to join previous walker handle if present (best-effort, non-blocking)
+        if let Some(handle) = self.walker_handle.take() {
+            // detach by spawning a thread that joins to avoid blocking reload
+            std::thread::spawn(move || {
+                let _ = handle.join();
+            });
+        }
 
         // Get user credentials
         let (name, email) = get_git_user_info(&self.repo).expect("Error");
         self.name = name.unwrap();
         self.email = email.unwrap();
-        
+
         // Restart the spinner
         self.spinner.start();
 
-        // Create a channel
+        // Create a new cancellation flag and channel
+        let cancel = Arc::new(AtomicBool::new(false));
+        let cancel_clone = cancel.clone();
+        self.walker_cancel = Some(cancel);
+
         let (tx, rx) = channel();
         self.walker_rx = Some(rx);
 
-        // Copy the repo path
+        // Copy the repo path and visible branches
         let path = self.path.clone();
         let visible_branches = self.visible_branches.clone();
 
-        // Spawn a thread that computes something
-        thread::spawn(move || {
+        // Spawn a thread that computes something; it will check cancel flag between iterations
+        let handle = thread::spawn(move || {
             // Create the walker
             let mut walk_ctx = Walker::new(path, 10000, visible_branches).expect("Error");
 
             // Pagination loop
             loop {
-                
+                if cancel_clone.load(std::sync::atomic::Ordering::SeqCst) {
+                    break;
+                }
+
                 // Parse a chunk
                 let again = walk_ctx.walk();
 
                 // Send the message to the main thread
-                tx.send(WalkerOutput {
+                if tx.send(WalkerOutput {
                     oids: walk_ctx.oids.clone(),
                     tip_lanes: walk_ctx.tip_lanes.clone(),
                     tips_local: walk_ctx.tips_local.clone(),
@@ -345,15 +368,19 @@ impl App  {
                     branch_oid_map: walk_ctx.branch_oid_map.clone(),
                     buffer: walk_ctx.buffer.clone(),
                     again,
-                })
-                .expect("Error");
+                }).is_err() {
+                    // Receiver dropped, stop
+                    break;
+                }
 
-                // Break the loop
+                // Break the loop if walker finished
                 if !again {
                     break;
                 }
             }
         });
+
+        self.walker_handle = Some(handle);
     }
 
     pub fn sync(&mut self) {
