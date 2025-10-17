@@ -338,7 +338,7 @@ pub fn render_buffer_range(
     let mut lines_buffer: Vec<Line> = Vec::new();
     let mut idx = start;
     // Iterate over the selected snapshots
-    for snapshot in history.iter().skip(start).take(end - start) {
+    for snapshot in history.iter().skip(start + 1).take(end + 1 - start - 1) {
         let mut spans = Vec::new();
 
         spans.push(Span::styled(

@@ -91,8 +91,8 @@ impl App {
             .enumerate()
             .map(|(idx, line)| {
                 if start + idx == self.branches_selected && self.focus == Focus::Branches {
-                    let spans: Vec<Span> = line.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GREY_500)) }).collect();
-                    ListItem::new(Line::from(spans)).style(Style::default().bg(COLOR_GREY_800).fg(COLOR_GREY_400))
+                    let spans: Vec<Span> = line.iter().map(|span| { Span::styled(span.content.clone(), span.style) }).collect();
+                    ListItem::new(Line::from(spans)).style(Style::default().bg(COLOR_GREY_800))
                 } else {
                     if (idx + start) % 2 == 0 {
                         ListItem::new(Line::from(line.clone().spans)).style(Style::default().bg(COLOR_GREY_900))

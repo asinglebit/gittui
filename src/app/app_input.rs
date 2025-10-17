@@ -374,7 +374,7 @@ impl App {
                             self.focus = Focus::Viewport;
                             self.reload();
                         } else if branches.len() == 1 {
-                            checkout_branch(&self.repo, &mut self.visible_branches, oid, branches.first().unwrap()).expect("Error");
+                            checkout_branch(&self.repo, &mut self.visible_branches, &mut self.tips_local, oid, branches.first().unwrap()).expect("Error");
                             self.focus = Focus::Viewport;
                             self.reload();
                         } else {
@@ -496,6 +496,7 @@ impl App {
                         checkout_branch(
                             &self.repo,
                             &mut self.visible_branches,
+                            &mut self.tips_local,
                             oid,
                             branches.get(self.modal_checkout_selected as usize).unwrap(),
                         )

@@ -39,45 +39,49 @@ pub fn checkout_head(repo: &Repository, oid: Oid) {
 pub fn checkout_branch(
     repo: &Repository,
     visible_branches: &mut HashMap<Oid, Vec<String>>,
+    tips_local: &mut HashMap<Oid, Vec<String>>,
     oid: Oid,
     branch_name: &str,
 ) -> Result<(), git2::Error> {
-    let local_branch_name = branch_name.strip_prefix("origin/").unwrap_or(branch_name);
+    // Helper to checkout a local branch
+    fn checkout(repo: &Repository, branch_name: &str) -> Result<(), git2::Error> {
+        let branch = repo.find_branch(branch_name, BranchType::Local)?;
+        repo.set_head(branch.get().name().unwrap())?;
+        repo.checkout_head(Some(CheckoutBuilder::default().allow_conflicts(true).force()))
+    }
 
-    // Always try the local branch name first
-    match repo.find_branch(local_branch_name, BranchType::Local) {
-        Ok(branch) => {
-            // Switch to existing local branch
-            repo.set_head(branch.get().name().unwrap())?;
+    // If branch_name already exists as a local branch, checkout directly
+    if repo.find_branch(branch_name, BranchType::Local).is_ok() {
+        return checkout(repo, branch_name);
+    }
+
+    // If branch_name is in the form <remote>/<branch>
+    if let Some((_remote, branch)) = branch_name.split_once('/') {
+        if repo.find_branch(branch, BranchType::Local).is_ok() {
+            return checkout(repo, branch);
         }
-        Err(_) => {
-            // Create new local branch from remote
-            let remote_branch_name = if branch_name.starts_with("origin/") {
-                branch_name
-            } else {
-                &format!("origin/{}", branch_name)
-            };
 
-            let remote_branch = repo.find_branch(remote_branch_name, BranchType::Remote)?;
+        if repo.find_branch(branch_name, BranchType::Remote).is_ok() {
+            let remote_branch = repo.find_branch(branch_name, BranchType::Remote)?;
             let commit = remote_branch.get().peel_to_commit()?;
 
-            let mut local_branch = repo.branch(local_branch_name, &commit, false)?;
-            local_branch.set_upstream(Some(remote_branch_name))?;
-
+            let mut local_branch = repo.branch(branch, &commit, false)?;
+            local_branch.set_upstream(Some(branch_name))?;
+            tips_local.entry(oid)
+                .or_insert_with(Vec::new)
+                .push(branch.to_string());
             visible_branches
                 .entry(oid)
                 .or_insert_with(Vec::new)
-                .push(local_branch_name.to_string());
+                .push(branch.to_string());
 
-            repo.set_head(local_branch.get().name().unwrap())?;
+            return checkout(repo, branch);
         }
     }
 
-    repo.checkout_head(Some(
-        CheckoutBuilder::default().allow_conflicts(true).force(),
-    ))?;
-
-    Ok(())
+    Err(git2::Error::from_str(
+        "No matching local or remote branch found for the given Oid",
+    ))
 }
 
 pub fn git_add_all(repo: &Repository) -> Result<(), Error> {
