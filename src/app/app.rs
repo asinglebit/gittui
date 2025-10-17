@@ -168,6 +168,8 @@ pub struct App {
     pub file_name: Option<String>,
     pub viewer_lines: Vec<ListItem<'static>>,
     pub oid_branch_vec: Vec<(Oid, String)>,
+    pub oid_branch_vec_chronological: Vec<(Oid, String)>,
+    pub oid_branch_indices: Vec<usize>,
     pub visible_branches: HashMap<Oid, Vec<String>>,
 
     // Interface
@@ -436,6 +438,36 @@ impl App  {
                         .and_modify(|existing| existing.extend(branches.iter().cloned()))
                         .or_insert_with(|| branches.clone());
                 }
+
+                if self.visible_branches.is_empty() {
+                    for (oid, branches) in self.tips.iter() {
+                        self.visible_branches.insert(*oid, branches.clone());
+                    }
+                }
+                
+                let mut local_oid_branch_tuples: Vec<(Oid, String)> = self
+                    .tips_local
+                    .iter()
+                    .flat_map(|(oid, branches)| {
+                        branches.iter().map(move |branch| (*oid, branch.clone()))
+                    })
+                    .collect();
+
+                // Sort tuples if needed (for example, by branch name)
+                local_oid_branch_tuples.sort_by(|a, b| a.1.cmp(&b.1));
+
+                let mut remote_oid_branch_tuples: Vec<(Oid, String)> = self
+                    .tips_remote
+                    .iter()
+                    .flat_map(|(oid, branches)| {
+                        branches.iter().map(move |branch| (*oid, branch.clone()))
+                    })
+                    .collect();
+
+                // Sort tuples if needed (for example, by branch name)
+                remote_oid_branch_tuples.sort_by(|a, b| a.1.cmp(&b.1)); // sorts alphabetically by branch
+
+                self.oid_branch_vec = local_oid_branch_tuples.into_iter().chain(remote_oid_branch_tuples.into_iter()).collect();
             }
 
             self.branch_oid_map = result.branch_oid_map;
@@ -444,36 +476,22 @@ impl App  {
             for (oid, lane_idx) in result.tip_lanes.iter() {
                 self.tip_colors.insert(*oid, self.color.borrow().get(*lane_idx));
             }
-
-            let mut local_oid_branch_tuples: Vec<(Oid, String)> = self
-                .tips_local
-                .iter()
-                .flat_map(|(oid, branches)| {
-                    branches.iter().map(move |branch| (*oid, branch.clone()))
-                })
-                .collect();
-
-            // Sort tuples if needed (for example, by branch name)
-            local_oid_branch_tuples.sort_by(|a, b| a.1.cmp(&b.1));
-
-            let mut remote_oid_branch_tuples: Vec<(Oid, String)> = self
-                .tips_remote
-                .iter()
-                .flat_map(|(oid, branches)| {
-                    branches.iter().map(move |branch| (*oid, branch.clone()))
-                })
-                .collect();
-
-            // Sort tuples if needed (for example, by branch name)
-            remote_oid_branch_tuples.sort_by(|a, b| a.1.cmp(&b.1)); // sorts alphabetically by branch
-
-            self.oid_branch_vec = local_oid_branch_tuples.into_iter().chain(remote_oid_branch_tuples.into_iter()).collect();
             
-            if self.visible_branches.is_empty() {
-                for (oid, branches) in self.tips.iter() {
-                    self.visible_branches.insert(*oid, branches.clone());
-                }
-            }
+            // Build a lookup: Oid -> position in self.oids
+            self.oid_branch_vec_chronological = self.oid_branch_vec.clone();
+            let index_map: std::collections::HashMap<Oid, usize> = self.oids
+                .iter()
+                .enumerate()
+                .map(|(i, &oid)| (oid, i))
+                .collect();
+
+            // Sort the vector using the index map
+            self.oid_branch_vec_chronological.sort_by_key(|(oid, _)| index_map.get(oid).copied().unwrap_or(usize::MAX));
+
+            self.oid_branch_indices = Vec::new();
+            self.oid_branch_vec_chronological.iter().for_each(|(oid, _)| {
+                self.oid_branch_indices.push(self.oids.iter().position(|o| oid == o).unwrap_or(usize::MAX));
+            });
 
             if !result.again {
                 // self.walker_rx = None;

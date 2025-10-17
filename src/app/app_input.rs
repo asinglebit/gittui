@@ -158,6 +158,29 @@ impl App {
             KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.exit()
             }
+            KeyCode::Down if key_event.modifiers.contains(KeyModifiers::SHIFT) => {
+                match self.focus {
+                    Focus::Viewport => match self.viewport {
+                        Viewport::Graph => {
+                            self.graph_selected = (self.oids.len() - 1).min(self.graph_selected + (self.oids.len() - self.graph_selected) / 2);
+                        }
+                        _ => {}
+                    }
+                    _ => {}
+                };
+            }
+            KeyCode::Down if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                match self.focus {
+                    Focus::Viewport => match self.viewport {
+                        Viewport::Graph => {
+                            let next = *self.oid_branch_indices.iter().find(|&k| k > &self.graph_selected).unwrap_or(&self.graph_selected);
+                            self.graph_selected = next;
+                        }
+                        _ => {}
+                    }
+                    _ => {}
+                };
+            }
             KeyCode::Down => match self.focus {
                 Focus::Branches => {
                     self.branches_selected += 1;
@@ -202,7 +225,30 @@ impl App {
                         };
                 }
                 _ => {}
-            },
+            }
+            KeyCode::Up if key_event.modifiers.contains(KeyModifiers::SHIFT) => {
+                match self.focus {
+                    Focus::Viewport => match self.viewport {
+                        Viewport::Graph => {
+                            self.graph_selected = self.graph_selected / 2;
+                        }
+                        _ => {}
+                    }
+                    _ => {}
+                };
+            }
+            KeyCode::Up if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                match self.focus {
+                    Focus::Viewport => match self.viewport {
+                        Viewport::Graph => {
+                            let next = *self.oid_branch_indices.iter().filter(|&k| k < &self.graph_selected).max().unwrap_or(&self.graph_selected);
+                            self.graph_selected = next;
+                        }
+                        _ => {}
+                    }
+                    _ => {}
+                };
+            }
             KeyCode::Up => match self.focus {
                 Focus::Branches => {
                     self.branches_selected = self.branches_selected.saturating_sub(1);

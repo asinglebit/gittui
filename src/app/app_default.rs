@@ -114,6 +114,8 @@ impl Default for App {
             file_name: None,
             viewer_lines: Vec::new(),
             oid_branch_vec: Vec::new(),
+            oid_branch_vec_chronological: Vec::new(),
+            oid_branch_indices: Vec::new(),
             visible_branches: HashMap::new(),
 
             // Interface
