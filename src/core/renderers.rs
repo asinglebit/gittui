@@ -295,6 +295,9 @@ pub fn render_graph_range(
                     && lane_idx == 0
                 {
                     layers.pipe_custom(SYM_VERTICAL_DOTTED, lane_idx, COLOR_GREY_500);
+                } else if chunk.parent_a.is_none() && chunk.parent_b.is_none() {
+                    // layers.pipe(SYM_VERTICAL_DOTTED, lane_idx);
+                    layers.pipe(" ", lane_idx);
                 } else {
                     layers.pipe(SYM_VERTICAL, lane_idx);
                 }

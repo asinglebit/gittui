@@ -5,10 +5,23 @@ use git2::Oid;
 #[rustfmt::skip]
 use crate::core::chunk::Chunk;
 
+// #[derive(Default, Clone)]
+// pub struct Delta {
+//     pub ops: Vector<DeltaOp>,
+// }
+
+// #[derive(Clone)]
+// pub enum DeltaOp {
+//     Insert { index: usize, item: Chunk },
+//     Remove { index: usize },
+//     Replace { index: usize, new: Chunk },
+// }
+
 #[derive(Default, Clone)]
 pub struct Buffer {
     pub history: Vector<Vector<Chunk>>,
     pub curr: Vector<Chunk>,
+    // pub deltas: Vector<Delta>,
     mergers: Vector<Oid>,
 }
 
@@ -20,9 +33,15 @@ impl Buffer {
     pub fn update(&mut self, metadata: Chunk) {
         self.backup();
 
+        // New delta
+        // let mut delta = Delta::default();        
+
         // Erase trailing dummy metadata
         while self.curr.last().is_some_and(|c| c.is_dummy()) {
             self.curr.pop_back();
+            // delta.ops.push_back(DeltaOp::Remove {
+            //     index: self.curr.len() - 1,
+            // });
         }
 
         let mut curr = self.curr.clone();
@@ -38,9 +57,18 @@ impl Buffer {
             let mut clone = curr[merger_idx].clone();
             clone.parent_a = clone.parent_b;
             clone.parent_b = None;
-
             curr[merger_idx].parent_b = None;
-            curr.push_back(clone);
+            curr.push_back(clone.clone());
+
+            // delta.ops.push_back(DeltaOp::Replace {
+            //     index: merger_idx,
+            //     new: curr[merger_idx].clone(),
+            // });
+
+            // delta.ops.push_back(DeltaOp::Insert {
+            //     index: curr.len() - 1,
+            //     item: clone,
+            // });
         }
 
         // Replace or append buffer metadata
@@ -51,13 +79,17 @@ impl Buffer {
             let old_oid = metadata.oid;
 
             // Replace metadata
-            curr[first_idx] = metadata;
+            curr[first_idx] = metadata.clone();
+            // delta.ops.push_back(DeltaOp::Replace {
+            //     index: first_idx,
+            //     new: metadata,
+            // });
 
             // Place dummies in case of branching
             curr = curr
-                .iter()
-                .cloned()
-                .map(|mut inner| {
+                .into_iter()
+                .enumerate()
+                .map(|(i, mut inner)| {
                     if inner.oid == old_oid {
                         return inner;
                     }
@@ -75,8 +107,16 @@ impl Buffer {
                     }
 
                     if parents_changed && inner.parent_a.is_none() && inner.parent_b.is_none() {
+                        // delta.ops.push_back(DeltaOp::Replace {
+                        //     index: i,
+                        //     new: Chunk::dummy(),
+                        // });
                         Chunk::dummy()
                     } else {
+                        // delta.ops.push_back(DeltaOp::Replace {
+                        //     index: i,
+                        //     new: inner.clone(),
+                        // });
                         inner
                     }
                 })
