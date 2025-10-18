@@ -39,7 +39,7 @@ impl App {
         let mut length = 39;
         let mut lines = vec![
             Line::from(vec![
-                Span::styled("select a branch to checkout".to_string(), Style::default().fg(COLOR_TEXT))
+                Span::styled("select a branch to checkout".to_string(), Style::default().fg(self.theme.COLOR_TEXT))
             ]),
             Line::from("")
         ];
@@ -52,11 +52,11 @@ impl App {
             length = (10 + branch.len()).max(length);
             lines.push(Line::from(Span::styled(
                 format!("{} {} ", if is_local { "●" } else { "◆" }, branch),
-                Style::default().fg(if idx == self.modal_checkout_selected as usize { *color } else { COLOR_TEXT }),
+                Style::default().fg(if idx == self.modal_checkout_selected as usize { *color } else { self.theme.COLOR_TEXT }),
             )));
         });
 
-        let bg_block = Block::default().style(Style::default().fg(COLOR_BORDER));
+        let bg_block = Block::default().style(Style::default().fg(self.theme.COLOR_BORDER));
         bg_block.render(frame.area(), frame.buffer_mut());
 
         // Modal size (smaller than area)
@@ -78,8 +78,8 @@ impl App {
         // Modal block
         let modal_block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(COLOR_GREY_600))
-            .title(Span::styled(" (esc) ", Style::default().fg(COLOR_GREY_500)))
+            .border_style(Style::default().fg(self.theme.COLOR_GREY_600))
+            .title(Span::styled(" (esc) ", Style::default().fg(self.theme.COLOR_GREY_500)))
             .title_alignment(Alignment::Right)
             .padding(padding)
             .border_type(ratatui::widgets::BorderType::Rounded);

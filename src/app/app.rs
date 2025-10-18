@@ -141,6 +141,12 @@ pub enum Focus {
     ModalCommit,
 }
 
+#[derive(PartialEq, Eq)]
+pub enum Direction {
+    Down,
+    Up,
+}
+
 pub struct App {
     // General
     pub logo: Vec<Span<'static>>,
@@ -149,6 +155,8 @@ pub struct App {
     pub hint: String,
     pub spinner: Spinner,
     pub keymap: IndexMap<KeyBinding, Command>,
+    pub last_input_direction: Option<Direction>,
+    pub theme: Theme,
 
     // User
     pub name: String,
@@ -205,9 +213,10 @@ pub struct App {
     pub viewer_selected: usize,
     pub viewer_scroll: Cell<usize>,
 
-    // Graph
+    // Settings
     pub settings_selected: usize,
     pub settings_scroll: Cell<usize>,
+    pub settings_selections: Vec<usize>,
 
     // Editor
     pub file_editor: EditorState,
@@ -276,7 +285,7 @@ impl App  {
             // .title_alignment(ratatui::layout::Alignment::Right)
             // .title_style(Style::default().fg(COLOR_GREY_400))
             .borders(if is_splash { Borders::NONE } else { Borders::ALL })
-            .border_style(Style::default().fg(COLOR_BORDER))
+            .border_style(Style::default().fg(self.theme.COLOR_BORDER))
             .border_type(ratatui::widgets::BorderType::Rounded), self.layout.app);
                 
         // Main layout
@@ -341,6 +350,18 @@ impl App  {
     }
 
     pub fn reload(&mut self) {
+        // Update colors        
+        self.color = Rc::new(RefCell::new(ColorPicker::from_theme(&self.theme)));
+        self.layers = layers!(Rc::new(RefCell::new(ColorPicker::from_theme(&self.theme))));
+        self.logo = vec![
+            Span::styled("  g", Style::default().fg(self.theme.COLOR_GRASS)),
+            Span::styled("u", Style::default().fg(self.theme.COLOR_GRASS)),
+            Span::styled("i", Style::default().fg(self.theme.COLOR_GRASS)),
+            Span::styled("t", Style::default().fg(self.theme.COLOR_GRASS)),
+            Span::styled("a", Style::default().fg(self.theme.COLOR_GRASS)),
+            Span::styled("╭", Style::default().fg(self.theme.COLOR_GREEN))
+        ];
+
         // Cancel any existing walker thread immediately
         if let Some(cancel_flag) = &self.walker_cancel {
             cancel_flag.store(true, std::sync::atomic::Ordering::SeqCst);
@@ -423,7 +444,6 @@ impl App  {
             }
 
             // Reset utilities
-            self.color = Rc::new(RefCell::new(ColorPicker::default()));
             self.buffer = RefCell::new(Buffer::default());
             self.layers = layers!(self.color.clone());
 
@@ -501,7 +521,7 @@ impl App  {
             self.buffer = result.buffer;
 
             for (oid, lane_idx) in result.tip_lanes.iter() {
-                self.tip_colors.insert(*oid, self.color.borrow().get(*lane_idx));
+                self.tip_colors.insert(*oid, self.color.borrow().get_lane(*lane_idx));
             }
             
             // Build a lookup: Oid -> position in self.oids

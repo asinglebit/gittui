@@ -1,21 +1,20 @@
-
 #[rustfmt::skip]
 use std::{
-    io,
-    collections::{
-        HashMap
-    }
+    io
 };
+#[rustfmt::skip]
 use indexmap::IndexMap;
 #[rustfmt::skip]
-use ratatui::crossterm::event::{
-    self,
-    Event,
-    KeyCode,
-    KeyEvent,
-    KeyEventKind,
-    KeyModifiers,
-    KeyCode::*
+use ratatui::{
+    crossterm::event::{
+        self,
+        Event,
+        KeyCode,
+        KeyEvent,
+        KeyEventKind,
+        KeyModifiers,
+        KeyCode::*,
+    }
 };
 #[rustfmt::skip]
 use edtui::{
@@ -26,7 +25,8 @@ use crate::{
     app::app::{
         App,
         Focus,
-        Viewport
+        Viewport,
+        Direction
     },
     git::{
         actions::{
@@ -51,6 +51,7 @@ use crate::{
         }
     },
     helpers::{
+        palette::Theme,
         text::{
             editor_state_to_string,
         }
@@ -142,8 +143,8 @@ impl App {
         map.insert(KeyBinding::new(Char('h'), KeyModifiers::NONE), Command::HardReset);
         map.insert(KeyBinding::new(Char('m'), KeyModifiers::NONE), Command::MixedReset);
         map.insert(KeyBinding::new(Char('u'), KeyModifiers::NONE), Command::UnstageAll);
-        map.insert(KeyBinding::new(Char('a'), KeyModifiers::NONE), Command::StageAll);
-        map.insert(KeyBinding::new(Char('t'), KeyModifiers::NONE), Command::Commit);
+        map.insert(KeyBinding::new(Char('s'), KeyModifiers::NONE), Command::StageAll);
+        map.insert(KeyBinding::new(Char('a'), KeyModifiers::NONE), Command::Commit);
         map.insert(KeyBinding::new(Char('p'), KeyModifiers::NONE), Command::Push);
 
         // Layout
@@ -151,8 +152,8 @@ impl App {
         map.insert(KeyBinding::new(Char('r'), KeyModifiers::NONE), Command::Reload);
         map.insert(KeyBinding::new(Char('.'), KeyModifiers::NONE), Command::Minimize);
         map.insert(KeyBinding::new(Char('`'), KeyModifiers::NONE), Command::ToggleBranches);
-        map.insert(KeyBinding::new(Char('s'), KeyModifiers::NONE), Command::ToggleStatus);
-        map.insert(KeyBinding::new(Char('i'), KeyModifiers::NONE), Command::ToggleInspector);
+        map.insert(KeyBinding::new(Char('2'), KeyModifiers::NONE), Command::ToggleStatus);
+        map.insert(KeyBinding::new(Char('1'), KeyModifiers::NONE), Command::ToggleInspector);
         map.insert(KeyBinding::new(F(1), KeyModifiers::NONE), Command::ToggleSettings);
         map.insert(KeyBinding::new(Char('c'), KeyModifiers::CONTROL), Command::Exit);
 
@@ -299,10 +300,23 @@ impl App {
                 self.reload();
             }
             Focus::Viewport => {
-                if self.focus == Focus::Viewport && self.viewport == Viewport::Editor {
-                    return;
+                match self.viewport {
+                    Viewport::Graph => {
+                        self.focus = Focus::ModalActions;
+                    }
+                    Viewport::Settings => {
+                        if let Some(position) = self.settings_selections.iter().position(|&x| x == self.settings_selected) {
+                            match position {
+                                3 => self.theme = Theme::classic(),
+                                4 => self.theme = Theme::ansi(),
+                                5 => self.theme = Theme::monochrome(),
+                                _ => {}
+                            }
+                            self.reload();
+                        }
+                    }
+                    _ => {}
                 }
-                self.focus = Focus::ModalActions;
             }
             Focus::ModalCheckout => {
                 let oid = *self.oids.get(self.graph_selected).unwrap();
@@ -447,6 +461,7 @@ impl App {
                     }
                     Viewport::Settings => {
                         self.settings_selected = self.settings_selected.saturating_sub(page);
+                        self.last_input_direction = Some(Direction::Up);
                     }
                     _ => {}
                 }
@@ -501,6 +516,7 @@ impl App {
                     }
                     Viewport::Settings => {
                         self.settings_selected += page;
+                        self.last_input_direction = Some(Direction::Down);
                     }
                     _ => {}
                 }
@@ -552,6 +568,7 @@ impl App {
                     }
                     Viewport::Settings => {
                         self.settings_selected = self.settings_selected.saturating_sub(1);
+                        self.last_input_direction = Some(Direction::Up);
                     }
                     _ => {}
                 }
@@ -603,6 +620,7 @@ impl App {
                 }
                 Viewport::Settings => {
                     self.settings_selected += 1;
+                    self.last_input_direction = Some(Direction::Down);
                 }
                 _ => {}
             },

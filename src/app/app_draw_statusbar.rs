@@ -38,13 +38,13 @@ impl App {
         let lines = match get_current_branch(&self.repo) {
             Some(branch) => Line::from(vec![Span::styled(
                 format!("  ● {}", branch),
-                Style::default().fg(COLOR_GRASS),
+                Style::default().fg(self.theme.COLOR_GRASS),
             )]),
             None => {
                 let oid = self.repo.head().unwrap().target().unwrap();
                 Line::from(vec![Span::styled(
                     format!("  detached head: #{:.6}", oid),
-                    Style::default().fg(COLOR_TEXT),
+                    Style::default().fg(self.theme.COLOR_TEXT),
                 )])
             }
         };
@@ -106,7 +106,7 @@ impl App {
                 } else {
                     format!("{}/{}{}  ", cursor, total, icon_spinner)
                 },
-                Style::default().fg(COLOR_TEXT),
+                Style::default().fg(self.theme.COLOR_TEXT),
             ))))
             .right_aligned()
             .block(Block::default());

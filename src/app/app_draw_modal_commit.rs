@@ -49,7 +49,7 @@ impl App {
 
         let lines: Vec<Line> = vec![
             Line::from(vec![
-                Span::styled("commit message:", Style::default().fg(COLOR_TEXT)),
+                Span::styled("commit message:", Style::default().fg(self.theme.COLOR_TEXT)),
             ]),
             Line::from(""),
             Line::from(""),
@@ -60,11 +60,11 @@ impl App {
             Line::from(""),
             Line::from(""),
             Line::from(vec![
-                Span::styled(if self.commit_editor.mode == EditorMode::Normal {"(enter)".to_string()} else { "enter".to_string() }, Style::default().fg(if self.commit_editor.mode == EditorMode::Normal { COLOR_GREY_500 } else { COLOR_GREY_600 })),
+                Span::styled(if self.commit_editor.mode == EditorMode::Normal {"(enter)".to_string()} else { "enter".to_string() }, Style::default().fg(if self.commit_editor.mode == EditorMode::Normal { self.theme.COLOR_GREY_500 } else { self.theme.COLOR_GREY_600 })),
             ]),
         ];
             
-        let bg_block = Block::default().style(Style::default().fg(COLOR_BORDER));
+        let bg_block = Block::default().style(Style::default().fg(self.theme.COLOR_BORDER));
         bg_block.render(frame.area(), frame.buffer_mut());
 
         // Modal size (smaller than area)
@@ -86,8 +86,8 @@ impl App {
         // Modal block
         let modal_block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(COLOR_GREY_600))
-            .title(Span::styled(if self.commit_editor.mode == EditorMode::Normal {" (esc) "} else { "─ esc ─" }, Style::default().fg(if self.commit_editor.mode == EditorMode::Normal { COLOR_GREY_500 } else { COLOR_GREY_600 })))
+            .border_style(Style::default().fg(self.theme.COLOR_GREY_600))
+            .title(Span::styled(if self.commit_editor.mode == EditorMode::Normal {" (esc) "} else { "─ esc ─" }, Style::default().fg(if self.commit_editor.mode == EditorMode::Normal { self.theme.COLOR_GREY_500 } else { self.theme.COLOR_GREY_600 })))
             .title_alignment(Alignment::Right)
             .padding(padding)
             .border_type(ratatui::widgets::BorderType::Rounded);
@@ -101,8 +101,8 @@ impl App {
         paragraph.render(modal_area, frame.buffer_mut());
 
         let custom_theme = EditorTheme {
-            base: Style::default().fg(COLOR_GREY_500),
-            cursor_style: Style::default().bg(COLOR_TEXT),
+            base: Style::default().fg(self.theme.COLOR_GREY_500),
+            cursor_style: Style::default().bg(self.theme.COLOR_TEXT),
             selection_style: Style::default(),
             block: Some(
                 Block::default()
@@ -114,11 +114,11 @@ impl App {
                     })
                     .borders(Borders::TOP)
                     .border_type(ratatui::widgets::BorderType::Rounded)
-                    .border_style(Style::default().fg(COLOR_GREY_800))
+                    .border_style(Style::default().fg(self.theme.COLOR_GREY_800))
             ),
             status_line: Some(EditorStatusLine::default()
-                        .style_text(Style::default().fg(COLOR_TEXT))
-                        .style_line(Style::default().fg(COLOR_GREY_800))
+                        .style_text(Style::default().fg(self.theme.COLOR_TEXT))
+                        .style_line(Style::default().fg(self.theme.COLOR_GREY_800))
                         .align_left(true)
                     )
         };
@@ -140,7 +140,7 @@ impl App {
         // Modal block
         Block::default()
             .borders(Borders::TOP)
-            .border_style(Style::default().fg(COLOR_GREY_800))
+            .border_style(Style::default().fg(self.theme.COLOR_GREY_800))
             .border_type(ratatui::widgets::BorderType::Rounded)
             .render(Rect {
             x: modal_area.x + 1,
@@ -152,7 +152,7 @@ impl App {
         // Modal block
         Block::default()
             .borders(Borders::TOP)
-            .border_style(Style::default().fg(COLOR_GREY_800))
+            .border_style(Style::default().fg(self.theme.COLOR_GREY_800))
             .border_type(ratatui::widgets::BorderType::Rounded)
             .render(Rect {
             x: modal_area.x + 11,

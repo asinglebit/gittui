@@ -60,17 +60,20 @@ impl Default for App {
         } else {
             &".".to_string()
         };
+        let theme = Theme::default();
+        let color = Rc::new(RefCell::new(ColorPicker::from_theme(&theme)));
+        let layers = layers!(Rc::new(RefCell::new(ColorPicker::from_theme(&theme))));
         let absolute_path: PathBuf = std::fs::canonicalize(path)
             .unwrap_or_else(|_| PathBuf::from(path));
         let repo = Rc::new(Repository::open(absolute_path.clone()).expect("Could not open repo"));
 
         let logo = vec![
-            Span::styled("  g", Style::default().fg(COLOR_GRASS)),
-            Span::styled("u", Style::default().fg(COLOR_GRASS)),
-            Span::styled("i", Style::default().fg(COLOR_GRASS)),
-            Span::styled("t", Style::default().fg(COLOR_GRASS)),
-            Span::styled("a", Style::default().fg(COLOR_GRASS)),
-            Span::styled("╭", Style::default().fg(COLOR_GREEN))
+            Span::styled("  g", Style::default().fg(theme.COLOR_GRASS)),
+            Span::styled("u", Style::default().fg(theme.COLOR_GRASS)),
+            Span::styled("i", Style::default().fg(theme.COLOR_GRASS)),
+            Span::styled("t", Style::default().fg(theme.COLOR_GRASS)),
+            Span::styled("a", Style::default().fg(theme.COLOR_GRASS)),
+            Span::styled("╭", Style::default().fg(theme.COLOR_GREEN))
         ];
 
         App {
@@ -81,15 +84,17 @@ impl Default for App {
             hint: String::new(),
             spinner: Spinner::new(),
             keymap: IndexMap::new(),
+            last_input_direction: None,
+            theme,
 
             // User
             name: String::new(),
             email: String::new(),
 
             // Walker utilities    
-            color: Rc::new(RefCell::new(ColorPicker::default())),
+            color,
+            layers,
             buffer: RefCell::new(Buffer::default()),
-            layers: layers!(Rc::new(RefCell::new(ColorPicker::default()))),
             walker_rx: None,
             walker_cancel: None,
             walker_handle: None,
@@ -122,7 +127,7 @@ impl Default for App {
             is_branches: false,
             is_status: false,
             is_inspector: false,
-            viewport: Viewport::Settings,
+            viewport: Viewport::Splash,
             focus: Focus::Viewport,
 
             // Branches
@@ -136,6 +141,7 @@ impl Default for App {
             // Settings
             settings_selected: 0,
             settings_scroll: 0.into(),
+            settings_selections: Vec::new(),
     
             // Viewer
             viewer_selected: 0,

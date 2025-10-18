@@ -71,19 +71,19 @@ impl App {
 
             // Assemble lines
             lines = vec![
-                Line::from(vec![Span::styled("commit sha:", Style::default().fg(COLOR_GREY_500))]),
+                Line::from(vec![Span::styled("commit sha:", Style::default().fg(self.theme.COLOR_GREY_500))]),
                 Line::from(vec![Span::styled(
                     truncate_with_ellipsis(&format!("#{}", oid), max_text_width),
-                    Style::default().fg(if color.is_some() { *color.unwrap() } else { COLOR_TEXT }),
+                    Style::default().fg(if color.is_some() { *color.unwrap() } else { self.theme.COLOR_TEXT }),
                 )]),
                 Line::default(),
-                Line::from(vec![Span::styled("parent shas:", Style::default().fg(COLOR_GREY_500))]),
+                Line::from(vec![Span::styled("parent shas:", Style::default().fg(self.theme.COLOR_GREY_500))]),
             ];
 
             for parent_id in commit.parent_ids() {
                 lines.push(Line::from(vec![Span::styled(
                     truncate_with_ellipsis(&format!("#{}", parent_id), max_text_width),
-                    Style::default().fg(*self.oid_colors.get(&parent_id).unwrap_or(&COLOR_TEXT)),
+                    Style::default().fg(*self.oid_colors.get(&parent_id).unwrap_or(&self.theme.COLOR_TEXT)),
                 )]));
             }
 
@@ -94,7 +94,7 @@ impl App {
                     ]);
                     lines.push(Line::from(vec![Span::styled(
                         "featured branches:",
-                        Style::default().fg(COLOR_GREY_500),
+                        Style::default().fg(self.theme.COLOR_GREY_500),
                     )]));
                     for branch in branches {
                         lines.push(Line::from(vec![
@@ -113,33 +113,33 @@ impl App {
             lines.extend(vec![
                 Line::from(vec![Span::styled(
                     format!("authored by: {}", author.name().unwrap_or("-")),
-                    Style::default().fg(COLOR_GREY_500),
+                    Style::default().fg(self.theme.COLOR_GREY_500),
                 )]),
                 Line::from(vec![Span::styled(
                     author.email().unwrap_or("").to_string(),
-                    Style::default().fg(COLOR_TEXT),
+                    Style::default().fg(self.theme.COLOR_TEXT),
                 )]),
                 Line::from(vec![Span::styled(
                     timestamp_to_utc(author.when()),
-                    Style::default().fg(COLOR_TEXT),
+                    Style::default().fg(self.theme.COLOR_TEXT),
                 )]),
                 Line::default(),
                 Line::from(vec![Span::styled(
                     format!("committed by: {}", committer.name().unwrap_or("-")),
-                    Style::default().fg(COLOR_GREY_500),
+                    Style::default().fg(self.theme.COLOR_GREY_500),
                 )]),
                 Line::from(vec![Span::styled(
                     committer.email().unwrap_or("").to_string(),
-                    Style::default().fg(COLOR_TEXT),
+                    Style::default().fg(self.theme.COLOR_TEXT),
                 )]),
                 Line::from(vec![Span::styled(
                     timestamp_to_utc(committer.when()).to_string(),
-                    Style::default().fg(COLOR_TEXT),
+                    Style::default().fg(self.theme.COLOR_TEXT),
                 )]),
                 Line::default(),
                 Line::from(vec![Span::styled(
                     "message summary:",
-                    Style::default().fg(COLOR_GREY_500),
+                    Style::default().fg(self.theme.COLOR_GREY_500),
                 )])
             ]);
 
@@ -147,7 +147,7 @@ impl App {
             for line in wrapped {
                 lines.push(Line::from(vec![Span::styled(
                     line,
-                    Style::default().fg(COLOR_TEXT),
+                    Style::default().fg(self.theme.COLOR_TEXT),
                 )]));
             }
             
@@ -155,7 +155,7 @@ impl App {
                 Line::default(),
                 Line::from(vec![Span::styled(
                     "message body:",
-                    Style::default().fg(COLOR_GREY_500),
+                    Style::default().fg(self.theme.COLOR_GREY_500),
                 )])
             ]);
 
@@ -163,7 +163,7 @@ impl App {
             for line in wrapped {
                 lines.push(Line::from(vec![Span::styled(
                     line,
-                    Style::default().fg(COLOR_TEXT),
+                    Style::default().fg(self.theme.COLOR_TEXT),
                 )]));
             }
         }
@@ -192,8 +192,8 @@ impl App {
             .enumerate()
             .map(|(i, line)| {
                 if start + i == self.inspector_selected && self.focus == Focus::Inspector {
-                    let spans: Vec<Span> = line.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GREY_500)) }).collect();
-                    ListItem::new(Line::from(spans)).style(Style::default().bg(COLOR_GREY_800).fg(COLOR_GREY_500))
+                    let spans: Vec<Span> = line.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(self.theme.COLOR_GREY_500)) }).collect();
+                    ListItem::new(Line::from(spans)).style(Style::default().bg(self.theme.COLOR_GREY_800).fg(self.theme.COLOR_GREY_500))
                 } else {
                     ListItem::new(line.clone())
                 }
@@ -217,9 +217,9 @@ impl App {
             .track_symbol(Some("│"))
             .thumb_symbol(if total_lines > visible_height { "▌" } else { "│" })
             .thumb_style(Style::default().fg(if total_lines > visible_height && self.focus == Focus::Inspector {
-                COLOR_GREY_600
+                self.theme.COLOR_GREY_600
             } else {
-                COLOR_BORDER
+                self.theme.COLOR_BORDER
             }));
 
         // Render the scrollbar

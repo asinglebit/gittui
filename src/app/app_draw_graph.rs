@@ -1,4 +1,3 @@
-use ratatui::{symbols::line::BOTTOM_LEFT, widgets::Padding};
 #[rustfmt::skip]
 use ratatui::{
     Frame,
@@ -22,9 +21,6 @@ use crate::{
             render_graph_range,
             render_message_range
         }
-    },
-    helpers::{
-        palette::*,
     },
 };
 #[rustfmt::skip]
@@ -66,10 +62,12 @@ impl App {
         let head = self.repo.head().unwrap().target().unwrap();
 
         // Rendered lines
-        let buffer_range = render_buffer_range(&self.oids, &history, start, end + 1);
+        let buffer_range = render_buffer_range(&self.theme, &self.oids, &history, start, end + 1);
         let graph_range = render_graph_range(
+            &self.theme,
             &self.oids,
             &self.tips,
+            &mut self.layers,
             &mut self.tip_colors,
             &history,
             head,
@@ -77,6 +75,7 @@ impl App {
             end,
         );
         let message_range = render_message_range(
+            &self.theme,
             &self.repo,
             &self.oids,
             &self.tips_local,
@@ -114,10 +113,10 @@ impl App {
                     WidgetCell::from(message_range.get(idx).cloned().unwrap_or_default()),
                 ]);
                 if idx + start == self.graph_selected && self.focus == Focus::Viewport {
-                    row = row.style(Style::default().bg(COLOR_GREY_800));
+                    row = row.style(Style::default().bg(self.theme.COLOR_GREY_800));
                 } else {
                     if (idx + start) % 2 == 0 {
-                        row = row.style(Style::default().bg(COLOR_GREY_900));
+                        row = row.style(Style::default().bg(self.theme.COLOR_GREY_900));
                     }
                 }
                 rows.push(row);
@@ -135,7 +134,7 @@ impl App {
         .block(
             Block::default()
                 .borders(Borders::RIGHT | Borders::LEFT)
-                .border_style(Style::default().fg(COLOR_BORDER))
+                .border_style(Style::default().fg(self.theme.COLOR_BORDER))
                 .border_type(ratatui::widgets::BorderType::Rounded),
         )
         .column_spacing(5);
@@ -165,9 +164,9 @@ impl App {
                 .track_symbol(Some("│"))
                 .thumb_symbol("▌")
                 .thumb_style(Style::default().fg(if self.focus == Focus::Viewport {
-                    COLOR_GREY_600
+                    self.theme.COLOR_GREY_600
                 } else {
-                    COLOR_BORDER
+                    self.theme.COLOR_BORDER
                 }));
 
             // Render the scrollbar

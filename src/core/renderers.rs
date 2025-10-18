@@ -25,6 +25,7 @@ use ratatui::{
         Span
     },
 };
+use crate::core::layers::LayersContext;
 #[rustfmt::skip]
 use crate::{
     core::chunk::Chunk,
@@ -50,8 +51,10 @@ use crate::{
 };
 
 pub fn render_graph_range(
+    theme: &Theme,
     oids: &[Oid],
     tips: &HashMap<Oid, Vec<String>>,
+    layers: &mut LayersContext,
     tip_colors: &mut HashMap<Oid, Color>,
     history: &Vector<Vector<Chunk>>,
     head_oid: Oid,
@@ -61,9 +64,7 @@ pub fn render_graph_range(
     // Clamp the range to valid indices
     let start = start.min(history.len());
     let end = end.min(history.len().saturating_sub(1));
-    let mut layers = layers!(Rc::new(RefCell::new(ColorPicker::default())));
     let mut lines: Vec<Line> = Vec::new();
-    let color = Rc::new(RefCell::new(ColorPicker::default()));
 
     // Go through the commits, inferring the graph
     for (global_idx, oid) in oids.iter().enumerate().take(end).skip(start) {
@@ -81,7 +82,7 @@ pub fn render_graph_range(
         if *oid == Oid::zero() {
             lines.push(Line::from(Span::styled(
                 " ◌",
-                Style::default().fg(COLOR_GREY_400),
+                Style::default().fg(theme.COLOR_GREY_400),
             )));
             continue;
         }
@@ -305,7 +306,7 @@ pub fn render_graph_range(
                     || chunk.parent_b.as_ref() == Some(&head_oid))
                     && lane_idx == 0
                 {
-                    layers.pipe_custom(SYM_VERTICAL_DOTTED, lane_idx, COLOR_GREY_500);
+                    layers.pipe_custom(SYM_VERTICAL_DOTTED, lane_idx, theme.COLOR_GREY_500);
                 } else if chunk.parent_a.is_none() && chunk.parent_b.is_none() {
                     // layers.pipe(SYM_VERTICAL_DOTTED, lane_idx);
                     layers.pipe(" ", lane_idx);
@@ -387,6 +388,7 @@ pub fn remove_empty_columns(lines: &mut Vec<Line<'_>>) {
 
 #[allow(dead_code)]
 pub fn render_buffer_range(
+    theme: &Theme,
     oids: &[Oid],
     history: &Vector<Vector<Chunk>>,
     start: usize,
@@ -403,7 +405,7 @@ pub fn render_buffer_range(
 
         spans.push(Span::styled(
             format!("{:.2} ", *oids.get(idx).unwrap_or(&Oid::zero())),
-            Style::default().fg(COLOR_TEXT),
+            Style::default().fg(theme.COLOR_TEXT),
         ));
 
         let formatted_snapshot: String = snapshot
@@ -428,7 +430,7 @@ pub fn render_buffer_range(
 
         spans.push(Span::styled(
             formatted_snapshot,
-            Style::default().fg(COLOR_TEXT),
+            Style::default().fg(theme.COLOR_TEXT),
         ));
         lines_buffer.push(Line::from(spans));
         idx += 1;
@@ -439,6 +441,7 @@ pub fn render_buffer_range(
 
 #[allow(clippy::too_many_arguments)]
 pub fn render_message_range(
+    theme: &Theme,
     repo: &Repository,
     oids: &[Oid],
     tips_local: &HashMap<Oid, Vec<String>>,
@@ -481,7 +484,7 @@ pub fn render_message_range(
                             Style::default().fg(if let Some(color) = tip_colors.get(&oid) {
                                 *color
                             } else {
-                                COLOR_TEXT
+                                theme.COLOR_TEXT
                             }),
                         ));
                     }
@@ -491,35 +494,35 @@ pub fn render_message_range(
             spans.push(Span::styled(
                 commit.summary().unwrap_or("⊘ no message").to_string(),
                 Style::default().fg(if global_idx == selected {
-                    COLOR_GREY_500
+                    theme.COLOR_GREY_500
                 } else {
-                    COLOR_TEXT
+                    theme.COLOR_TEXT
                 }),
             ));
 
             lines.push(Line::from(spans));
         } else {
             let color = if global_idx == selected {
-                COLOR_GREY_500
+                theme.COLOR_GREY_500
             } else {
-                COLOR_GREY_600
+                theme.COLOR_GREY_600
             };
             if uncommitted.modified_count > 0 {
-                spans.push(Span::styled("~ ", Style::default().fg(COLOR_BLUE)));
+                spans.push(Span::styled("~ ", Style::default().fg(theme.COLOR_BLUE)));
                 spans.push(Span::styled(
                     format!("{} ", uncommitted.modified_count),
                     Style::default().fg(color),
                 ));
             }
             if uncommitted.added_count > 0 {
-                spans.push(Span::styled("+ ", Style::default().fg(COLOR_GREEN)));
+                spans.push(Span::styled("+ ", Style::default().fg(theme.COLOR_GREEN)));
                 spans.push(Span::styled(
                     format!("{} ", uncommitted.added_count),
                     Style::default().fg(color),
                 ));
             }
             if uncommitted.deleted_count > 0 {
-                spans.push(Span::styled("- ", Style::default().fg(COLOR_RED)));
+                spans.push(Span::styled("- ", Style::default().fg(theme.COLOR_RED)));
                 spans.push(Span::styled(
                     format!("{} ", uncommitted.deleted_count),
                     Style::default().fg(color),
@@ -532,7 +535,7 @@ pub fn render_message_range(
     lines
 }
 
-pub fn render_keybindings(keymap: &IndexMap<KeyBinding, Command>, width: usize) -> Vec<Line> {
+pub fn render_keybindings(theme: &Theme, keymap: &IndexMap<KeyBinding, Command>, width: usize) -> Vec<Line<'static>> {
     keymap.iter().map(|(kb, cmd)| {
         // Build key string
         let mut key_string = modifiers_to_string(kb.modifiers);
@@ -557,9 +560,9 @@ pub fn render_keybindings(keymap: &IndexMap<KeyBinding, Command>, width: usize) 
         let fillers = filler.repeat(filler_fill.max(1)); // at least one
 
         Line::from(vec![
-            Span::styled(format!(" {}", cmd_string), Style::default().fg(COLOR_TEXT)),
-            Span::styled(format!(" {} ", fillers), Style::default().fg(COLOR_GREY_800)),
-            Span::styled(format!("{} ", key_string), Style::default().fg(COLOR_TEXT)),
+            Span::styled(format!(" {}", cmd_string), Style::default().fg(theme.COLOR_TEXT)),
+            Span::styled(format!(" {} ", fillers), Style::default().fg(theme.COLOR_GREY_800)),
+            Span::styled(format!("{} ", key_string), Style::default().fg(theme.COLOR_TEXT)),
         ]).alignment(ratatui::layout::Alignment::Center)
     }).collect()
 }

@@ -52,7 +52,7 @@ impl LayerBuilder {
         self.layers
             .entry(layer)
             .or_default()
-            .push((symbol, custom.unwrap_or(self.color.borrow().get(lane_idx))));
+            .push((symbol, custom.unwrap_or(self.color.borrow().get_lane(lane_idx))));
     }
 }
 

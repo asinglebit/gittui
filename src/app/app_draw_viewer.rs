@@ -90,7 +90,7 @@ impl App {
                 let absolute_idx = start + i;
                 let mut item = line.clone();
                 if absolute_idx == self.viewer_selected && self.focus == Focus::Viewport {
-                    item = item.style(Style::default().bg(COLOR_GREY_800));
+                    item = item.style(Style::default().bg(self.theme.COLOR_GREY_800));
                 }
                 item
             })
@@ -102,7 +102,7 @@ impl App {
                 Block::default()
                     .padding(padding)
                     .borders(Borders::RIGHT | Borders::LEFT)
-                    .border_style(Style::default().fg(COLOR_BORDER))
+                    .border_style(Style::default().fg(self.theme.COLOR_BORDER))
                     .border_type(ratatui::widgets::BorderType::Rounded),
             );
 
@@ -117,9 +117,9 @@ impl App {
             .track_symbol(Some("│"))
             .thumb_symbol("▌")
             .thumb_style(Style::default().fg(if self.focus == Focus::Viewport {
-                COLOR_GREY_600
+                self.theme.COLOR_GREY_600
             } else {
-                COLOR_BORDER
+                self.theme.COLOR_BORDER
             }));
 
         // Render the scrollbar
@@ -263,9 +263,9 @@ impl App {
                         Line::from(vec![
                             Span::styled(
                                 (if idx == 0 { format!("{:3}  ", current_line + 1) } else { "     ".to_string() }).to_string(),
-                                Style::default().fg(COLOR_BORDER),
+                                Style::default().fg(self.theme.COLOR_BORDER),
                             ),
-                            Span::styled(line.to_string(), Style::default().fg(COLOR_GREY_500)),
+                            Span::styled(line.to_string(), Style::default().fg(self.theme.COLOR_GREY_500)),
                         ])
                         .style(Style::default()),
                     ));
@@ -280,10 +280,10 @@ impl App {
 
                 // Determine styling, prefix, color, and line number based on line origin
                 let (style, prefix, side, fg, count) = match line.origin {
-                    '-' => (Style::default().bg(COLOR_DARK_RED).fg(COLOR_RED), "- ".to_string(), COLOR_RED, COLOR_RED, current_line_old + 1),
-                    '+' => (Style::default().bg(COLOR_LIGHT_GREEN_900).fg(COLOR_GREEN), "+ ".to_string(), COLOR_GREEN, COLOR_GREEN, current_line + 1),
-                    ' ' => (Style::default(), "".to_string(), COLOR_BORDER, COLOR_GREY_500, current_line + 1),
-                    _ => (Style::default(), "".to_string(), COLOR_BORDER, COLOR_GREY_500, 0)
+                    '-' => (Style::default().bg(self.theme.COLOR_DARK_RED).fg(self.theme.COLOR_RED), "- ".to_string(), self.theme.COLOR_RED, self.theme.COLOR_RED, current_line_old + 1),
+                    '+' => (Style::default().bg(self.theme.COLOR_LIGHT_GREEN_900).fg(self.theme.COLOR_GREEN), "+ ".to_string(), self.theme.COLOR_GREEN, self.theme.COLOR_GREEN, current_line + 1),
+                    ' ' => (Style::default(), "".to_string(), self.theme.COLOR_BORDER, self.theme.COLOR_GREY_500, current_line + 1),
+                    _ => (Style::default(), "".to_string(), self.theme.COLOR_BORDER, self.theme.COLOR_GREY_500, 0)
                 };
 
                 // Wrap the line to viewport width
@@ -331,9 +331,9 @@ impl App {
                     ListItem::new(Line::from(vec![
                         Span::styled(
                             (if idx == 0 {format!("{:3}  ", current_line + 1)} else {"     ".to_string()}).to_string(),
-                            Style::default().fg(COLOR_BORDER),
+                            Style::default().fg(self.theme.COLOR_BORDER),
                         ),
-                        Span::styled(line.to_string(), Style::default().fg(COLOR_GREY_500)),
+                        Span::styled(line.to_string(), Style::default().fg(self.theme.COLOR_GREY_500)),
                     ]))
                     .style(Style::default()),
                 );

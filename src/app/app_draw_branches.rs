@@ -58,9 +58,9 @@ impl App {
                     format!("{} {}", if is_visible { if is_local { "●" } else { "◆" } } else { if is_local { "○" } else { "◇" } }, truncate_with_ellipsis(branch, max_text_width - 1)),
                     Style::default().fg(
                         if is_visible {
-                            *self.tip_colors.get(oid).unwrap_or(&COLOR_TEXT)
+                            *self.tip_colors.get(oid).unwrap_or(&self.theme.COLOR_TEXT)
                         } else {
-                            COLOR_TEXT
+                            self.theme.COLOR_TEXT
                         },
                     ),
                 ),
@@ -92,10 +92,10 @@ impl App {
             .map(|(idx, line)| {
                 if start + idx == self.branches_selected && self.focus == Focus::Branches {
                     let spans: Vec<Span> = line.iter().map(|span| { Span::styled(span.content.clone(), span.style) }).collect();
-                    ListItem::new(Line::from(spans)).style(Style::default().bg(COLOR_GREY_800))
+                    ListItem::new(Line::from(spans)).style(Style::default().bg(self.theme.COLOR_GREY_800))
                 } else {
                     if (idx + start) % 2 == 0 {
-                        ListItem::new(Line::from(line.clone().spans)).style(Style::default().bg(COLOR_GREY_900))
+                        ListItem::new(Line::from(line.clone().spans)).style(Style::default().bg(self.theme.COLOR_GREY_900))
                     } else {
                         ListItem::new(line.clone())
                     }
@@ -120,9 +120,9 @@ impl App {
             .track_symbol(Some("│"))
             .thumb_symbol(if total_lines > visible_height { "▌" } else { "│" })
             .thumb_style(Style::default().fg(if total_lines > visible_height && self.focus == Focus::Branches {
-                COLOR_GREY_600
+                self.theme.COLOR_GREY_600
             } else {
-                COLOR_BORDER
+                self.theme.COLOR_BORDER
             }));
 
         // Render the scrollbar

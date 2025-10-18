@@ -44,12 +44,12 @@ impl App {
                 lines = vec![
                     Line::default(),
                     Line::from(vec![
-                        Span::styled("all is up-to-date".to_string(), Style::default().fg(COLOR_TEXT))
+                        Span::styled("all is up-to-date".to_string(), Style::default().fg(self.theme.COLOR_TEXT))
                     ]),
                     Line::default(),
                     Line::from(vec![
-                        Span::styled("(r)".to_string(), Style::default().fg(COLOR_GREY_500)),
-                        Span::styled("eload".to_string(), Style::default().fg(COLOR_TEXT)),
+                        Span::styled("(r)".to_string(), Style::default().fg(self.theme.COLOR_GREY_500)),
+                        Span::styled("eload".to_string(), Style::default().fg(self.theme.COLOR_TEXT)),
                     ]),
                 ];
             } else {
@@ -57,79 +57,79 @@ impl App {
 
                 if self.uncommitted.is_staged {
                     line_status.extend(vec![
-                        Span::styled("staged: ", Style::default().fg(COLOR_TEXT)),
+                        Span::styled("staged: ", Style::default().fg(self.theme.COLOR_TEXT)),
                     ]);
                 }
                 if !self.uncommitted.staged.modified.is_empty() {
                     line_status.extend(vec![
-                        Span::styled("~", Style::default().fg(COLOR_BLUE)),
-                        Span::styled(format!("{} ", self.uncommitted.staged.modified.len()), Style::default().fg(COLOR_TEXT)),
+                        Span::styled("~", Style::default().fg(self.theme.COLOR_BLUE)),
+                        Span::styled(format!("{} ", self.uncommitted.staged.modified.len()), Style::default().fg(self.theme.COLOR_TEXT)),
                     ]);
                 }
                 if !self.uncommitted.staged.added.is_empty() {
                     line_status.extend(vec![
-                        Span::styled("+", Style::default().fg(COLOR_GREEN)),
-                        Span::styled(format!("{} ", self.uncommitted.staged.added.len()), Style::default().fg(COLOR_TEXT)),
+                        Span::styled("+", Style::default().fg(self.theme.COLOR_GREEN)),
+                        Span::styled(format!("{} ", self.uncommitted.staged.added.len()), Style::default().fg(self.theme.COLOR_TEXT)),
                     ]);
                 }
                 if !self.uncommitted.staged.deleted.is_empty() {
                     line_status.extend(vec![
-                        Span::styled("-", Style::default().fg(COLOR_RED)),
-                        Span::styled(format!("{} ", self.uncommitted.staged.deleted.len()), Style::default().fg(COLOR_TEXT)),
+                        Span::styled("-", Style::default().fg(self.theme.COLOR_RED)),
+                        Span::styled(format!("{} ", self.uncommitted.staged.deleted.len()), Style::default().fg(self.theme.COLOR_TEXT)),
                     ]);
                 }
                 if self.uncommitted.is_staged && self.uncommitted.is_unstaged {
                     line_status.extend(vec![
-                        Span::styled("| ", Style::default().fg(COLOR_TEXT)),
+                        Span::styled("| ", Style::default().fg(self.theme.COLOR_TEXT)),
                     ]);
                 }
                 if self.uncommitted.is_unstaged {
                     line_status.extend(vec![
-                        Span::styled("unstaged: ", Style::default().fg(COLOR_TEXT)),
+                        Span::styled("unstaged: ", Style::default().fg(self.theme.COLOR_TEXT)),
                     ]);
                 }
                 if !self.uncommitted.unstaged.modified.is_empty() {
                     line_status.extend(vec![
-                        Span::styled("~", Style::default().fg(COLOR_BLUE)),
-                        Span::styled(format!("{} ", self.uncommitted.unstaged.modified.len()), Style::default().fg(COLOR_TEXT)),
+                        Span::styled("~", Style::default().fg(self.theme.COLOR_BLUE)),
+                        Span::styled(format!("{} ", self.uncommitted.unstaged.modified.len()), Style::default().fg(self.theme.COLOR_TEXT)),
                     ]);
                 }
                 if !self.uncommitted.unstaged.added.is_empty() {
                     line_status.extend(vec![
-                        Span::styled("+", Style::default().fg(COLOR_GREEN)),
-                        Span::styled(format!("{} ", self.uncommitted.unstaged.added.len()), Style::default().fg(COLOR_TEXT)),
+                        Span::styled("+", Style::default().fg(self.theme.COLOR_GREEN)),
+                        Span::styled(format!("{} ", self.uncommitted.unstaged.added.len()), Style::default().fg(self.theme.COLOR_TEXT)),
                     ]);
                 }
                 if !self.uncommitted.unstaged.deleted.is_empty() {
                     line_status.extend(vec![
-                        Span::styled("-", Style::default().fg(COLOR_RED)),
-                        Span::styled(format!("{} ", self.uncommitted.unstaged.deleted.len()), Style::default().fg(COLOR_TEXT)),
+                        Span::styled("-", Style::default().fg(self.theme.COLOR_RED)),
+                        Span::styled(format!("{} ", self.uncommitted.unstaged.deleted.len()), Style::default().fg(self.theme.COLOR_TEXT)),
                     ]);
                 }
 
                 let mut line_operations = Line::default();
                 if self.uncommitted.is_staged {
-                    line_operations.push_span(Span::styled("(c)", Style::default().fg(COLOR_GREY_500)));
-                    line_operations.push_span(Span::styled("ommit ", Style::default().fg(COLOR_TEXT)));
-                    line_operations.push_span(Span::styled("(u)", Style::default().fg(COLOR_GREY_500)));
-                    line_operations.push_span(Span::styled("nstage ", Style::default().fg(COLOR_TEXT)));
+                    line_operations.push_span(Span::styled("(c)", Style::default().fg(self.theme.COLOR_GREY_500)));
+                    line_operations.push_span(Span::styled("ommit ", Style::default().fg(self.theme.COLOR_TEXT)));
+                    line_operations.push_span(Span::styled("(u)", Style::default().fg(self.theme.COLOR_GREY_500)));
+                    line_operations.push_span(Span::styled("nstage ", Style::default().fg(self.theme.COLOR_TEXT)));
                 }
                 if self.uncommitted.is_unstaged {
-                    line_operations.push_span(Span::styled("(a)", Style::default().fg(COLOR_GREY_500)));
-                    line_operations.push_span(Span::styled("dd ", Style::default().fg(COLOR_TEXT)));
+                    line_operations.push_span(Span::styled("(a)", Style::default().fg(self.theme.COLOR_GREY_500)));
+                    line_operations.push_span(Span::styled("dd ", Style::default().fg(self.theme.COLOR_TEXT)));
                 }
 
-                line_operations.push_span(Span::styled("(f)", Style::default().fg(COLOR_GREY_500)));
-                line_operations.push_span(Span::styled("etch ", Style::default().fg(COLOR_TEXT)));
-                line_operations.push_span(Span::styled("(p)", Style::default().fg(COLOR_GREY_500)));
-                line_operations.push_span(Span::styled("ushforce ", Style::default().fg(COLOR_TEXT)));
-                line_operations.push_span(Span::styled("(r)", Style::default().fg(COLOR_GREY_500)));
-                line_operations.push_span(Span::styled("eload ", Style::default().fg(COLOR_TEXT)));
+                line_operations.push_span(Span::styled("(f)", Style::default().fg(self.theme.COLOR_GREY_500)));
+                line_operations.push_span(Span::styled("etch ", Style::default().fg(self.theme.COLOR_TEXT)));
+                line_operations.push_span(Span::styled("(p)", Style::default().fg(self.theme.COLOR_GREY_500)));
+                line_operations.push_span(Span::styled("ushforce ", Style::default().fg(self.theme.COLOR_TEXT)));
+                line_operations.push_span(Span::styled("(r)", Style::default().fg(self.theme.COLOR_GREY_500)));
+                line_operations.push_span(Span::styled("eload ", Style::default().fg(self.theme.COLOR_TEXT)));
 
                 lines = vec![
                     line_status,
                     Line::default(),
-                    Line::from(vec![Span::styled("select an operation to perform", Style::default().fg(COLOR_TEXT))]),
+                    Line::from(vec![Span::styled("select an operation to perform", Style::default().fg(self.theme.COLOR_TEXT))]),
                     Line::default(),
                     line_operations,
                 ];
@@ -139,35 +139,35 @@ impl App {
             let oid = *self.oids.get(self.graph_selected).unwrap();      
             lines = vec![
                 Line::from(vec![
-                    Span::styled("you are here: ", Style::default().fg(COLOR_TEXT)),
-                    Span::styled(format!("#{:.6}", oid), Style::default().fg(COLOR_TEXT))
+                    Span::styled("you are here: ", Style::default().fg(self.theme.COLOR_TEXT)),
+                    Span::styled(format!("#{:.6}", oid), Style::default().fg(self.theme.COLOR_TEXT))
                 ]),
                 Line::default(),
                 Line::from(vec![
-                    Span::styled("select an operation to perform".to_string(), Style::default().fg(COLOR_TEXT))
+                    Span::styled("select an operation to perform".to_string(), Style::default().fg(self.theme.COLOR_TEXT))
                 ]),
                 Line::default(),
                 Line::from(vec![
-                    Span::styled("(c)".to_string(), Style::default().fg(COLOR_GREY_500)),
-                    Span::styled("heckout ".to_string(), Style::default().fg(COLOR_TEXT)),
-                    Span::styled("(h)".to_string(), Style::default().fg(COLOR_GREY_500)),
-                    Span::styled("ardreset ".to_string(), Style::default().fg(COLOR_TEXT)),
-                    Span::styled("(m)".to_string(), Style::default().fg(COLOR_GREY_500)),
-                    Span::styled("ixedreset ".to_string(), Style::default().fg(COLOR_TEXT)),
-                    Span::styled("(f)".to_string(), Style::default().fg(COLOR_GREY_500)),
-                    Span::styled("etch ".to_string(), Style::default().fg(COLOR_TEXT)),
+                    Span::styled("(c)".to_string(), Style::default().fg(self.theme.COLOR_GREY_500)),
+                    Span::styled("heckout ".to_string(), Style::default().fg(self.theme.COLOR_TEXT)),
+                    Span::styled("(h)".to_string(), Style::default().fg(self.theme.COLOR_GREY_500)),
+                    Span::styled("ardreset ".to_string(), Style::default().fg(self.theme.COLOR_TEXT)),
+                    Span::styled("(m)".to_string(), Style::default().fg(self.theme.COLOR_GREY_500)),
+                    Span::styled("ixedreset ".to_string(), Style::default().fg(self.theme.COLOR_TEXT)),
+                    Span::styled("(f)".to_string(), Style::default().fg(self.theme.COLOR_GREY_500)),
+                    Span::styled("etch ".to_string(), Style::default().fg(self.theme.COLOR_TEXT)),
                 ]),
                 Line::default(),
                 Line::from(vec![
-                    Span::styled("(p)".to_string(), Style::default().fg(COLOR_GREY_500)),
-                    Span::styled("ushforce ".to_string(), Style::default().fg(COLOR_TEXT)),
-                    Span::styled("(r)".to_string(), Style::default().fg(COLOR_GREY_500)),
-                    Span::styled("eload".to_string(), Style::default().fg(COLOR_TEXT)),
+                    Span::styled("(p)".to_string(), Style::default().fg(self.theme.COLOR_GREY_500)),
+                    Span::styled("ushforce ".to_string(), Style::default().fg(self.theme.COLOR_TEXT)),
+                    Span::styled("(r)".to_string(), Style::default().fg(self.theme.COLOR_GREY_500)),
+                    Span::styled("eload".to_string(), Style::default().fg(self.theme.COLOR_TEXT)),
                 ]),
             ]; 
         } 
             
-        let bg_block = Block::default().style(Style::default().fg(COLOR_BORDER));
+        let bg_block = Block::default().style(Style::default().fg(self.theme.COLOR_BORDER));
         bg_block.render(frame.area(), frame.buffer_mut());
 
         // Modal size (smaller than area)
@@ -189,8 +189,8 @@ impl App {
         // Modal block
         let modal_block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(COLOR_GREY_600))
-            .title(Span::styled(" (esc) ", Style::default().fg(COLOR_GREY_500)))
+            .border_style(Style::default().fg(self.theme.COLOR_GREY_600))
+            .title(Span::styled(" (esc) ", Style::default().fg(self.theme.COLOR_GREY_500)))
             .title_alignment(Alignment::Right)
             .padding(padding)
             .border_type(ratatui::widgets::BorderType::Rounded);

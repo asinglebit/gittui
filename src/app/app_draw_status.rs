@@ -69,20 +69,20 @@ impl App {
             // Staged changes with prefix
             for file in self.uncommitted.staged.modified.iter() {
                 lines_status_top.push(Line::from(vec![
-                    Span::styled("~ ", Style::default().fg(COLOR_BLUE)),
-                    Span::styled(truncate_with_ellipsis(file, max_text_width), Style::default().fg(COLOR_TEXT)),
+                    Span::styled("~ ", Style::default().fg(self.theme.COLOR_BLUE)),
+                    Span::styled(truncate_with_ellipsis(file, max_text_width), Style::default().fg(self.theme.COLOR_TEXT)),
                 ]));
             }
             for file in self.uncommitted.staged.added.iter() {
                 lines_status_top.push(Line::from(vec![
-                    Span::styled("+ ", Style::default().fg(COLOR_GREEN)),
-                    Span::styled(truncate_with_ellipsis(file, max_text_width), Style::default().fg(COLOR_TEXT)),
+                    Span::styled("+ ", Style::default().fg(self.theme.COLOR_GREEN)),
+                    Span::styled(truncate_with_ellipsis(file, max_text_width), Style::default().fg(self.theme.COLOR_TEXT)),
                 ]));
             }
             for file in self.uncommitted.staged.deleted.iter() {
                 lines_status_top.push(Line::from(vec![
-                    Span::styled("- ", Style::default().fg(COLOR_RED)),
-                    Span::styled(truncate_with_ellipsis(file, max_text_width), Style::default().fg(COLOR_TEXT)),
+                    Span::styled("- ", Style::default().fg(self.theme.COLOR_RED)),
+                    Span::styled(truncate_with_ellipsis(file, max_text_width), Style::default().fg(self.theme.COLOR_TEXT)),
                 ]));
             }
             
@@ -96,7 +96,7 @@ impl App {
                 }
                 lines_status_top.push(Line::from(Span::styled(
                     center_line(&truncate_with_ellipsis("⊘ no staged changes", max_text_width), max_text_width + 3),
-                    Style::default().fg(COLOR_GREY_800),
+                    Style::default().fg(self.theme.COLOR_GREY_800),
                 )));
             } else {
                 is_staged_changes = true;
@@ -105,20 +105,20 @@ impl App {
             // Unstaged changes with prefix
             for file in self.uncommitted.unstaged.modified.iter() {
                 lines_status_bottom.push(Line::from(vec![
-                    Span::styled("~ ", Style::default().fg(COLOR_BLUE)),
-                    Span::styled(truncate_with_ellipsis(file, max_text_width), Style::default().fg(COLOR_TEXT)),
+                    Span::styled("~ ", Style::default().fg(self.theme.COLOR_BLUE)),
+                    Span::styled(truncate_with_ellipsis(file, max_text_width), Style::default().fg(self.theme.COLOR_TEXT)),
                 ]));
             }
             for file in self.uncommitted.unstaged.added.iter() {
                 lines_status_bottom.push(Line::from(vec![
-                    Span::styled("+ ", Style::default().fg(COLOR_GREEN)),
-                    Span::styled(truncate_with_ellipsis(file, max_text_width), Style::default().fg(COLOR_TEXT)),
+                    Span::styled("+ ", Style::default().fg(self.theme.COLOR_GREEN)),
+                    Span::styled(truncate_with_ellipsis(file, max_text_width), Style::default().fg(self.theme.COLOR_TEXT)),
                 ]));
             }
             for file in self.uncommitted.unstaged.deleted.iter() {
                 lines_status_bottom.push(Line::from(vec![
-                    Span::styled("- ", Style::default().fg(COLOR_RED)),
-                    Span::styled(truncate_with_ellipsis(file, max_text_width), Style::default().fg(COLOR_TEXT)),
+                    Span::styled("- ", Style::default().fg(self.theme.COLOR_RED)),
+                    Span::styled(truncate_with_ellipsis(file, max_text_width), Style::default().fg(self.theme.COLOR_TEXT)),
                 ]));
             }
             
@@ -132,7 +132,7 @@ impl App {
                 }
                 lines_status_bottom.push(Line::from(Span::styled(
                     center_line(&truncate_with_ellipsis("⊘ no unstaged changes", max_text_width), max_text_width + 3),
-                    Style::default().fg(COLOR_GREY_800),
+                    Style::default().fg(self.theme.COLOR_GREY_800),
                 )));
             } else {
                 is_unstaged_changes = true;
@@ -142,16 +142,16 @@ impl App {
             // Assemble lines
             for file_change in self.current_diff.iter() {
                 let (symbol, color) = match file_change.status {
-                    FileStatus::Added => ("+ ", COLOR_GREEN),
-                    FileStatus::Modified => ("~ ", COLOR_BLUE),
-                    FileStatus::Deleted => ("- ", COLOR_RED),
-                    FileStatus::Renamed => ("→ ", COLOR_YELLOW),
-                    FileStatus::Other => ("  ", COLOR_TEXT),
+                    FileStatus::Added => ("+ ", self.theme.COLOR_GREEN),
+                    FileStatus::Modified => ("~ ", self.theme.COLOR_BLUE),
+                    FileStatus::Deleted => ("- ", self.theme.COLOR_RED),
+                    FileStatus::Renamed => ("→ ", self.theme.COLOR_YELLOW),
+                    FileStatus::Other => ("  ", self.theme.COLOR_TEXT),
                 };
                 let display_filename = truncate_with_ellipsis(&file_change.filename, max_text_width);
                 lines_status_top.push(Line::from(vec![
                     Span::styled(symbol, Style::default().fg(color)),
-                    Span::styled(display_filename, Style::default().fg(COLOR_TEXT)),
+                    Span::styled(display_filename, Style::default().fg(self.theme.COLOR_TEXT)),
                 ]));
             }
 
@@ -165,7 +165,7 @@ impl App {
                 }
                 lines_status_top.push(Line::from(Span::styled(
                     center_line(&truncate_with_ellipsis("⊘ no staged changes", max_text_width), max_text_width + 3),
-                    Style::default().fg(COLOR_GREY_800),
+                    Style::default().fg(self.theme.COLOR_GREY_800),
                 )));
             } else {
                 is_staged_changes = true;
@@ -198,11 +198,11 @@ impl App {
                 .enumerate()
                 .map(|(idx, line)| {
                     if is_staged_changes && start + idx == self.status_top_selected && self.focus == Focus::StatusTop {
-                        let spans: Vec<Span> = line.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GREY_500)) }).collect();
-                        ListItem::new(Line::from(spans)).style(Style::default().bg(COLOR_GREY_800).fg(COLOR_GREY_500))
+                        let spans: Vec<Span> = line.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(self.theme.COLOR_GREY_500)) }).collect();
+                        ListItem::new(Line::from(spans)).style(Style::default().bg(self.theme.COLOR_GREY_800).fg(self.theme.COLOR_GREY_500))
                     } else if !status_top_empty {
                         if (idx + start) % 2 == 0 {
-                            ListItem::new(Line::from(line.clone().spans)).style(Style::default().bg(COLOR_GREY_900))
+                            ListItem::new(Line::from(line.clone().spans)).style(Style::default().bg(self.theme.COLOR_GREY_900))
                         } else {
                             ListItem::new(line.clone())
                         }
@@ -218,7 +218,7 @@ impl App {
                     Block::default()
                         .padding(padding)
                         .borders(if self.is_inspector && self.graph_selected != 0 { Borders::TOP } else { Borders::NONE })
-                        .border_style(Style::default().fg(COLOR_BORDER))
+                        .border_style(Style::default().fg(self.theme.COLOR_BORDER))
                 );
 
             frame.render_widget(list, self.layout.status_top);
@@ -235,9 +235,9 @@ impl App {
                     "│"
                 })
                 .thumb_style(Style::default().fg(if total_lines > visible_height && self.focus == Focus::StatusTop {
-                    COLOR_GREY_600
+                    self.theme.COLOR_GREY_600
                 } else {
-                    COLOR_BORDER
+                    self.theme.COLOR_BORDER
                 }));
 
             // Render the scrollbar
@@ -271,12 +271,12 @@ impl App {
                     .enumerate()
                     .map(|(idx, line)| {
                         if is_unstaged_changes && start + idx == self.status_bottom_selected && self.focus == Focus::StatusBottom {
-                            let spans: Vec<Span> = line.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(COLOR_GREY_500)) }).collect();
-                            ListItem::new(Line::from(spans)).style(Style::default().bg(COLOR_GREY_800).fg(COLOR_GREY_500))
+                            let spans: Vec<Span> = line.iter().map(|span| { Span::styled(span.content.clone(), span.style.fg(self.theme.COLOR_GREY_500)) }).collect();
+                            ListItem::new(Line::from(spans)).style(Style::default().bg(self.theme.COLOR_GREY_800).fg(self.theme.COLOR_GREY_500))
                         } else {
                             if !status_bottom_empty {
                                 if (idx + start) % 2 == 0 {
-                                    ListItem::new(Line::from(line.clone().spans)).style(Style::default().bg(COLOR_GREY_900))
+                                    ListItem::new(Line::from(line.clone().spans)).style(Style::default().bg(self.theme.COLOR_GREY_900))
                                 } else {
                                     ListItem::new(line.clone())
                                 }
@@ -293,7 +293,7 @@ impl App {
                         Block::default()
                             .padding(padding)
                             .borders(Borders::TOP)
-                            .border_style(Style::default().fg(COLOR_BORDER))
+                            .border_style(Style::default().fg(self.theme.COLOR_BORDER))
                     );
 
                 frame.render_widget(list, self.layout.status_bottom);
@@ -310,9 +310,9 @@ impl App {
                         "│"
                     })
                     .thumb_style(Style::default().fg(if total_lines > visible_height && self.focus == Focus::StatusBottom {
-                        COLOR_GREY_600
+                        self.theme.COLOR_GREY_600
                     } else {
-                        COLOR_BORDER
+                        self.theme.COLOR_BORDER
                     }));
 
                 // Render the scrollbar
