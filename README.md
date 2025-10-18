@@ -1,4 +1,16 @@
-# guita╭
+```
+                                                        :GG~        .?Y.                                
+                              ....        ..      ..   .....      . ^BG: ..       .....                 
+                           .7555YY7JP^   ~PJ     ~PJ  ?YY5PP~    7YY5BGYYYYJ.   J555YY557.              
+                          .5B?.  :JBB~   !#5     !#5  ...PB~     ...^BG:....    ~:.   .7#5           :^^
+                          7#5     .GB~   !B5     !B5     PB~        :BG.        .~7??J?JBG:      .~JPPPY
+                          ?#Y      PB~   !B5     !B5     PB~        :BG.       7GP7~^^^!BG:     ~5GY!:. 
+                          ^GB~    7BB~   ^BG.   .YB5     5#7        :BB:       P#!     JBG:    ^GG7     
+                           ^5G5JJYJPB~    JBP???YYB5     ^5GYJJ?.    7GPJ???.  ~PGJ77?5J5B!    JG5      
+                             .^~^..GB:     :~!!~. ^^       :~~~~      .^~~~~    .^!!!~. .^:    JG5      
+                           .?!^^^!5G7                                                          YB5      
+                           .!?JJJ?!:                                                           75?      
+ ```
 
 **Beautiful and cozy terminal-based Git client** – for fun, productivity, and pure Rust joy.  
 
@@ -58,6 +70,7 @@ cargo build --release path-to-your-repo
 
 ## 🖼️ Screenshots
 
+<img width="1920" height="1008" alt="untitled" src="https://github.com/user-attachments/assets/5e175648-efc5-46a4-8fc1-6dda4c709d8e" />
 <img width="1920" height="1080" alt="1" src="https://github.com/user-attachments/assets/87db026a-f419-46e3-8f20-f6389f3fa967" />
 <img width="1920" height="1080" alt="2" src="https://github.com/user-attachments/assets/6cfbc5c0-222c-437d-a569-870446ed35ed" />
 <img width="1920" height="1080" alt="3" src="https://github.com/user-attachments/assets/933a695d-5cec-4c82-8ef0-902cbcc1125b" />
@@ -75,8 +88,6 @@ Some things I still need to implement:
 - 🖥️ **Logging window** – show detailed logs and messages in-app.  
 - 🔐 **Credential manager** – smooth handling of SSH/HTTPS credentials.  
 - 🌐 **Manage remotes** – add, remove, and inspect Git remotes.  
-- ⌨️ **Shortcut manager** – customize keybindings for better workflow.  
-- 🎨 **Theme manager** – allow changing colors and styles.  
 - 🧪 **Add tests** – improve reliability and catch edge cases.  
 - ⚙️ **Git features**:
     - Create branch  
