@@ -189,6 +189,7 @@ impl App {
                                 &self.email,
                             )
                             .expect("Error");
+                            self.visible_branches.clear();
                             self.reload();
                             self.focus = Focus::Viewport;
                         }
@@ -955,6 +956,7 @@ impl App {
             );
             match handle.join().expect("Thread panicked") {
                 Ok(_) => {
+                    self.visible_branches.clear();
                     self.reload();
                 }
                 Err(e) => eprintln!("Fetch failed: {}", e),
