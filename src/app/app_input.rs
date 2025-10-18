@@ -843,6 +843,7 @@ impl App {
             let handle = fetch_over_ssh(&self.path, "origin");
             match handle.join().expect("Thread panicked") {
                 Ok(_) => {
+                    self.visible_branches.clear();
                     self.reload();
                 }
                 Err(e) => eprintln!("Fetch failed: {}", e),
@@ -865,6 +866,7 @@ impl App {
                 if branches.is_empty() {
                     checkout_head(&self.repo, oid);
                     self.focus = Focus::Viewport;
+                    self.visible_branches.clear();
                     self.reload();
                 } else if branches.len() == 1 {
                     checkout_branch(
@@ -876,6 +878,7 @@ impl App {
                     )
                     .expect("Error");
                     self.focus = Focus::Viewport;
+                    self.visible_branches.clear();
                     self.reload();
                 } else {
                     self.focus = Focus::ModalCheckout;
