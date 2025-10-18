@@ -1,4 +1,3 @@
-use std::sync::Arc;
 
 #[rustfmt::skip]
 use im::{
@@ -17,9 +16,9 @@ pub struct Delta {
 
 #[derive(Clone)]
 pub enum DeltaOp {
-    Insert { index: usize, item: Arc<Chunk> },
+    Insert { index: usize, item: Chunk },
     Remove { index: usize },
-    Replace { index: usize, new: Arc<Chunk> },
+    Replace { index: usize, new: Chunk },
 }
 
 #[derive(Default, Clone)]
@@ -66,12 +65,12 @@ impl Buffer {
 
             self.delta.ops.push_back(DeltaOp::Replace {
                 index: merger_idx,
-                new: Arc::new(curr[merger_idx].clone()),
+                new: curr[merger_idx].clone(),
             });
 
             self.delta.ops.push_back(DeltaOp::Insert {
                 index: curr.len() - 1,
-                item: Arc::new(clone),
+                item: clone,
             });
         }
 
@@ -86,7 +85,7 @@ impl Buffer {
             curr[first_idx] = metadata.clone();
             self.delta.ops.push_back(DeltaOp::Replace {
                 index: first_idx,
-                new: Arc::new(metadata),
+                new: metadata,
             });
 
             // Place dummies in case of branching
@@ -113,13 +112,13 @@ impl Buffer {
                     if parents_changed && inner.parent_a.is_none() && inner.parent_b.is_none() {
                         self.delta.ops.push_back(DeltaOp::Replace {
                             index: i,
-                            new: Arc::new(Chunk::dummy()),
+                            new: Chunk::dummy(),
                         });
                         Chunk::dummy()
                     } else {
                         self.delta.ops.push_back(DeltaOp::Replace {
                             index: i,
-                            new: Arc::new(inner.clone()),
+                            new: inner.clone(),
                         });
                         inner
                     }
@@ -129,7 +128,7 @@ impl Buffer {
             curr.push_back(metadata.clone());
             self.delta.ops.push_back(DeltaOp::Insert {
                 index: curr.len() - 1,
-                item: Arc::new(metadata),
+                item: metadata,
             });
         }
 
@@ -169,13 +168,13 @@ impl Buffer {
             for op in delta.ops.iter() {
                 match op {
                     DeltaOp::Insert { index, item } => {
-                        curr.insert(*index, (**item).clone());
+                        curr.insert(*index, item.clone());
                     }
                     DeltaOp::Remove { index } => {
                         curr.remove(*index);
                     }
                     DeltaOp::Replace { index, new } => {
-                        curr[*index] = (**new).clone();
+                        curr[*index] = new.clone();
                     }
                 }
             }
