@@ -1,4 +1,4 @@
-use ratatui::{symbols::line::BOTTOM_LEFT, widgets::Padding};
+use ratatui::{buffer, symbols::line::BOTTOM_LEFT, widgets::Padding};
 #[rustfmt::skip]
 use ratatui::{
     Frame,
@@ -37,14 +37,15 @@ impl App {
     pub fn draw_graph(&mut self, frame: &mut Frame) {
         // Get vertical dimensions
         let total_lines = self.oids.len();
-        let visible_height = self.layout.graph.height as usize;
-
+        let mut visible_height = self.layout.graph.height as usize;
+        
         // Clamp selection
         if total_lines == 0 {
             self.graph_selected = 0;
         } else if self.graph_selected >= total_lines {
             self.graph_selected = total_lines - 1;
         }
+
 
         // Trap selection
         self.trap_selection(
@@ -62,16 +63,17 @@ impl App {
         let end = (start + visible_height).min(total_lines);
 
         // History
-        let history = self.buffer.borrow().history.clone();
+        let mut buffer = self.buffer.borrow_mut();
+        buffer.decompress(start, end + 1);
         let head = self.repo.head().unwrap().target().unwrap();
 
         // Rendered lines
-        let buffer_range = render_buffer_range(&self.oids, &history, start, end + 1);
+        let buffer_range = render_buffer_range(&self.oids, &buffer.history, start, end + 1);
         let graph_range = render_graph_range(
             &self.oids,
             &self.tips,
             &mut self.tip_colors,
-            &history,
+            &buffer.history,
             head,
             start,
             end,
@@ -82,7 +84,6 @@ impl App {
             &self.tips_local,
             &self.visible_branches,
             &mut self.tip_colors,
-            &history,
             start,
             end,
             self.graph_selected,

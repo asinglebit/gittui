@@ -1,27 +1,34 @@
+use std::sync::Arc;
+
 #[rustfmt::skip]
-use im::Vector;
+use im::{
+    Vector,
+    OrdMap
+};
 #[rustfmt::skip]
 use git2::Oid;
 #[rustfmt::skip]
 use crate::core::chunk::Chunk;
 
-// #[derive(Default, Clone)]
-// pub struct Delta {
-//     pub ops: Vector<DeltaOp>,
-// }
+#[derive(Default, Clone)]
+pub struct Delta {
+    pub ops: Vector<DeltaOp>,
+}
 
-// #[derive(Clone)]
-// pub enum DeltaOp {
-//     Insert { index: usize, item: Chunk },
-//     Remove { index: usize },
-//     Replace { index: usize, new: Chunk },
-// }
+#[derive(Clone)]
+pub enum DeltaOp {
+    Insert { index: usize, item: Arc<Chunk> },
+    Remove { index: usize },
+    Replace { index: usize, new: Arc<Chunk> },
+}
 
 #[derive(Default, Clone)]
 pub struct Buffer {
     pub history: Vector<Vector<Chunk>>,
     pub curr: Vector<Chunk>,
-    // pub deltas: Vector<Delta>,
+    pub deltas: Vector<Delta>,
+    pub checkpoints: OrdMap<usize, Vector<Chunk>>,
+    pub delta: Delta,
     mergers: Vector<Oid>,
 }
 
@@ -31,17 +38,14 @@ impl Buffer {
     }
 
     pub fn update(&mut self, metadata: Chunk) {
-        self.backup();
-
-        // New delta
-        // let mut delta = Delta::default();        
+        self.backup();  
 
         // Erase trailing dummy metadata
         while self.curr.last().is_some_and(|c| c.is_dummy()) {
             self.curr.pop_back();
-            // delta.ops.push_back(DeltaOp::Remove {
-            //     index: self.curr.len() - 1,
-            // });
+            self.delta.ops.push_back(DeltaOp::Remove {
+                index: self.curr.len() - 1,
+            });
         }
 
         let mut curr = self.curr.clone();
@@ -60,15 +64,15 @@ impl Buffer {
             curr[merger_idx].parent_b = None;
             curr.push_back(clone.clone());
 
-            // delta.ops.push_back(DeltaOp::Replace {
-            //     index: merger_idx,
-            //     new: curr[merger_idx].clone(),
-            // });
+            self.delta.ops.push_back(DeltaOp::Replace {
+                index: merger_idx,
+                new: Arc::new(curr[merger_idx].clone()),
+            });
 
-            // delta.ops.push_back(DeltaOp::Insert {
-            //     index: curr.len() - 1,
-            //     item: clone,
-            // });
+            self.delta.ops.push_back(DeltaOp::Insert {
+                index: curr.len() - 1,
+                item: Arc::new(clone),
+            });
         }
 
         // Replace or append buffer metadata
@@ -80,10 +84,10 @@ impl Buffer {
 
             // Replace metadata
             curr[first_idx] = metadata.clone();
-            // delta.ops.push_back(DeltaOp::Replace {
-            //     index: first_idx,
-            //     new: metadata,
-            // });
+            self.delta.ops.push_back(DeltaOp::Replace {
+                index: first_idx,
+                new: Arc::new(metadata),
+            });
 
             // Place dummies in case of branching
             curr = curr
@@ -107,29 +111,75 @@ impl Buffer {
                     }
 
                     if parents_changed && inner.parent_a.is_none() && inner.parent_b.is_none() {
-                        // delta.ops.push_back(DeltaOp::Replace {
-                        //     index: i,
-                        //     new: Chunk::dummy(),
-                        // });
+                        self.delta.ops.push_back(DeltaOp::Replace {
+                            index: i,
+                            new: Arc::new(Chunk::dummy()),
+                        });
                         Chunk::dummy()
                     } else {
-                        // delta.ops.push_back(DeltaOp::Replace {
-                        //     index: i,
-                        //     new: inner.clone(),
-                        // });
+                        self.delta.ops.push_back(DeltaOp::Replace {
+                            index: i,
+                            new: Arc::new(inner.clone()),
+                        });
                         inner
                     }
                 })
                 .collect();
         } else {
-            curr.push_back(metadata);
+            curr.push_back(metadata.clone());
+            self.delta.ops.push_back(DeltaOp::Insert {
+                index: curr.len() - 1,
+                item: Arc::new(metadata),
+            });
         }
 
         self.curr = curr;
     }
 
     pub fn backup(&mut self) {
-        // Append immutable snapshot to history
-        self.history.push_back(self.curr.clone());
+        self.deltas.push_back(self.delta.clone());
+        self.delta = Delta::default();
+        
+        let idx = self.deltas.len().saturating_sub(1);
+        if  idx % 500 == 0 {
+            self.checkpoints.insert(idx, self.curr.clone());
+        }        
+    }
+
+    pub fn decompress(&mut self, start: usize, end: usize) {
+        self.history.clear();
+
+        // Find nearest checkpoint, rewrite this later to binary search
+        let checkpoint_idx = self.checkpoints.keys()
+            .rev()
+            .find(|&&idx| idx <= start)
+            .copied();
+        
+        // Start from the checkpoint snapshot, or empty
+        let mut curr = checkpoint_idx
+            .and_then(|idx| self.checkpoints.get(&idx))
+            .cloned()
+            .unwrap_or_default();
+        
+        // Determine the first delta to apply
+        let begin = checkpoint_idx.map_or(0, |idx| idx + 1);
+        let end = end.min(self.deltas.len());
+        
+        for delta in self.deltas.iter().skip(begin).take(end - begin) {
+            for op in delta.ops.iter() {
+                match op {
+                    DeltaOp::Insert { index, item } => {
+                        curr.insert(*index, (**item).clone());
+                    }
+                    DeltaOp::Remove { index } => {
+                        curr.remove(*index);
+                    }
+                    DeltaOp::Replace { index, new } => {
+                        curr[*index] = (**new).clone();
+                    }
+                }
+            }
+            self.history.push_back(curr.clone());
+        }
     }
 }

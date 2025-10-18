@@ -1,6 +1,7 @@
 use im::HashSet;
 #[rustfmt::skip]
 use im::Vector;
+use std::fmt::format;
 #[rustfmt::skip]
 use std::{
     cell::RefCell,
@@ -48,11 +49,16 @@ pub fn render_graph_range(
     end: usize,
 ) -> Vec<Line<'static>> {
     // Clamp the range to valid indices
-    let start = start.min(history.len());
-    let end = end.min(history.len().saturating_sub(1));
+    // let start = start.min(history.len());
+    // let end = end.min(history.len().saturating_sub(1));
     let mut layers = layers!(Rc::new(RefCell::new(ColorPicker::default())));
     let mut lines: Vec<Line> = Vec::new();
     let color = Rc::new(RefCell::new(ColorPicker::default()));
+
+    // for (global_idx, oid) in oids.iter().enumerate().take(end).skip(start) {
+    // lines.push(Line::from(format!("{} {} {} {}", global_idx - start, start, end, history.len())));
+    // }
+    // return lines;
 
     // Go through the commits, inferring the graph
     for (global_idx, oid) in oids.iter().enumerate().take(end).skip(start) {
@@ -64,8 +70,13 @@ pub fn render_graph_range(
         let mut is_merged_before = false;
         let mut lane_idx = 0;
 
-        let prev = history.get(global_idx);
-        let last = history.get(global_idx + 1).unwrap();
+
+        let p = global_idx - start - 1;
+        let l = global_idx - start;
+        let d = history.len() - (end - start);
+
+        let prev = history.get(d + global_idx - start - 1);
+        let last = history.get(d + global_idx - start).unwrap();
 
         if *oid == Oid::zero() {
             lines.push(Line::from(Span::styled(
@@ -382,8 +393,8 @@ pub fn render_buffer_range(
     end: usize,
 ) -> Vec<Line<'static>> {
     // Clamp the range to valid indices
-    let start = start.min(history.len());
-    let end = end.min(history.len());
+    // let start = start.min(history.len());
+    // let end = end.min(history.len());
     let mut lines_buffer: Vec<Line> = Vec::new();
     let mut idx = start;
     // Iterate over the selected snapshots
@@ -433,15 +444,11 @@ pub fn render_message_range(
     tips_local: &HashMap<Oid, Vec<String>>,
     visible_branches: &HashMap<Oid, Vec<String>>,
     tip_colors: &mut HashMap<Oid, Color>,
-    history: &Vector<Vector<Chunk>>,
     start: usize,
     end: usize,
     selected: usize,
     uncommitted: &UncommittedChanges,
 ) -> Vec<Line<'static>> {
-    // Clamp the range to valid indices
-    let start = start.min(history.len());
-    let end = end.min(history.len().saturating_sub(1));
     let mut lines: Vec<Line> = Vec::new();
 
     // Go through the commits, inferring the graph
