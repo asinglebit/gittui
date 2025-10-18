@@ -12,7 +12,7 @@ use ratatui::{
         ScrollbarOrientation,
         ScrollbarState,
         List,
-        ListItem
+        ListItem,
     }
 };
 #[rustfmt::skip]
@@ -38,6 +38,11 @@ use crate::{
         text::{
             center_line
         }
+    },
+    core::{
+        renderers::{
+            render_keybindings
+        }
     }
 };
 
@@ -57,83 +62,102 @@ impl App {
         let available_width = self.layout.graph.width as usize - 1;
         let max_text_width = available_width.saturating_sub(2);
 
+        let a = get_git_user_info(&self.repo).unwrap();
+
+        // Setup list items
+        let mut lines: Vec<Line> = Vec::new();
+
+        let mut logo_height = 1;
+
+        lines.push(Line::default());
+        lines.push(Line::default());
+        lines.push(Line::default());
+        if self.layout.app.width < 80 {
+            lines.push(Line::from(Span::styled(format!("guita╭"), Style::default().fg(COLOR_GRASS))).centered());
+        } else if self.layout.app.width < 120 {
+            lines.push(Line::from(Span::styled(format!("                    :#   :#                 "), Style::default().fg(COLOR_GRASS))).centered());
+            lines.push(Line::from(Span::styled(format!("                         L#                 "), Style::default().fg(COLOR_GRASS))).centered());
+            lines.push(Line::from(Span::styled(format!("  .##5#^.  .#   .#  :C  #C6#   #?##:        "), Style::default().fg(COLOR_GRASS))).centered());
+            lines.push(Line::from(Span::styled(format!("  #B   #G  C#   #B  #7   B?        G#       "), Style::default().fg(COLOR_GRASS))).centered());
+            lines.push(Line::from(Span::styled(format!("  #4   B5  B5   B5  B5   B5    1B5B#G  .a###"), Style::default().fg(COLOR_GREEN))).centered());
+            lines.push(Line::from(Span::styled(format!("  #b   5?  ?B   B5  B5   B5   ##   ##  B?   "), Style::default().fg(COLOR_GREEN))).centered());
+            lines.push(Line::from(Span::styled(format!("  .#B~6G!  .#6#~G.  #5   ~##  .##Y~#.  !#   "), Style::default().fg(COLOR_GREEN))).centered());
+            lines.push(Line::from(Span::styled(format!("      .##                              !B   "), Style::default().fg(COLOR_GREEN))).centered());
+            lines.push(Line::from(Span::styled(format!("     ~G#                               ~?   "), Style::default().fg(COLOR_GREEN))).centered());
+            logo_height = 9;
+        } else {
+            lines.push(Line::from(Span::styled(format!("                                 :GG~        .?Y.                                "), Style::default().fg(COLOR_GRASS))).centered());    
+            lines.push(Line::from(Span::styled(format!("       ....        ..      ..   .....      . ^BG: ..       .....                 "), Style::default().fg(COLOR_GRASS))).centered());    
+            lines.push(Line::from(Span::styled(format!("    .7555YY7JP^   ~PJ     ~PJ  ?YY5PP~    7YY5BGYYYYJ.   J555YY557.              "), Style::default().fg(COLOR_GRASS))).centered());    
+            lines.push(Line::from(Span::styled(format!("   .5B?.  :JBB~   !#5     !#5  ...PB~     ...^BG:....    ~:.   .7#5           :^^"), Style::default().fg(COLOR_GRASS))).centered());    
+            lines.push(Line::from(Span::styled(format!("   7#5     .GB~   !B5     !B5     PB~        :BG.        .~7??J?JBG:      .~JPPPY"), Style::default().fg(COLOR_GRASS))).centered());    
+            lines.push(Line::from(Span::styled(format!("   ?#Y      PB~   !B5     !B5     PB~        :BG.       7GP7~^^^!BG:     ~5GY!:. "), Style::default().fg(COLOR_GREEN))).centered());    
+            lines.push(Line::from(Span::styled(format!("   ^GB~    7BB~   ^BG.   .YB5     5#7        :BB:       P#!     JBG:    ^GG7     "), Style::default().fg(COLOR_GREEN))).centered());    
+            lines.push(Line::from(Span::styled(format!("    ^5G5JJYJPB~    JBP???YYB5     ^5GYJJ?.    7GPJ???.  ~PGJ77?5J5B!    JG5      "), Style::default().fg(COLOR_GREEN))).centered());    
+            lines.push(Line::from(Span::styled(format!("      .^~^..GB:     :~!!~. ^^       :~~~~      .^~~~~    .^!!!~. .^:    JG5      "), Style::default().fg(COLOR_GREEN))).centered());    
+            lines.push(Line::from(Span::styled(format!("    .?!^^^!5G7                                                          YB5      "), Style::default().fg(COLOR_GREEN))).centered());    
+            lines.push(Line::from(Span::styled(format!("    .!?JJJ?!:                                                           75?      "), Style::default().fg(COLOR_GREEN))).centered());    
+            logo_height = 11;
+        }
+        lines.push(Line::default());
+        lines.push(Line::default());
+        lines.push(Line::default());
+        lines.push(Line::from(vec![
+            Span::styled(format!("Credentials"), Style::default().fg(COLOR_GREY_500))
+        ]).alignment(ratatui::layout::Alignment::Center));
+        lines.push(Line::default());
+        lines.push(Line::from(vec![
+            Span::styled(center_line(format!("name: {}", a.0.unwrap() ).as_str(), max_text_width), Style::default().fg(COLOR_TEXT))
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled(center_line(format!("email: {}", a.1.unwrap()).as_str(), max_text_width), Style::default().fg(COLOR_TEXT))
+        ]));
+
+        lines.push(Line::default());
+        lines.push(Line::from(vec![
+            Span::styled(format!("Key Bindings"), Style::default().fg(COLOR_GREY_500))
+        ]).alignment(ratatui::layout::Alignment::Center));
+        lines.push(Line::default());
+        render_keybindings(&self.keymap, max_text_width / 2).iter().enumerate().for_each(|(idx, kb_line)| {
+            let mut line = kb_line.clone();
+            if idx % 2 == 0 {
+                line = line.style(Style::default().bg(COLOR_GREY_900));
+            }
+            lines.push(line);
+
+        });
+
         // Get vertical dimensions
-        let total_lines = self.viewer_lines.len();
-        let visible_height = self.layout.graph.height as usize - 2;
+        let total_lines = lines.len();
+        let visible_height = self.layout.graph.height as usize;
 
         // Clamp selection
+        let upper_limit = logo_height + 13;
         if total_lines == 0 {
-            self.viewer_selected = 0;
-        } else if self.viewer_selected >= total_lines {
-            self.viewer_selected = total_lines - 1;
+            self.settings_selected = 0;
+        } else if self.settings_selected >= total_lines {
+            self.settings_selected = total_lines - 1;
+        } else if self.settings_selected < upper_limit {
+            self.settings_selected = upper_limit;
         }
         
-        // Trap selection
-        self.trap_selection(self.viewer_selected, &self.viewer_scroll, total_lines, visible_height);
-
-        // Calculate scroll
-        let start = self.viewer_scroll.get().min(total_lines.saturating_sub(visible_height));
+        // Calculate sticky scroll
+        let start = if self.settings_selected + 1 > visible_height { self.settings_selected + 1 - visible_height } else { 0 };
         let end = (start + visible_height).min(total_lines);
 
-        let a = get_git_user_info(&self.repo).unwrap();
         // Setup list items
-        let mut list_items: Vec<ListItem> = Vec::new();
-
-        let dummies = if self.layout.app.width < 80 {
-                (visible_height / 2).saturating_sub((8 + 1 - 3) / 2)
-            } else if self.layout.app.width < 120 {
-                (visible_height / 2).saturating_sub((8 + 9 - 3) / 2)
-            } else {
-                (visible_height / 2).saturating_sub((8 + 11 - 3) / 2)
-            };
-
-        for idx in 0..dummies { list_items.push(ListItem::from(Line::default())); }
-        
-        list_items.push(ListItem::from(Line::from(vec![
-            Span::styled(center_line(format!("name: {}", a.0.unwrap() ).as_str(), max_text_width), Style::default().fg(COLOR_TEXT))
-        ])));
-        list_items.push(ListItem::from(Line::from(vec![
-            Span::styled(center_line(format!("email: {}", a.1.unwrap()).as_str(), max_text_width), Style::default().fg(COLOR_TEXT))
-        ])));
-
-        list_items.push(ListItem::from(Line::default()));
-        list_items.push(ListItem::from(Line::default()));
-
-        if self.layout.app.width < 80 {
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("guita╭").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));
-        } else if self.layout.app.width < 120 {
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("                  :#   :#                   ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("                       L#                   ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!(".##5#^.  .#   .#  :C  #C6#   #?##:          ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("#B   #G  C#   #B  #7   B?        G#         ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("#4   B5  B5   B5  B5   B5    1B5B#G  .a###  ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("#b   5?  ?B   B5  B5   B5   ##   ##  B?     ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!(".#B~6G!  .#6#~G.  #5   ~##  .##Y~#.  !#     ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("    .##                              !B     ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("   ~G#                               ~?     ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));
-        } else {
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("                                :GG~        .?Y.                                ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));    
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("      ....        ..      ..   .....      . ^BG: ..       .....                 ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));    
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("   .7555YY7JP^   ~PJ     ~PJ  ?YY5PP~    7YY5BGYYYYJ.   J555YY557.              ").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));    
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("  .5B?.  :JBB~   !#5     !#5  ...PB~     ...^BG:....    ~:.   .7#5           :^^").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));    
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("  7#5     .GB~   !B5     !B5     PB~        :BG.        .~7??J?JBG:      .~JPPPY").as_str(), max_text_width), Style::default().fg(COLOR_GRASS)))));    
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("  ?#Y      PB~   !B5     !B5     PB~        :BG.       7GP7~^^^!BG:     ~5GY!:. ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));    
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("  ^GB~    7BB~   ^BG.   .YB5     5#7        :BB:       P#!     JBG:    ^GG7     ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));    
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("   ^5G5JJYJPB~    JBP???YYB5     ^5GYJJ?.    7GPJ???.  ~PGJ77?5J5B!    JG5      ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));    
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("     .^~^..GB:     :~!!~. ^^       :~~~~      .^~~~~    .^!!!~. .^:    JG5      ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));    
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("   .?!^^^!5G7                                                          YB5      ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));    
-            list_items.push(ListItem::from(Line::from(Span::styled(center_line(format!("   .!?JJJ?!:                                                           75?      ").as_str(), max_text_width), Style::default().fg(COLOR_GREEN)))));    
-        }
-        list_items.push(ListItem::from(Line::default()));
-        list_items.push(ListItem::from(Line::from(vec![
-            Span::styled(center_line(format!("please make sure to have your ssh agent running").as_str(), max_text_width), Style::default().fg(COLOR_TEXT))
-        ])));
-        list_items.push(ListItem::from(Line::from(vec![
-            Span::styled(center_line(format!("press (esc) to exit to graph, use (tab) and (arrow)s to navigate").as_str(), max_text_width), Style::default().fg(COLOR_TEXT))
-        ])));
-        list_items.push(ListItem::from(Line::from(vec![
-            Span::styled(center_line(format!("press (enter) for menus, (i) for inspector, (s) for status").as_str(), max_text_width), Style::default().fg(COLOR_TEXT))
-        ])));
+        let list_items: Vec<ListItem> = lines[start..end]
+            .iter()
+            .enumerate()
+            .map(|(i, line)| {
+                let absolute_idx = start + i;
+                let mut item = line.clone();
+                if absolute_idx == self.settings_selected && self.focus == Focus::Viewport {
+                    item = item.style(Style::default().bg(COLOR_GREY_800));
+                }
+                ListItem::from(item)
+            })
+            .collect();
 
         // Setup the list
         let list = List::new(list_items)
@@ -143,12 +167,12 @@ impl App {
             );
 
         // Render the list
-        frame.render_widget(list, self.layout.app);
+        frame.render_widget(list, self.layout.graph);
 
         // Setup the scrollbar
-        let mut scrollbar_state = ScrollbarState::new(total_lines.saturating_sub(visible_height)).position(self.viewer_scroll.get());
+        let mut scrollbar_state = ScrollbarState::new(total_lines.saturating_sub(visible_height)).position(start);
         let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
-            .begin_symbol(Some("asd"))
+            .begin_symbol(Some("╮"))
             .end_symbol(Some("╯"))
             .track_symbol(Some("│"))
             .thumb_symbol("▌")
@@ -159,6 +183,6 @@ impl App {
             }));
 
         // Render the scrollbar
-        frame.render_stateful_widget(scrollbar, self.layout.graph, &mut scrollbar_state);
+        frame.render_stateful_widget(scrollbar, self.layout.app, &mut scrollbar_state);
     }
 }

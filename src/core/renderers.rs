@@ -1,6 +1,7 @@
-use im::HashSet;
-#[rustfmt::skip]
-use im::Vector;
+use im::{
+    Vector,
+    HashSet
+};
 #[rustfmt::skip]
 use std::{
     cell::RefCell,
@@ -32,9 +33,18 @@ use crate::{
 };
 #[rustfmt::skip]
 use crate::{
+    app::app_input::{
+        Command,
+        KeyBinding
+    },
     helpers::{
         palette::*,
-        symbols::*
+        symbols::*,
+        text::{
+            keycode_to_string,
+            modifiers_to_string,
+            pascal_to_spaced
+        }
     }
 };
 
@@ -519,4 +529,36 @@ pub fn render_message_range(
     }
 
     lines
+}
+
+pub fn render_keybindings(keymap: &HashMap<KeyBinding, Command>, width: usize) -> Vec<Line> {
+    keymap.iter().map(|(kb, cmd)| {
+        // Build key string
+        let mut key_string = modifiers_to_string(kb.modifiers);
+        if !key_string.is_empty() {
+            key_string = format!("{} + ", key_string);
+        }
+        key_string.push_str(&keycode_to_string(&kb.code));
+
+        // Command string
+        let mut cmd_string = format!("{:?}", cmd);
+        cmd_string = pascal_to_spaced(&cmd_string);
+
+        // Calculate available space for filler
+        let key_len = key_string.len();
+        let cmd_len = cmd_string.len();
+        let filler = " ";
+        let mut filler_fill = 0;
+        if width > key_len + cmd_len {
+            filler_fill = (width - key_len - cmd_len).saturating_sub(2); // -2 for spaces
+        }
+
+        let fillers = filler.repeat(filler_fill.max(1)); // at least one
+
+        Line::from(vec![
+            Span::styled(cmd_string, Style::default().fg(COLOR_TEXT)),
+            Span::styled(format!(" {} ", fillers), Style::default().fg(COLOR_GREY_800)),
+            Span::styled(key_string, Style::default().fg(COLOR_TEXT)),
+        ]).alignment(ratatui::layout::Alignment::Center)
+    }).collect()
 }

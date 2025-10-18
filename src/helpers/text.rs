@@ -1,4 +1,9 @@
 #[rustfmt::skip]
+use ratatui::crossterm::event::{
+    KeyCode,
+    KeyModifiers
+};
+#[rustfmt::skip]
 use edtui::EditorState;
 
 // Truncate a string to a maximum width and appends "..." if it was cut off
@@ -186,4 +191,47 @@ pub fn sanitize(string: String) -> String {
             _ => vec![character],                       // Keep the rest of the characters
         })
         .collect()
+}
+
+// A helper to convert KeyCode to string
+pub fn keycode_to_string(code: &KeyCode) -> String {
+    match code {
+        KeyCode::Char(c) => c.to_string(),
+        KeyCode::Enter => "Enter".into(),
+        KeyCode::Tab => "Tab".into(),
+        KeyCode::Backspace => "Backspace".into(),
+        KeyCode::Esc => "Esc".into(),
+        KeyCode::Up => "Up".into(),
+        KeyCode::Down => "Down".into(),
+        KeyCode::Left => "Left".into(),
+        KeyCode::Right => "Right".into(),
+        KeyCode::Home => "Home".into(),
+        KeyCode::End => "End".into(),
+        KeyCode::PageUp => "Pageup".into(),
+        KeyCode::PageDown => "Pagedown".into(),
+        KeyCode::F(n) => format!("F{}", n),
+        _ => "?".into(),
+    }
+}
+
+// A helper to convert KeyModifiers to string
+pub fn modifiers_to_string(mods: KeyModifiers) -> String {
+    let mut parts = Vec::new();
+    if mods.contains(KeyModifiers::CONTROL) { parts.push("Ctrl"); }
+    if mods.contains(KeyModifiers::SHIFT) { parts.push("Shift"); }
+    if mods.contains(KeyModifiers::ALT) { parts.push("Alt"); }
+    parts.join(" + ")
+}
+
+pub fn pascal_to_spaced(s: &str) -> String {
+    let mut result = String::new();
+
+    for (i, c) in s.chars().enumerate() {
+        if c.is_uppercase() && i != 0 {
+            result.push(' ');
+        }
+        result.push(c);
+    }
+
+    result
 }

@@ -88,3 +88,4 @@ Some things I still need to implement:
     - Cherry-pick commit  
     - Stash  
     - Pop  
+    - Jump to parent commit

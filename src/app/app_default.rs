@@ -85,6 +85,7 @@ impl Default for App {
             repo,
             hint: String::new(),
             spinner: Spinner::new(),
+            keymap: HashMap::new(),
 
             // User
             name: String::new(),
@@ -136,6 +137,10 @@ impl Default for App {
             // Graph
             graph_selected: 0,
             graph_scroll: 0.into(),
+            
+            // Settings
+            settings_selected: 0,
+            settings_scroll: 0.into(),
     
             // Viewer
             viewer_selected: 0,

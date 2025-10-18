@@ -15,7 +15,7 @@ impl App {
 
     pub fn layout(&mut self, frame: &mut Frame) {
 
-        let is_settings = self.viewport == Viewport::Settings;
+        let is_settings = self.viewport == Viewport::Splash || self.viewport == Viewport::Settings;
         let is_inspector = !is_settings && self.is_inspector && self.graph_selected != 0;
         let is_status = !is_settings && self.is_status;
         let is_right_pane = is_inspector || is_status;
@@ -40,7 +40,7 @@ impl App {
         let chunks_horizontal = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Horizontal)
             .constraints([
-                ratatui::layout::Constraint::Length(if self.is_branches && self.viewport != Viewport::Settings { 45 } else { 0 }),
+                ratatui::layout::Constraint::Length(if self.is_branches && !is_settings { 45 } else { 0 }),
                 ratatui::layout::Constraint::Max(500),
                 ratatui::layout::Constraint::Length(if is_right_pane { 46 } else { 0 }),
             ])

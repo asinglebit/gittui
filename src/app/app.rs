@@ -53,6 +53,7 @@ use ratatui::{
         Span
     },
 };
+use crate::app::app_input::{Command, KeyBinding};
 #[rustfmt::skip]
 use crate::{
     layers,
@@ -117,6 +118,7 @@ pub enum Viewport {
     Graph,
     Viewer,
     Editor,
+    Splash,
     Settings
 }
 
@@ -139,6 +141,7 @@ pub struct App {
     pub repo: Rc<Repository>,
     pub hint: String,
     pub spinner: Spinner,
+    pub keymap: HashMap<KeyBinding, Command>,
 
     // User
     pub name: String,
@@ -195,6 +198,10 @@ pub struct App {
     pub viewer_selected: usize,
     pub viewer_scroll: Cell<usize>,
 
+    // Graph
+    pub settings_selected: usize,
+    pub settings_scroll: Cell<usize>,
+
     // Editor
     pub file_editor: EditorState,
     pub file_editor_event_handler: EditorEventHandler,
@@ -223,8 +230,10 @@ pub struct App {
 }
 
 impl App  {
-    pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
     
+    pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
+
+        self.load_keymap();
         self.reload();
 
         // Main loop
@@ -245,8 +254,11 @@ impl App  {
     }
 
     pub fn draw(&mut self, frame: &mut Frame) {
+
         // Compute the layout
         self.layout(frame);
+
+        let is_splash = self.viewport == Viewport::Splash;
 
         frame.render_widget( Block::default()
             // .title(vec![
@@ -256,12 +268,14 @@ impl App  {
             // ])
             // .title_alignment(ratatui::layout::Alignment::Right)
             // .title_style(Style::default().fg(COLOR_GREY_400))
-            .borders(Borders::ALL)
+            .borders(if is_splash { Borders::NONE } else { Borders::ALL })
             .border_style(Style::default().fg(COLOR_BORDER))
             .border_type(ratatui::widgets::BorderType::Rounded), self.layout.app);
                 
         // Main layout
-        self.draw_title(frame);
+        if !is_splash {
+            self.draw_title(frame);
+        }
 
         // Viewport
         match self.viewport {
@@ -274,6 +288,9 @@ impl App  {
             Viewport::Editor => {
                 self.draw_editor(frame);
             }
+            Viewport::Splash => {
+                self.draw_splash(frame);
+            }
             Viewport::Settings => {
                 self.draw_settings(frame);
             }
@@ -281,6 +298,7 @@ impl App  {
 
         // Panes
         match self.viewport {
+            Viewport::Splash => {}
             Viewport::Settings => {}
             _ => {
                 if self.is_branches {
@@ -296,7 +314,9 @@ impl App  {
         }
 
         // Status bar
-        self.draw_statusbar(frame);
+        if !is_splash {
+            self.draw_statusbar(frame);
+        }
 
         // Modals
         match self.focus {
@@ -390,7 +410,7 @@ impl App  {
 
             // Crude check to see if this is a first iteration
             if self.tips.is_empty() {
-                if self.viewport == Viewport::Settings {
+                if self.viewport == Viewport::Splash {
                     self.viewport = Viewport::Graph;
                 }
             }
