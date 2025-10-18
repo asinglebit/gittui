@@ -2,6 +2,7 @@ use im::{
     Vector,
     HashSet
 };
+use indexmap::IndexMap;
 #[rustfmt::skip]
 use std::{
     cell::RefCell,
@@ -531,7 +532,7 @@ pub fn render_message_range(
     lines
 }
 
-pub fn render_keybindings(keymap: &HashMap<KeyBinding, Command>, width: usize) -> Vec<Line> {
+pub fn render_keybindings(keymap: &IndexMap<KeyBinding, Command>, width: usize) -> Vec<Line> {
     keymap.iter().map(|(kb, cmd)| {
         // Build key string
         let mut key_string = modifiers_to_string(kb.modifiers);

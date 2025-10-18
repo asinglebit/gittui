@@ -11,6 +11,8 @@ use std::{
 #[rustfmt::skip]
 use git2::Repository;
 #[rustfmt::skip]
+use indexmap::IndexMap;
+#[rustfmt::skip]
 use ratatui::{
     style::Style,
     text::{
@@ -28,6 +30,7 @@ use crate::{
     app::app::{
         App,
         Layout,
+        Viewport,
         Focus
     },
     core::{
@@ -36,6 +39,7 @@ use crate::{
         }
     },
     helpers::{
+        palette::*,
         colors::ColorPicker,
         spinner::Spinner
     },
@@ -45,15 +49,6 @@ use crate::{
                 UncommittedChanges
             }
         }
-    }
-};
-#[rustfmt::skip]
-use crate::{
-    app::app::{
-        Viewport
-    },
-    helpers::{
-        palette::*
     }
 };
 
@@ -85,7 +80,7 @@ impl Default for App {
             repo,
             hint: String::new(),
             spinner: Spinner::new(),
-            keymap: HashMap::new(),
+            keymap: IndexMap::new(),
 
             // User
             name: String::new(),

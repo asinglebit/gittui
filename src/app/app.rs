@@ -35,6 +35,10 @@ use git2::{
     Repository
 };
 #[rustfmt::skip]
+use indexmap::{
+    IndexMap
+};
+#[rustfmt::skip]
 use ratatui::{
     DefaultTerminal,
     Frame,
@@ -53,10 +57,13 @@ use ratatui::{
         Span
     },
 };
-use crate::app::app_input::{Command, KeyBinding};
 #[rustfmt::skip]
 use crate::{
     layers,
+    app::app_input::{
+        Command,
+        KeyBinding
+    },
     core::{
         layers::{
             LayersContext,
@@ -141,7 +148,7 @@ pub struct App {
     pub repo: Rc<Repository>,
     pub hint: String,
     pub spinner: Spinner,
-    pub keymap: HashMap<KeyBinding, Command>,
+    pub keymap: IndexMap<KeyBinding, Command>,
 
     // User
     pub name: String,

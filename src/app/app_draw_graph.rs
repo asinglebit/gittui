@@ -113,7 +113,7 @@ impl App {
                     WidgetCell::from(graph_range.get(idx).cloned().unwrap_or_default()),
                     WidgetCell::from(message_range.get(idx).cloned().unwrap_or_default()),
                 ]);
-                if idx + start == self.graph_selected {
+                if idx + start == self.graph_selected && self.focus == Focus::Viewport {
                     row = row.style(Style::default().bg(COLOR_GREY_800));
                 } else {
                     if (idx + start) % 2 == 0 {
