@@ -15,6 +15,7 @@ use ratatui::{
         ListItem,
     }
 };
+use crate::helpers::text::fill_width;
 #[rustfmt::skip]
 use crate::{
     helpers::{
@@ -62,19 +63,24 @@ impl App {
         let available_width = self.layout.graph.width as usize - 1;
         let max_text_width = available_width.saturating_sub(2);
 
-        let a = get_git_user_info(&self.repo).unwrap();
+        // Credentials
+        let (name, email) = get_git_user_info(&self.repo).unwrap();
 
         // Setup list items
         let mut lines: Vec<Line> = Vec::new();
 
-        let mut logo_height = 1;
+        let mut logo_height = 0;
 
         lines.push(Line::default());
-        lines.push(Line::default());
-        lines.push(Line::default());
         if self.layout.app.width < 80 {
+            lines.push(Line::default());
             lines.push(Line::from(Span::styled(format!("guita╭"), Style::default().fg(COLOR_GRASS))).centered());
-        } else if self.layout.app.width < 120 {
+            lines.push(Line::default());
+            logo_height = 3;
+        } else if self.layout.app.width < 120 && self.layout.app.height > 24 {
+            lines.push(Line::default());
+            lines.push(Line::default());
+            lines.push(Line::default());
             lines.push(Line::from(Span::styled(format!("                    :#   :#                 "), Style::default().fg(COLOR_GRASS))).centered());
             lines.push(Line::from(Span::styled(format!("                         L#                 "), Style::default().fg(COLOR_GRASS))).centered());
             lines.push(Line::from(Span::styled(format!("  .##5#^.  .#   .#  :C  #C6#   #?##:        "), Style::default().fg(COLOR_GRASS))).centered());
@@ -84,8 +90,14 @@ impl App {
             lines.push(Line::from(Span::styled(format!("  .#B~6G!  .#6#~G.  #5   ~##  .##Y~#.  !#   "), Style::default().fg(COLOR_GREEN))).centered());
             lines.push(Line::from(Span::styled(format!("      .##                              !B   "), Style::default().fg(COLOR_GREEN))).centered());
             lines.push(Line::from(Span::styled(format!("     ~G#                               ~?   "), Style::default().fg(COLOR_GREEN))).centered());
-            logo_height = 9;
-        } else {
+            lines.push(Line::default());
+            lines.push(Line::default());
+            lines.push(Line::default());
+            logo_height = 15;
+        } else if self.layout.app.height > 30{
+            lines.push(Line::default());
+            lines.push(Line::default());
+            lines.push(Line::default());
             lines.push(Line::from(Span::styled(format!("                                 :GG~        .?Y.                                "), Style::default().fg(COLOR_GRASS))).centered());    
             lines.push(Line::from(Span::styled(format!("       ....        ..      ..   .....      . ^BG: ..       .....                 "), Style::default().fg(COLOR_GRASS))).centered());    
             lines.push(Line::from(Span::styled(format!("    .7555YY7JP^   ~PJ     ~PJ  ?YY5PP~    7YY5BGYYYYJ.   J555YY557.              "), Style::default().fg(COLOR_GRASS))).centered());    
@@ -97,34 +109,33 @@ impl App {
             lines.push(Line::from(Span::styled(format!("      .^~^..GB:     :~!!~. ^^       :~~~~      .^~~~~    .^!!!~. .^:    JG5      "), Style::default().fg(COLOR_GREEN))).centered());    
             lines.push(Line::from(Span::styled(format!("    .?!^^^!5G7                                                          YB5      "), Style::default().fg(COLOR_GREEN))).centered());    
             lines.push(Line::from(Span::styled(format!("    .!?JJJ?!:                                                           75?      "), Style::default().fg(COLOR_GREEN))).centered());    
-            logo_height = 11;
+            lines.push(Line::default());
+            lines.push(Line::default());
+            lines.push(Line::default());
+            logo_height = 17;
         }
-        lines.push(Line::default());
-        lines.push(Line::default());
+        lines.push(Line::from(vec![
+            Span::styled(fill_width("credentials", "", max_text_width / 2), Style::default().fg(COLOR_TEXT))
+        ]).centered());
         lines.push(Line::default());
         lines.push(Line::from(vec![
-            Span::styled(format!("Credentials"), Style::default().fg(COLOR_GREY_500))
-        ]).alignment(ratatui::layout::Alignment::Center));
+            Span::styled(fill_width("name:", name.unwrap().as_str(), max_text_width / 2), Style::default().fg(COLOR_TEXT).bg(COLOR_GREY_900))
+        ]).centered());
+        lines.push(Line::from(vec![
+            Span::styled(fill_width("email:", email.unwrap().as_str(), max_text_width / 2), Style::default().fg(COLOR_TEXT))
+        ]).centered());
         lines.push(Line::default());
         lines.push(Line::from(vec![
-            Span::styled(center_line(format!("name: {}", a.0.unwrap() ).as_str(), max_text_width), Style::default().fg(COLOR_TEXT))
-        ]));
-        lines.push(Line::from(vec![
-            Span::styled(center_line(format!("email: {}", a.1.unwrap()).as_str(), max_text_width), Style::default().fg(COLOR_TEXT))
-        ]));
-
-        lines.push(Line::default());
-        lines.push(Line::from(vec![
-            Span::styled(format!("Key Bindings"), Style::default().fg(COLOR_GREY_500))
-        ]).alignment(ratatui::layout::Alignment::Center));
+            Span::styled(fill_width("key bindings:", "", max_text_width / 2), Style::default().fg(COLOR_TEXT))
+        ]).centered());
         lines.push(Line::default());
         render_keybindings(&self.keymap, max_text_width / 2).iter().enumerate().for_each(|(idx, kb_line)| {
-            let mut line = kb_line.clone();
-            if idx % 2 == 0 {
-                line = line.style(Style::default().bg(COLOR_GREY_900));
-            }
-            lines.push(line);
-
+            let spans: Vec<Span> = kb_line.clone().spans.iter().map(|span| {
+                let mut style = span.style;
+                if idx % 2 == 0 { style = style.bg(COLOR_GREY_900); }
+                Span::styled(span.content.clone(), style)
+            }).collect();
+            lines.push(Line::from(spans).centered());
         });
 
         // Get vertical dimensions
@@ -132,7 +143,7 @@ impl App {
         let visible_height = self.layout.graph.height as usize;
 
         // Clamp selection
-        let upper_limit = logo_height + 13;
+        let upper_limit = logo_height + 8;
         if total_lines == 0 {
             self.settings_selected = 0;
         } else if self.settings_selected >= total_lines {
@@ -153,7 +164,12 @@ impl App {
                 let absolute_idx = start + i;
                 let mut item = line.clone();
                 if absolute_idx == self.settings_selected && self.focus == Focus::Viewport {
-                    item = item.style(Style::default().bg(COLOR_GREY_800));
+                    let spans: Vec<Span> = item.clone().spans.iter().map(|span| {
+                        let mut style = span.style;
+                        style = style.bg(COLOR_GREY_800);
+                        Span::styled(span.content.clone(), style)
+                    }).collect();
+                    item = Line::from(spans).centered();
                 }
                 ListItem::from(item)
             })

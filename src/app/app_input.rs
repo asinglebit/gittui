@@ -738,7 +738,7 @@ impl App {
                     self.viewer_selected = 0;
                 }
                 Viewport::Settings => {
-                    self.status_bottom_selected = 0;
+                    self.settings_selected = 0;
                 }
                 _ => {}
             },
@@ -776,7 +776,7 @@ impl App {
                     }
                 }
                 Viewport::Settings => {
-                    self.status_bottom_selected = usize::MAX;
+                    self.settings_selected = usize::MAX;
                 }
                 _ => {}
             },

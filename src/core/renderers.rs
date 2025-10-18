@@ -550,15 +550,15 @@ pub fn render_keybindings(keymap: &HashMap<KeyBinding, Command>, width: usize) -
         let filler = " ";
         let mut filler_fill = 0;
         if width > key_len + cmd_len {
-            filler_fill = (width - key_len - cmd_len).saturating_sub(2); // -2 for spaces
+            filler_fill = (width - key_len - cmd_len).saturating_sub(4); // -2 for spaces
         }
 
         let fillers = filler.repeat(filler_fill.max(1)); // at least one
 
         Line::from(vec![
-            Span::styled(cmd_string, Style::default().fg(COLOR_TEXT)),
+            Span::styled(format!(" {}", cmd_string), Style::default().fg(COLOR_TEXT)),
             Span::styled(format!(" {} ", fillers), Style::default().fg(COLOR_GREY_800)),
-            Span::styled(key_string, Style::default().fg(COLOR_TEXT)),
+            Span::styled(format!("{} ", key_string), Style::default().fg(COLOR_TEXT)),
         ]).alignment(ratatui::layout::Alignment::Center)
     }).collect()
 }
