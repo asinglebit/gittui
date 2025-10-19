@@ -2,6 +2,7 @@
 use std::{
     io
 };
+use git2::Oid;
 #[rustfmt::skip]
 use indexmap::IndexMap;
 #[rustfmt::skip]
@@ -73,6 +74,8 @@ pub enum Command {
     ScrollDownHalf,
     ScrollUpBranch,
     ScrollDownBranch,
+    ScrollUpCommit,
+    ScrollDownCommit,
     GoToBeginning,
     GoToEnd,
     
@@ -130,6 +133,8 @@ impl App {
         map.insert(KeyBinding::new(Down, KeyModifiers::SHIFT), Command::ScrollDownHalf);
         map.insert(KeyBinding::new(Up, KeyModifiers::CONTROL), Command::ScrollUpBranch);
         map.insert(KeyBinding::new(Down, KeyModifiers::CONTROL), Command::ScrollDownBranch);
+        map.insert(KeyBinding::new(Up, KeyModifiers::ALT), Command::ScrollUpCommit);
+        map.insert(KeyBinding::new(Down, KeyModifiers::ALT), Command::ScrollDownCommit);
         map.insert(KeyBinding::new(Home, KeyModifiers::NONE), Command::GoToBeginning);
         map.insert(KeyBinding::new(End, KeyModifiers::NONE), Command::GoToEnd);
 
@@ -238,9 +243,11 @@ impl App {
                 Command::Exit => self.on_exit(),
                 Command::ScrollDownHalf => self.on_scroll_down_half(),
                 Command::ScrollDownBranch => self.on_scroll_down_branch(),
+                Command::ScrollDownCommit => self.on_scroll_down_commit(),
                 Command::ScrollDown => self.on_scroll_down(),
                 Command::ScrollUpHalf => self.on_scroll_up_half(),
                 Command::ScrollUpBranch => self.on_scroll_up_branch(),
+                Command::ScrollUpCommit => self.on_scroll_up_commit(),
                 Command::ScrollUp => self.on_scroll_up(),
                 Command::Minimize => self.on_minimize(),
                 Command::ToggleBranches => self.on_toggle_branches(),
@@ -766,6 +773,71 @@ impl App {
                         .find(|&k| k > &self.graph_selected)
                         .unwrap_or(&self.graph_selected);
                     self.graph_selected = next;
+                }
+                _ => {}
+            }
+            _ => {}
+        };
+    }
+
+    pub fn on_scroll_up_commit(&mut self) {
+        match self.focus {
+            Focus::Viewport => match self.viewport {
+                Viewport::Graph => {
+                    let current_oid = *self.oids.get(self.graph_selected).unwrap();
+                    if current_oid == Oid::zero() { return; }
+                    
+                    let child_positions: Vec<usize> = self
+                        .oids
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(idx, &oid)| {
+                            let commit = self.repo.find_commit(oid).ok()?;
+                            if commit.parent_ids().any(|parent_oid| parent_oid == current_oid) {
+                                Some(idx)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+
+                    if child_positions.is_empty() {
+                        return;
+                    } else {
+                        self.graph_selected = child_positions[0];
+                        return;
+                    }
+                }
+                _ => {}
+            },
+            _ => {}
+        };
+    }
+
+    pub fn on_scroll_down_commit(&mut self) {
+        match self.focus {
+            Focus::Viewport => match self.viewport {
+                Viewport::Graph => {
+                    let oid = *self.oids.get(self.graph_selected).unwrap();
+                    if oid == Oid::zero() {
+                        self.graph_selected = 1;
+                        return;
+                    }
+
+                    let commit = self.repo.find_commit(oid).unwrap();
+                    let mut parents = commit.parent_ids();
+
+                    if parents.len() == 0 {
+                        return;
+                    } else {
+                        let parent_oid = parents.next().unwrap();
+                        let next = self
+                            .oids
+                            .iter()
+                            .position(|&oid| oid == parent_oid)
+                            .unwrap();
+                        self.graph_selected = next;
+                    }
                 }
                 _ => {}
             }
