@@ -287,3 +287,13 @@ pub fn push_over_ssh(
         Ok(())
     })
 }
+
+pub fn create_branch(repo: &Repository, branch_name: &str, target_oid: Oid) -> Result<(), Error> {
+    // Find the commit you want the branch to point to
+    let target_commit = repo.find_commit(target_oid)?;
+
+    // Create the branch
+    repo.branch(branch_name, &target_commit, false)?;
+
+    Ok(())
+}

@@ -20,6 +20,7 @@ mod app {
     pub mod app_draw_modal_checkout;
     pub mod app_draw_modal_solo;
     pub mod app_draw_modal_commit;
+    pub mod app_draw_modal_create_branch;
 }
 mod core {
     pub mod buffer;

@@ -21,6 +21,7 @@ use ratatui::{
 use edtui::{
     EditorMode,
 };
+use crate::git::actions::commits::create_branch;
 #[rustfmt::skip]
 use crate::{
     app::app::{
@@ -92,6 +93,7 @@ pub enum Command {
     StageAll,
     Commit,
     Push,
+    CreateANewBranch,
     
     // Layout
     GoBack,
@@ -151,6 +153,7 @@ impl App {
         map.insert(KeyBinding::new(Char('s'), KeyModifiers::NONE), Command::StageAll);
         map.insert(KeyBinding::new(Char('a'), KeyModifiers::NONE), Command::Commit);
         map.insert(KeyBinding::new(Char('p'), KeyModifiers::NONE), Command::Push);
+        map.insert(KeyBinding::new(Char('b'), KeyModifiers::NONE), Command::CreateANewBranch);
 
         // Layout
         map.insert(KeyBinding::new(Esc, KeyModifiers::NONE), Command::GoBack);
@@ -195,6 +198,7 @@ impl App {
                                 &self.email,
                             )
                             .expect("Error");
+                            self.commit_editor = edtui::EditorState::default();
                             self.visible_branches.clear();
                             self.reload();
                             self.focus = Focus::Viewport;
@@ -207,6 +211,37 @@ impl App {
                 } else {
                     self.commit_editor_event_handler
                         .on_key_event(key_event, &mut self.commit_editor);
+                }
+                return;
+            }
+            Focus::ModalCreateBranch => {
+                if self.create_branch_editor.mode == EditorMode::Normal {
+                    match key_event.code {
+                        KeyCode::Esc => {
+                            self.focus = Focus::Viewport;
+                        }
+                        KeyCode::Enter => {
+                            let oid = *self.oids.get(if self.graph_selected == 0 { 1 } else { self.graph_selected }).unwrap();
+                            match create_branch(&self.repo, &editor_state_to_string(&self.create_branch_editor), oid) {
+                                Ok(_) => {
+                                    self.visible_branches.clear();
+                                    self.create_branch_editor = edtui::EditorState::default();
+                                    self.reload();
+                                    self.focus = Focus::Viewport;
+                                }
+                                Err(err) => {
+                                    // TODO
+                                }
+                            }
+                        }
+                        _ => {
+                            self.create_branch_editor_event_handler
+                                .on_key_event(key_event, &mut self.create_branch_editor);
+                        }
+                    }
+                } else {
+                    self.create_branch_editor_event_handler
+                        .on_key_event(key_event, &mut self.create_branch_editor);
                 }
                 return;
             }
@@ -237,39 +272,47 @@ impl App {
         // Handle the application
         if let Some(cmd) = self.keymap.get(&key_binding) {
             match cmd {
-                Command::Push => self.on_push(),
-                Command::Fetch => self.on_fetch(),
-                Command::Reload => self.on_reload(),
-                Command::Exit => self.on_exit(),
-                Command::ScrollDownHalf => self.on_scroll_down_half(),
-                Command::ScrollDownBranch => self.on_scroll_down_branch(),
-                Command::ScrollDownCommit => self.on_scroll_down_commit(),
-                Command::ScrollDown => self.on_scroll_down(),
-                Command::ScrollUpHalf => self.on_scroll_up_half(),
-                Command::ScrollUpBranch => self.on_scroll_up_branch(),
-                Command::ScrollUpCommit => self.on_scroll_up_commit(),
-                Command::ScrollUp => self.on_scroll_up(),
-                Command::Minimize => self.on_minimize(),
-                Command::ToggleBranches => self.on_toggle_branches(),
-                Command::JumpToBranch => self.on_jump_to_branch(),
-                Command::ToggleStatus => self.on_toggle_status(),
-                Command::ToggleInspector => self.on_toggle_inspector(),
-                Command::Checkout => self.on_checkout(),
-                Command::Commit => self.on_commit(),
-                Command::HardReset => self.on_hard_reset(),
-                Command::MixedReset => self.on_mixed_reset(),
-                Command::StageAll => self.on_stage_all(),
-                Command::UnstageAll => self.on_unstage_all(),
-                Command::SoloBranch => self.on_solo_branch(),
+                // List navigation
                 Command::Select => self.on_select(),
-                Command::PreviousPane => self.on_previous_pane(),
                 Command::NextPane => self.on_next_pane(),
-                Command::GoToBeginning => self.on_scroll_to_beginning(),
-                Command::GoToEnd => self.on_scroll_to_end(),
+                Command::PreviousPane => self.on_previous_pane(),
                 Command::PageUp => self.on_scroll_page_up(),
                 Command::PageDown => self.on_scroll_page_down(),
+                Command::ScrollUp => self.on_scroll_up(),
+                Command::ScrollDown => self.on_scroll_down(),
+                Command::ScrollUpHalf => self.on_scroll_up_half(),
+                Command::ScrollDownHalf => self.on_scroll_down_half(),
+                Command::ScrollUpBranch => self.on_scroll_up_branch(),
+                Command::ScrollDownBranch => self.on_scroll_down_branch(),
+                Command::ScrollUpCommit => self.on_scroll_up_commit(),
+                Command::ScrollDownCommit => self.on_scroll_down_commit(),
+                Command::GoToBeginning => self.on_scroll_to_beginning(),
+                Command::GoToEnd => self.on_scroll_to_end(),
+
+                // Branches
+                Command::JumpToBranch => self.on_jump_to_branch(),
+                Command::SoloBranch => self.on_solo_branch(),
+
+                // Git
+                Command::Fetch => self.on_fetch(),
+                Command::Checkout => self.on_checkout(),
+                Command::HardReset => self.on_hard_reset(),
+                Command::MixedReset => self.on_mixed_reset(),
+                Command::UnstageAll => self.on_unstage_all(),
+                Command::StageAll => self.on_stage_all(),
+                Command::Commit => self.on_commit(),
+                Command::Push => self.on_push(),
+                Command::CreateANewBranch => self.on_create_branch(),
+                
+                // Layout
                 Command::GoBack => self.on_go_back(),
+                Command::Reload => self.on_reload(),
+                Command::Minimize => self.on_minimize(),
+                Command::ToggleBranches => self.on_toggle_branches(),
+                Command::ToggleStatus => self.on_toggle_status(),
+                Command::ToggleInspector => self.on_toggle_inspector(),
                 Command::ToggleSettings => self.on_toggle_settings(),
+                Command::Exit => self.on_exit(),
             }
         }
     }
@@ -349,7 +392,7 @@ impl App {
                     .get(self.oids.get(self.graph_selected).unwrap())
                     .cloned()
                     .unwrap_or_default();
-                let branch = branches.get(self.modal_checkout_selected as usize).unwrap();
+                let branch = branches.get(self.modal_solo_selected as usize).unwrap();
                 
                 // Check if the same branch is already the only one visible
                 let already_visible = 
@@ -1104,6 +1147,19 @@ impl App {
                         self.reload();
                     }
                     Err(e) => eprintln!("Fetch failed: {}", e),
+                }
+            }
+        }
+    }
+
+    pub fn on_create_branch(&mut self) {
+        match self.viewport {
+            Viewport::Settings | Viewport::Viewer | Viewport::Editor => {}
+            _ => {
+                if self.graph_selected != 0 {
+                    self.focus = Focus::ModalCreateBranch;
+                    self.create_branch_editor.mode = EditorMode::Insert;
+                    return;
                 }
             }
         }

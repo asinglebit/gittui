@@ -172,6 +172,10 @@ impl Default for App {
             commit_editor: EditorState::default(),
             commit_editor_event_handler: EditorEventHandler::default(),
 
+            // Modal create branch
+            create_branch_editor: EditorState::default(),
+            create_branch_editor_event_handler: EditorEventHandler::default(),
+
             // Exit
             is_exit: false,   
         }

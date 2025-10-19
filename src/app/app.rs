@@ -139,6 +139,7 @@ pub enum Focus {
     ModalCheckout,
     ModalSolo,
     ModalCommit,
+    ModalCreateBranch
 }
 
 #[derive(PartialEq, Eq)]
@@ -243,6 +244,10 @@ pub struct App {
     pub commit_editor: EditorState,
     pub commit_editor_event_handler: EditorEventHandler,
 
+    // Modal create branch
+    pub create_branch_editor: EditorState,
+    pub create_branch_editor_event_handler: EditorEventHandler,
+
     // Exit
     pub is_exit: bool,
 }
@@ -346,6 +351,9 @@ impl App  {
             }
             Focus::ModalCommit => {
                 self.draw_modal_commit(frame);
+            }
+            Focus::ModalCreateBranch => {
+                self.draw_modal_create_branch(frame);
             }
             _ => {}
         }
