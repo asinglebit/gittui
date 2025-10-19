@@ -301,9 +301,6 @@ impl App {
             }
             Focus::Viewport => {
                 match self.viewport {
-                    Viewport::Graph => {
-                        self.focus = Focus::ModalActions;
-                    }
                     Viewport::Settings => {
                         if let Some(position) = self.settings_selections.iter().position(|&x| x == self.settings_selected) {
                             match position {
@@ -320,7 +317,12 @@ impl App {
             }
             Focus::ModalCheckout => {
                 let oid = *self.oids.get(self.graph_selected).unwrap();
-                let branches = self.tips.entry(oid).or_default();
+                let branches = self
+                    .visible_branches
+                    .get(self.oids.get(self.graph_selected).unwrap())
+                    .cloned()
+                    .unwrap_or_default();
+                
                 checkout_branch(
                     &self.repo,
                     &mut self.visible_branches,
@@ -330,6 +332,35 @@ impl App {
                 )
                 .expect("Error");
                 self.modal_checkout_selected = 0;
+                self.focus = Focus::Viewport;
+                self.reload();
+            }
+            Focus::ModalSolo => {
+                let oid = *self.oids.get(self.graph_selected).unwrap();
+                let branches = self
+                    .visible_branches
+                    .get(self.oids.get(self.graph_selected).unwrap())
+                    .cloned()
+                    .unwrap_or_default();
+                let branch = branches.get(self.modal_checkout_selected as usize).unwrap();
+                
+                // Check if the same branch is already the only one visible
+                let already_visible = 
+                    self.visible_branches.len() == 1 &&
+                    self.visible_branches.entry(oid).or_default().len() == 1 &&
+                    self.visible_branches.entry(oid).or_default().contains(branch);
+
+                if already_visible {
+                    self.visible_branches.clear();
+                } else {
+                    self.visible_branches.clear();
+                    self.visible_branches
+                        .entry(oid)
+                        .and_modify(|branches| branches.push(branch.clone()))
+                        .or_insert_with(|| vec![branch.clone()]);
+                }
+
+                self.modal_solo_selected = 0;
                 self.focus = Focus::Viewport;
                 self.reload();
             }
@@ -594,6 +625,17 @@ impl App {
                     self.modal_checkout_selected - 1
                 };
             }
+            Focus::ModalSolo => {
+                let branches = self
+                    .visible_branches
+                    .entry(*self.oids.get(self.graph_selected).unwrap())
+                    .or_default();
+                self.modal_solo_selected = if self.modal_solo_selected - 1 < 0 {
+                    branches.len() as i32 - 1
+                } else {
+                    self.modal_solo_selected - 1
+                };
+            }
             _ => {}
         }
     }
@@ -644,6 +686,19 @@ impl App {
                         0
                     } else {
                         self.modal_checkout_selected + 1
+                    };
+            }
+            Focus::ModalSolo => {
+                let branches = self
+                    .visible_branches
+                    .entry(*self.oids.get(self.graph_selected).unwrap())
+                    .or_default();
+
+                self.modal_solo_selected =
+                    if self.modal_solo_selected + 1 > branches.len() as i32 - 1 {
+                        0
+                    } else {
+                        self.modal_solo_selected + 1
                     };
             }
             _ => {}
@@ -817,7 +872,11 @@ impl App {
                     return;
                 }
                 let oid = *self.oids.get(self.graph_selected).unwrap();
-                let branches = self.tips.entry(oid).or_default();
+                let branches = self
+                    .visible_branches
+                    .get(self.oids.get(self.graph_selected).unwrap())
+                    .cloned()
+                    .unwrap_or_default();
                 if branches.is_empty() {
                     return;
                 }
@@ -832,6 +891,8 @@ impl App {
                             .and_modify(|branches| branches.push(branch.clone()))
                             .or_insert_with(|| vec![branch.clone()]);
                     }self.reload();
+                } else {
+                    self.focus = Focus::ModalSolo;
                 }
             }
             _ => {}
@@ -853,7 +914,7 @@ impl App {
 
     pub fn on_checkout(&mut self) {
         match self.focus {
-            Focus::Viewport | Focus::ModalActions => {
+            Focus::Viewport => {
                 if self.focus == Focus::Viewport && self.viewport != Viewport::Graph {
                     return;
                 }
@@ -890,7 +951,7 @@ impl App {
 
     pub fn on_hard_reset(&mut self) {
         match self.focus {
-            Focus::Viewport | Focus::ModalActions => {
+            Focus::Viewport => {
                 if self.focus == Focus::Viewport && self.viewport != Viewport::Graph {
                     return;
                 }
@@ -905,7 +966,7 @@ impl App {
 
     pub fn on_mixed_reset(&mut self) {
         match self.focus {
-            Focus::Viewport | Focus::ModalActions => {
+            Focus::Viewport => {
                 if self.focus == Focus::Viewport && self.viewport != Viewport::Graph {
                     return;
                 }
@@ -919,75 +980,66 @@ impl App {
     }
 
     pub fn on_unstage_all(&mut self) {
-        match self.focus {
-            Focus::Viewport | Focus::ModalActions | Focus::Inspector | Focus::StatusBottom | Focus::StatusTop => {
-                if self.focus == Focus::Viewport && self.viewport != Viewport::Graph {
-                    return;
-                }
+        match self.viewport {
+            Viewport::Settings | Viewport::Viewer | Viewport::Editor => {}
+            _ => {
                 if self.uncommitted.is_staged {
                     unstage_all(&self.repo).expect("Error");
                     self.reload();
                 }
             }
-            _ => {}
         }
     }
 
     pub fn on_stage_all(&mut self) {
-        match self.focus {
-            Focus::Viewport | Focus::ModalActions | Focus::Inspector | Focus::StatusBottom | Focus::StatusTop => {
-                if self.focus == Focus::Viewport && self.viewport != Viewport::Graph {
-                    return;
-                }
+        match self.viewport {
+            Viewport::Settings | Viewport::Viewer | Viewport::Editor => {}
+            _ => {
                 if self.uncommitted.is_unstaged {
                     git_add_all(&self.repo).expect("Error");
                     self.reload();
                 }
             }
-            _ => {}
         }
     }
 
     pub fn on_commit(&mut self) {
-        match self.focus {
-            Focus::Viewport | Focus::ModalActions | Focus::Inspector | Focus::StatusBottom | Focus::StatusTop => {
-                if self.focus == Focus::Viewport && self.viewport != Viewport::Graph {
-                    return;
-                }
+        match self.viewport {
+            Viewport::Settings | Viewport::Viewer | Viewport::Editor => {}
+            _ => {
                 if self.uncommitted.is_staged {
                     self.focus = Focus::ModalCommit;
                     self.commit_editor.mode = EditorMode::Insert;
                     return;
                 }
             }
-            _ => {}
         }
     }
 
     pub fn on_push(&mut self) {
-        if self.viewport != Viewport::Settings {
-            if self.viewport != Viewport::Graph {
-                return;
-            }
-            let handle = push_over_ssh(
-                &self.path,
-                "origin",
-                get_current_branch(&self.repo).unwrap().as_str(),
-                true,
-            );
-            match handle.join().expect("Thread panicked") {
-                Ok(_) => {
-                    self.visible_branches.clear();
-                    self.reload();
+        match self.viewport {
+            Viewport::Settings | Viewport::Viewer | Viewport::Editor => {}
+            _ => {
+                let handle = push_over_ssh(
+                    &self.path,
+                    "origin",
+                    get_current_branch(&self.repo).unwrap().as_str(),
+                    true,
+                );
+                match handle.join().expect("Thread panicked") {
+                    Ok(_) => {
+                        self.visible_branches.clear();
+                        self.reload();
+                    }
+                    Err(e) => eprintln!("Fetch failed: {}", e),
                 }
-                Err(e) => eprintln!("Fetch failed: {}", e),
             }
         }
     }
 
     pub fn on_go_back(&mut self) {
         match self.focus {
-            Focus::ModalActions | Focus::ModalCommit => {
+            Focus::ModalCommit => {
                 self.focus = Focus::Viewport;
             }
             Focus::ModalCheckout => {
@@ -1008,7 +1060,7 @@ impl App {
     pub fn on_reload(&mut self) {
         self.reload();
         match self.focus {
-            Focus::ModalCheckout | Focus::ModalActions | Focus::ModalCommit => {
+            Focus::ModalCheckout | Focus::ModalCommit => {
                 self.focus = Focus::Viewport;
             }
             _ => {}

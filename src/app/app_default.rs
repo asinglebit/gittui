@@ -140,7 +140,6 @@ impl Default for App {
             
             // Settings
             settings_selected: 0,
-            settings_scroll: 0.into(),
             settings_selections: Vec::new(),
     
             // Viewer
@@ -163,8 +162,11 @@ impl Default for App {
             status_bottom_selected: 0,
             status_bottom_scroll: 0.into(),
 
-            // Modal branch
+            // Modal checkout
             modal_checkout_selected: 0,
+
+            // Modal solo
+            modal_solo_selected: 0,
 
             // Modal commit
             commit_editor: EditorState::default(),

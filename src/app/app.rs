@@ -136,8 +136,8 @@ pub enum Focus {
     StatusTop,
     StatusBottom,
     Branches,
-    ModalActions,
     ModalCheckout,
+    ModalSolo,
     ModalCommit,
 }
 
@@ -215,7 +215,6 @@ pub struct App {
 
     // Settings
     pub settings_selected: usize,
-    pub settings_scroll: Cell<usize>,
     pub settings_selections: Vec<usize>,
 
     // Editor
@@ -236,6 +235,9 @@ pub struct App {
 
     // Modal checkout
     pub modal_checkout_selected: i32,
+
+    // Modal solo
+    pub modal_solo_selected: i32,
 
     // Modal commit
     pub commit_editor: EditorState,
@@ -336,11 +338,11 @@ impl App  {
 
         // Modals
         match self.focus {
-            Focus::ModalActions => {
-                self.draw_modal_actions(frame);
-            }
             Focus::ModalCheckout => {
                 self.draw_modal_checkout(frame);
+            }
+            Focus::ModalSolo => {
+                self.draw_modal_solo(frame);
             }
             Focus::ModalCommit => {
                 self.draw_modal_commit(frame);
