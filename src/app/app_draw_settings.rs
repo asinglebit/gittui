@@ -104,6 +104,7 @@ impl App {
             lines.push(Line::default());
             lines.push(Line::default());
         }
+
         lines.push(Line::from(vec![
             Span::styled(fill_width("credentials", "", max_text_width / 2), Style::default().fg(self.theme.COLOR_TEXT))
         ]).centered());
@@ -144,7 +145,17 @@ impl App {
         self.settings_selections.push(lines.len() - 1);
 
         lines.push(Line::default());
-        lines.push(Line::from(Span::styled(fill_width("key bindings:", "", max_text_width / 2), Style::default().fg(self.theme.COLOR_TEXT))).centered());
+        lines.push(Line::default());
+        lines.push(Line::from(Span::styled(format!(" ╭─────────────────────────────────────────────────────────────────────╮"), Style::default().fg(self.theme.COLOR_GREY_800))).centered());    
+        lines.push(Line::from(Span::styled(format!(" │ [_]   [_][_][_][_] [_][_][_][_] [_][_][_][_] [_][_][_] [_][_][_][_] │"), Style::default().fg(self.theme.COLOR_GREY_800))).centered());    
+        lines.push(Line::from(Span::styled(format!(" │                                                                     │"), Style::default().fg(self.theme.COLOR_GREY_800))).centered());    
+        lines.push(Line::from(Span::styled(format!(" │ [`][1][2][_][_][_][_][_][_][_][_][_][_][___] [_][◼][◼] [_][_][_][_] │"), Style::default().fg(self.theme.COLOR_GREY_800))).centered());    
+        lines.push(Line::from(Span::styled(format!(" │ [__][_][_][_][r][_][_][u][_][o][p][_][_][◼ │ [_][◼][◼] [_][_][_][ | │"), Style::default().fg(self.theme.COLOR_GREY_800))).centered());    
+        lines.push(Line::from(Span::styled(format!(" │ [___][a][s][_][f][_][h][j][_][_][_][_][_][_│           [_][_][_][_| │"), Style::default().fg(self.theme.COLOR_GREY_800))).centered());    
+        lines.push(Line::from(Span::styled(format!(" │ [◼][_][_][_][c][_][_][_][m][_][.][_][______]    [◼]    [_][_][_][ | │"), Style::default().fg(self.theme.COLOR_GREY_800))).centered());    
+        lines.push(Line::from(Span::styled(format!(" │ [◼_][_][__][_____________________][__][_][_] [_][◼][_] [____][.][_| │"), Style::default().fg(self.theme.COLOR_GREY_800))).centered());    
+        lines.push(Line::from(Span::styled(format!(" ╰─────────────────────────────────────────────────────────────────────╯"), Style::default().fg(self.theme.COLOR_GREY_800))).centered());    
+        lines.push(Line::default());
         lines.push(Line::default());
 
         render_keybindings(&self.theme, &self.keymap, max_text_width / 2).iter().enumerate().for_each(|(idx, kb_line)| {
