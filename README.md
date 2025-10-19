@@ -1,3 +1,4 @@
+
 <div align="center">
   <pre>
     </br>
@@ -18,12 +19,81 @@ Beautiful and cozy terminal-based Git client
   </pre>
 </div>
 
-
 ![untitled(1)](https://github.com/user-attachments/assets/e39b0ebb-52dc-45bd-a430-0f592d5fc315)
 
----
+<div align="center">
+<pre>
+  .Keyboard Mappings
+╭─────────────────────────────────────────────────────────────────────╮
+│ [_]   [_][_][_][_] [_][_][_][_] [_][_][_][_] [_][_][_] [_][_][_][_] │
+│                                                                     │
+│ [`][1][2][_][_][_][_][_][_][_][_][_][_][___] [_][*][*] [_][_][_][_] │
+│ [__][_][_][_][r][_][_][u][_][o][p][_][_][* │ [_][*][*] [_][_][_][ | │
+│ [___][a][s][_][f][_][h][j][_][_][_][_][_][_│           [_][_][_][_| │
+│ [*][_][_][_][c][_][_][_][m][_][.][_][______]    [*]    [_][_][_][ | │
+│ [*_][_][__][_____________________][__][_][_] [_][*][_] [____][.][_| │
+╰─────────────────────────────────────────────────────────────────────╯
 
-## 🌟 Motivation
+
+Select                                                            Enter 
+Next Pane                                                           Tab 
+Previous Pane                                                 Shift + ? 
+Page Up                                                          Pageup 
+Page Down                                                      Pagedown 
+Scroll Up                                                            Up 
+Scroll Down                                                        Down 
+Scroll Up Half                                               Shift + Up 
+Scroll Down Half                                           Shift + Down 
+Scroll Up Branch                                              Ctrl + Up 
+Scroll Down Branch                                          Ctrl + Down 
+Scroll Up Commit                                               Alt + Up 
+Scroll Down Commit                                           Alt + Down 
+Go To Beginning                                                    Home 
+Go To End                                                           End 
+Jump To Branch                                                        j 
+Solo Branch                                                           o 
+Fetch                                                                 f 
+Checkout                                                              c 
+Hard Reset                                                            h 
+Mixed Reset                                                           m 
+Unstage All                                                           u 
+Stage All                                                             s 
+Commit                                                                a 
+Push                                                                  p 
+Create A New Branch                                                   b 
+Delete A Branch                                                       d 
+Go Back                                                             Esc 
+Reload                                                                r 
+Minimize                                                              . 
+Toggle Branches                                                       ` 
+Toggle Status                                                         2 
+Toggle Inspector                                                      1 
+Toggle Settings                                                      F1 
+Exit                                                           Ctrl + c 
+</pre>
+</div>
+
+### 🎨 Features
+
+- 🖼️ **Beautiful graph rendering** – visualize commit history clearly.  
+- 🚀 **Blazing-fast traversal** – works smoothly with very large repositories.  
+- ⏩ **Immediate jumps** – move through history without waiting.  
+- 🎨 **Vibrant, terminal-friendly colors** – easy on the eyes for long coding sessions.  
+- 🧰 **Built-in diff viewer** – inspect changes without leaving the terminal.  
+- 🦀 **Written in Rust** – safety, speed, and fun.  
+- 🖥️ **Pure TUI experience** – ratatui based rendering.
+
+### 🚀 Installation
+
+Clone the repo and build with Cargo:
+
+```bash
+git clone https://github.com/asinglebit/guitar.git
+cd guitar
+cargo build --release path-to-your-repo
+```
+
+### 🌟 Motivation
 
 I am building **guita╭** as a personal exercise in procrustination.
 
@@ -37,43 +107,28 @@ The goal is simple:
 
 **Why guita╭?** Because working with Git in the terminal should feel fun, not frustrating.
 
----
+### ⚠️ Work in Progress
 
-## ⚠️ Work in Progress
+**guita╭** is still a work in progress. Some areas that need attention include:
 
-**Guita╭** is still a work in progress. Some areas that need attention include:
-
-- 🧪 **Testing** – many parts of the app are experimental and require thorough testing, especially on large repositories.  
-- 🔑 **Authentication experience** – handling SSH/HTTPS credentials could be customizable.  
+- 🖥️ **Logging window** – show detailed logs and messages in-app.  
+- 🔐 **Credential manager** – smooth handling of SSH/HTTPS credentials.  
+- 🌐 **Manage remotes** – add, remove, and inspect Git remotes.  
+- 🧪 **Add tests** – many parts of the app are experimental and require thorough testing, especially on large repositories.  
+- ⚙️ **Git features**:
+    - Rename branch  
+    - Pull branch  
+    - Rebase branch  
+    - Merge branch
+    - Octopus merge handling and rendering  
+    - Cherry-pick commit  
+    - Stash  
+    - Pop  
+    - Jump to parent commit
 
 Use it with caution, and feel free to report issues or contribute improvements!
 
----
-
-## 🎨 Features
-
-- 🖼️ **Beautiful graph rendering** – visualize commit history clearly.  
-- 🚀 **Blazing-fast traversal** – works smoothly with very large repositories.  
-- ⏩ **Immediate jumps** – move through history without waiting.  
-- 🎨 **Vibrant, terminal-friendly colors** – easy on the eyes for long coding sessions.  
-- 🧰 **Built-in diff viewer** – inspect changes without leaving the terminal.  
-- 🦀 **Written in Rust** – safety, speed, and fun.  
-- 🖥️ **Pure TUI experience** – ratatui based rendering.
-
----
-
-## 🚀 Installation
-
-Clone the repo and build with Cargo:
-
-```bash
-git clone https://github.com/asinglebit/guitar.git
-cd guitar
-cargo build --release path-to-your-repo
-```
----
-
-## 🖼️ Screenshots
+### 🖼️ Screenshots
 
 <img width="1920" height="1008" alt="untitled" src="https://github.com/user-attachments/assets/5e175648-efc5-46a4-8fc1-6dda4c709d8e" />
 <img width="1920" height="1080" alt="1" src="https://github.com/user-attachments/assets/87db026a-f419-46e3-8f20-f6389f3fa967" />
@@ -83,25 +138,3 @@ cargo build --release path-to-your-repo
 <img width="1920" height="1080" alt="5" src="https://github.com/user-attachments/assets/edc667bd-fb27-4b4c-8a4b-03ace73904a9" />
 <img width="1920" height="1080" alt="6" src="https://github.com/user-attachments/assets/93c4e948-e3f3-49dd-aa63-a6fef5f6c1c4" />
 <img width="1920" height="1080" alt="7" src="https://github.com/user-attachments/assets/b1534ac9-15a0-406d-97d4-8e15205b2d8d" />
-
----
-
-## 📝 TODOs
-
-Some things I still need to implement:
-
-- 🖥️ **Logging window** – show detailed logs and messages in-app.  
-- 🔐 **Credential manager** – smooth handling of SSH/HTTPS credentials.  
-- 🌐 **Manage remotes** – add, remove, and inspect Git remotes.  
-- 🧪 **Add tests** – improve reliability and catch edge cases.  
-- ⚙️ **Git features**:
-    - Create branch  
-    - Delete branch  
-    - Rename branch  
-    - Pull branch  
-    - Rebase branch  
-    - Merge branch  
-    - Cherry-pick commit  
-    - Stash  
-    - Pop  
-    - Jump to parent commit
