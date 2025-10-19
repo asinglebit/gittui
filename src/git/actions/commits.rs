@@ -297,3 +297,26 @@ pub fn create_branch(repo: &Repository, branch_name: &str, target_oid: Oid) -> R
 
     Ok(())
 }
+
+pub fn delete_branch(repo: &Repository, branch: &str) -> Result<(), Error> {
+
+    // Try deleting as a local branch first
+    if let Ok(mut local_branch) = repo.find_branch(branch, BranchType::Local) {
+
+        // Delete the local branch
+        local_branch.delete()?;
+    } else {
+
+        // Delete remote-tracking branch (assume "origin" remote for now)
+        let ref_name = format!("refs/remotes/origin/{}", branch);
+
+        if let Ok(mut reference) = repo.find_reference(&ref_name) {
+            reference.delete()?;
+        } else {
+            // Branch not found locally or remotely
+            return Err(Error::from_str(&format!("Branch '{}' not found", branch)));
+        }
+    }
+
+    Ok(())
+}

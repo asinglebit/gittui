@@ -176,6 +176,9 @@ impl Default for App {
             create_branch_editor: EditorState::default(),
             create_branch_editor_event_handler: EditorEventHandler::default(),
 
+            // Modal delete branch
+            modal_delete_branch_selected: 0,
+
             // Exit
             is_exit: false,   
         }

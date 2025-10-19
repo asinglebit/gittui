@@ -21,7 +21,7 @@ use ratatui::{
 use edtui::{
     EditorMode,
 };
-use crate::git::actions::commits::create_branch;
+use crate::git::actions::commits::{create_branch, delete_branch};
 #[rustfmt::skip]
 use crate::{
     app::app::{
@@ -94,6 +94,7 @@ pub enum Command {
     Commit,
     Push,
     CreateANewBranch,
+    DeleteABranch,
     
     // Layout
     GoBack,
@@ -154,6 +155,7 @@ impl App {
         map.insert(KeyBinding::new(Char('a'), KeyModifiers::NONE), Command::Commit);
         map.insert(KeyBinding::new(Char('p'), KeyModifiers::NONE), Command::Push);
         map.insert(KeyBinding::new(Char('b'), KeyModifiers::NONE), Command::CreateANewBranch);
+        map.insert(KeyBinding::new(Char('d'), KeyModifiers::NONE), Command::DeleteABranch);
 
         // Layout
         map.insert(KeyBinding::new(Esc, KeyModifiers::NONE), Command::GoBack);
@@ -303,6 +305,7 @@ impl App {
                 Command::Commit => self.on_commit(),
                 Command::Push => self.on_push(),
                 Command::CreateANewBranch => self.on_create_branch(),
+                Command::DeleteABranch => self.on_delete_branch(),
                 
                 // Layout
                 Command::GoBack => self.on_go_back(),
@@ -413,6 +416,25 @@ impl App {
                 self.modal_solo_selected = 0;
                 self.focus = Focus::Viewport;
                 self.reload();
+            }
+            Focus::ModalDeleteBranch => {
+                let branches = self
+                    .visible_branches
+                    .get(self.oids.get(self.graph_selected).unwrap())
+                    .cloned()
+                    .unwrap_or_default();
+                let branch = branches.get(self.modal_delete_branch_selected as usize).unwrap();
+                match delete_branch(&self.repo, branch) {
+                    Ok(_) => {
+                        self.visible_branches.clear();
+                        self.modal_delete_branch_selected = 0;
+                        self.focus = Focus::Viewport;
+                        self.reload();
+                    }
+                    Err(err) => {
+                        // TODO
+                    }
+                }
             }
             Focus::StatusTop | Focus::StatusBottom => {
                 self.open_viewer();
@@ -686,6 +708,26 @@ impl App {
                     self.modal_solo_selected - 1
                 };
             }
+            Focus::ModalDeleteBranch => {
+                let branches = self
+                    .visible_branches
+                    .entry(*self.oids.get(self.graph_selected).unwrap())
+                    .or_default();
+                let length = match get_current_branch(&self.repo) {
+                    Some(current) => {
+                        branches.iter().filter(|branch| current != **branch).count()
+                    }
+                    None => {
+                        branches.len()
+                    }
+                };
+
+                self.modal_delete_branch_selected = if self.modal_delete_branch_selected - 1 < 0 {
+                    length as i32 - 1
+                } else {
+                    self.modal_delete_branch_selected - 1
+                };
+            }
             _ => {}
         }
     }
@@ -749,6 +791,27 @@ impl App {
                         0
                     } else {
                         self.modal_solo_selected + 1
+                    };
+            }
+            Focus::ModalDeleteBranch => {
+                let branches = self
+                    .visible_branches
+                    .entry(*self.oids.get(self.graph_selected).unwrap())
+                    .or_default();
+                let length = match get_current_branch(&self.repo) {
+                    Some(current) => {
+                        branches.iter().filter(|branch| current != **branch).count()
+                    }
+                    None => {
+                        branches.len()
+                    }
+                };                
+
+                self.modal_delete_branch_selected =
+                    if self.modal_delete_branch_selected + 1 > length as i32 - 1 {
+                        0
+                    } else {
+                        self.modal_delete_branch_selected + 1
                     };
             }
             _ => {}
@@ -1163,6 +1226,69 @@ impl App {
                 }
             }
         }
+    }
+
+    pub fn on_delete_branch(&mut self) {
+        match self.viewport {
+            Viewport::Settings | Viewport::Viewer | Viewport::Editor => {}
+            _ => {
+                match self.focus {
+                    Focus::Branches => {
+                        let branch = &self.oid_branch_vec.get(self.branches_selected).unwrap().1;
+                        let proceed = if let Some(current) = get_current_branch(&self.repo) {
+                            current != *branch
+                        } else {
+                            true
+                        };
+                        if proceed {
+                            match delete_branch(&self.repo, branch) {
+                                Ok(_) => {
+                                    self.visible_branches.clear();
+                                    self.reload();
+                                }
+                                _ => {}
+                            };
+                        }
+                    }
+                    Focus::Viewport => {
+                        if self.graph_selected != 0 {
+
+                            let oid = *self.oids.get(if self.graph_selected == 0 { 1 } else { self.graph_selected }).unwrap();
+                            let current = get_current_branch(&self.repo);
+
+                            if let Some(branches) = self.visible_branches.get(&oid) {
+                                // Filter out the current branch, if any
+                                let filtered_branches: Vec<_> = branches
+                                    .iter()
+                                    .filter(|branch| current.as_ref().map_or(true, |c| c != *branch))
+                                    .collect();
+
+                                match filtered_branches.len() {
+                                    0 => {
+                                        return;
+                                    }
+                                    1 => {
+                                        match delete_branch(&self.repo, filtered_branches[0]) {
+                                            Ok(_) => {
+                                                self.visible_branches.clear();
+                                                self.reload();
+                                            }
+                                            _ => {}
+                                        };
+                                    }
+                                    _ => {
+                                        self.focus = Focus::ModalDeleteBranch;
+                                    }
+                                }
+                            }
+
+                            return;
+                        }
+                    }
+                    _ => {}
+                };
+            }
+        };
     }
 
     pub fn on_go_back(&mut self) {
