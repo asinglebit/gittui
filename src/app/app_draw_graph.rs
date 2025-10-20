@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-=======
-use ratatui::{buffer, symbols::line::BOTTOM_LEFT, widgets::Padding};
->>>>>>> 00a51af (Implementing deltas)
 #[rustfmt::skip]
 use ratatui::{
     Frame,
@@ -14,7 +10,7 @@ use ratatui::{
         Scrollbar,
         ScrollbarOrientation,
         ScrollbarState,
-        Table,
+        Table
     },
 };
 #[rustfmt::skip]
@@ -28,9 +24,11 @@ use crate::{
     },
 };
 #[rustfmt::skip]
-use crate::app::app::{
-    App,
-    Focus
+use crate::{
+    app::app::{
+        App,
+        Focus
+    },
 };
 
 impl App {
@@ -68,7 +66,7 @@ impl App {
         let head = self.repo.head().unwrap().target().unwrap();
 
         // Rendered lines
-        let buffer_range = render_buffer_range(&self.oids, &self.oids, &buffer.history, start, end + 1);
+        let buffer_range = render_buffer_range(&self.theme, &self.oids, &buffer.history, start, end + 1);
         let graph_range = render_graph_range(
             &self.theme,
             &self.oids,
