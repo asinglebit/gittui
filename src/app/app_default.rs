@@ -129,7 +129,7 @@ impl Default for App {
             is_branches: false,
             is_status: false,
             is_inspector: false,
-            viewport: Viewport::Settings,
+            viewport: Viewport::Splash,
             focus: Focus::Viewport,
 
             // Branches
