@@ -38,8 +38,8 @@ impl App {
     pub fn draw_modal_delete_branch(&mut self, frame: &mut Frame) {
         
         let current = get_current_branch(&self.repo);
-        let oid = *self.oids.get(self.graph_selected).unwrap();
-        let color = self.tip_colors.get(&oid).unwrap();
+        let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
+        let color = self.tip_colors.get(oidi).unwrap();
         
         let mut lines = Vec::new();
         let mut length = 25;
@@ -75,7 +75,7 @@ impl App {
         lines.push(Line::default());
             
         let mut height = 10;
-        let branches = self.visible_branches.get(&oid).unwrap();
+        let branches = self.visible_branches.get(oidi).unwrap();
 
         branches
             .iter()

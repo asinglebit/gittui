@@ -7,7 +7,6 @@ use im::{
 use indexmap::IndexMap;
 #[rustfmt::skip]
 use std::{
-    fmt::format,
     cell::RefCell,
     collections::HashMap,
     rc::Rc
@@ -28,7 +27,7 @@ use ratatui::{
         Span
     },
 };
-use crate::core::layers::LayersContext;
+use crate::core::{chunk::NONE, layers::LayersContext};
 #[rustfmt::skip]
 use crate::{
     core::chunk::Chunk,
@@ -55,12 +54,13 @@ use crate::{
 
 pub fn render_graph_range(
     theme: &Theme,
-    oids: &[Oid],
-    tips: &HashMap<Oid, Vec<String>>,
+    oidi_sorted: &Vec<u32>,
+    oidi_to_oid: &Vec<Oid>,
+    tips: &HashMap<u32, Vec<String>>,
     layers: &mut LayersContext,
-    tip_colors: &mut HashMap<Oid, Color>,
+    tip_colors: &mut HashMap<u32, Color>,
     history: &Vector<Vector<Chunk>>,
-    head_oid: Oid,
+    head_oidi: u32,
     start: usize,
     end: usize,
 ) -> Vec<Line<'static>> {
@@ -76,7 +76,11 @@ pub fn render_graph_range(
     // return lines;
 
     // Go through the commits, inferring the graph
-    for (global_idx, oid) in oids.iter().enumerate().take(end).skip(start) {
+    for (global_idx, oidi) in oidi_sorted.iter().enumerate().take(end).skip(start) {
+
+        let zero = Oid::zero();
+        let oid = oidi_to_oid.get(*oidi as usize).unwrap_or(&zero);
+
         layers.clear();
         let mut spans = vec![Span::raw(" ")];
 
@@ -84,7 +88,6 @@ pub fn render_graph_range(
         let mut is_commit_found = false;
         let mut is_merged_before = false;
         let mut lane_idx = 0;
-
 
         let p = global_idx - start - 1;
         let l = global_idx - start;
@@ -108,8 +111,8 @@ pub fn render_graph_range(
                 if let Some(prev_snapshot) = prev
                     && let Some(prev) = prev_snapshot.get(lane_idx)
                 {
-                    if (prev.parent_a.is_some() && prev.parent_b.is_none())
-                        || (prev.parent_a.is_none() && prev.parent_b.is_some())
+                    if (prev.parent_a != NONE && prev.parent_b == NONE)
+                        || (prev.parent_a == NONE && prev.parent_b != NONE)
                     {
                         branching_lanes.push(lane_idx);
                     }
@@ -141,8 +144,8 @@ pub fn render_graph_range(
                 if let Some(prev_snapshot) = prev
                     && let Some(prev) = prev_snapshot.get(lane_idx)
                 {
-                    if (prev.parent_a.is_some() && prev.parent_b.is_none())
-                        || (prev.parent_a.is_none() && prev.parent_b.is_some())
+                    if (prev.parent_a != NONE && prev.parent_b == NONE)
+                        || (prev.parent_a == NONE && prev.parent_b != NONE)
                     {
                         layers.commit(SYM_EMPTY, lane_idx);
                         layers.commit(SYM_EMPTY, lane_idx);
@@ -155,12 +158,12 @@ pub fn render_graph_range(
                         layers.pipe(SYM_EMPTY, lane_idx);
                     }
                 }
-            } else if Some(oid) == chunk.oid.as_ref() {
+            } else if *oidi == chunk.oidi {
                 is_commit_found = true;
-                let is_two_parents = chunk.parent_a.is_some() && chunk.parent_b.is_some();
-                if is_two_parents && !(tips.contains_key(oid)) {
+                let is_two_parents = chunk.parent_a != NONE && chunk.parent_b != NONE;
+                if is_two_parents && !(tips.contains_key(oidi)) {
                     layers.commit(SYM_MERGE, lane_idx);
-                } else if (tips.contains_key(oid)) {
+                } else if (tips.contains_key(oidi)) {
                     layers.commit(SYM_COMMIT_BRANCH, lane_idx);
                     // tip_colors.insert(*oid, color.borrow().get(lane_idx));
                 } else {
@@ -178,9 +181,9 @@ pub fn render_graph_range(
                     let mut merger_idx: usize = 0;
 
                     for chunk_nested in last {
-                        if ((chunk_nested.parent_a.is_some() && chunk_nested.parent_b.is_none())
-                            || (chunk_nested.parent_a.is_none() && chunk_nested.parent_b.is_some()))
-                            && chunk.parent_b.as_ref() == chunk_nested.parent_a.as_ref()
+                        if ((chunk_nested.parent_a != NONE && chunk_nested.parent_b == NONE)
+                            || (chunk_nested.parent_a == NONE && chunk_nested.parent_b != NONE))
+                            && chunk.parent_b == chunk_nested.parent_a
                         {
                             is_merger_found = true;
                             break;
@@ -190,7 +193,7 @@ pub fn render_graph_range(
 
                     let mut mergee_idx: usize = 0;
                     for chunk_nested in last {
-                        if Some(oid) == chunk_nested.oid.as_ref() {
+                        if *oidi == chunk_nested.oidi {
                             break;
                         }
                         mergee_idx += 1;
@@ -198,7 +201,7 @@ pub fn render_graph_range(
 
                     for (chunk_nested_idx, chunk_nested) in last.iter().enumerate() {
                         if !is_mergee_found {
-                            if Some(oid) == chunk_nested.oid.as_ref() {
+                            if *oidi == chunk_nested.oidi {
                                 is_mergee_found = true;
                                 if is_merger_found {
                                     is_drawing = !is_drawing;
@@ -213,13 +216,13 @@ pub fn render_graph_range(
                                 if !is_merger_found {
                                     layers.merge(SYM_EMPTY, merger_idx);
                                     layers.merge(SYM_EMPTY, merger_idx);
-                                } else if ((chunk_nested.parent_a.is_some()
-                                    && chunk_nested.parent_b.is_none())
-                                    || (chunk_nested.parent_a.is_none()
-                                        && chunk_nested.parent_b.is_some()))
-                                    && (chunk.parent_a.as_ref() == chunk_nested.parent_a.as_ref()
-                                        || chunk.parent_b.as_ref()
-                                            == chunk_nested.parent_a.as_ref())
+                                } else if ((chunk_nested.parent_a != NONE
+                                    && chunk_nested.parent_b == NONE)
+                                    || (chunk_nested.parent_a == NONE
+                                        && chunk_nested.parent_b != NONE))
+                                    && (chunk.parent_a == chunk_nested.parent_a
+                                        || chunk.parent_b
+                                            == chunk_nested.parent_a)
                                 {
                                     // We need to find if the merger is further to the left than on the next lane
                                     if chunk_nested_idx == merger_idx {
@@ -250,13 +253,12 @@ pub fn render_graph_range(
                         } else {
                             // After the commit
                             if is_merger_found && !is_merged_before {
-                                if ((chunk_nested.parent_a.is_some()
-                                    && chunk_nested.parent_b.is_none())
-                                    || (chunk_nested.parent_a.is_none()
-                                        && chunk_nested.parent_b.is_some()))
-                                    && (chunk.parent_a.as_ref() == chunk_nested.parent_a.as_ref()
-                                        || chunk.parent_b.as_ref()
-                                            == chunk_nested.parent_a.as_ref())
+                                if ((chunk_nested.parent_a != NONE
+                                    && chunk_nested.parent_b == NONE)
+                                    || (chunk_nested.parent_a == NONE
+                                        && chunk_nested.parent_b != NONE))
+                                    && (chunk.parent_a == chunk_nested.parent_a
+                                        || chunk.parent_b == chunk_nested.parent_a)
                                 {
                                     layers.merge(SYM_MERGE_LEFT_FROM, merger_idx);
                                     layers.merge(SYM_EMPTY, merger_idx);
@@ -316,12 +318,12 @@ pub fn render_graph_range(
             } else {
                 layers.commit(SYM_EMPTY, lane_idx);
                 layers.commit(SYM_EMPTY, lane_idx);
-                if (chunk.parent_a.as_ref() == Some(&head_oid)
-                    || chunk.parent_b.as_ref() == Some(&head_oid))
+                if (chunk.parent_a == head_oidi
+                    || chunk.parent_b == head_oidi)
                     && lane_idx == 0
                 {
                     layers.pipe_custom(SYM_VERTICAL_DOTTED, lane_idx, theme.COLOR_GREY_500);
-                } else if chunk.parent_a.is_none() && chunk.parent_b.is_none() {
+                } else if chunk.parent_a == NONE && chunk.parent_b == NONE {
                     // layers.pipe(SYM_VERTICAL_DOTTED, lane_idx);
                     layers.pipe(" ", lane_idx);
                 } else {
@@ -334,7 +336,7 @@ pub fn render_graph_range(
         }
 
         if !is_commit_found {
-            if tips.contains_key(oid) {
+            if tips.contains_key(oidi) {
                 layers.commit(SYM_COMMIT_BRANCH, lane_idx);
                 // tip_colors.insert(*oid, color.borrow().get(lane_idx));
             } else {
@@ -403,7 +405,8 @@ pub fn remove_empty_columns(lines: &mut Vec<Line<'_>>) {
 #[allow(dead_code)]
 pub fn render_buffer_range(
     theme: &Theme,
-    oids: &[Oid],
+    oidi_sorted: &Vec<u32>,
+    oidi_to_oid: &Vec<Oid>,
     history: &Vector<Vector<Chunk>>,
     start: usize,
     end: usize,
@@ -417,27 +420,32 @@ pub fn render_buffer_range(
     for snapshot in history.iter().skip(start + 1).take(end + 1 - start - 1) {
         let mut spans = Vec::new();
 
+        let oidi = oidi_sorted.get(idx).unwrap_or(&NONE);
+        let zero = Oid::zero();
+        let oid = oidi_to_oid.get(*oidi as usize).unwrap_or(&zero);
+
         spans.push(Span::styled(
-            format!("{:.2} ", *oids.get(idx).unwrap_or(&Oid::zero())),
+            format!("{:.2} ", oid),
             Style::default().fg(theme.COLOR_TEXT),
         ));
 
         let formatted_snapshot: String = snapshot
             .iter()
-            .map(|metadata| {
-                let oid_str = metadata
-                    .oid
-                    .as_ref()
-                    .map_or("--".to_string(), |o| o.to_string());
-
-                let parents_formatted = match (&metadata.parent_a, &metadata.parent_b) {
-                    (Some(a), Some(b)) => format!("{:.2},{:.2}", a, b),
-                    (Some(a), None) => format!("{:.2},--", a),
-                    (None, Some(b)) => format!("--,{:.2}", b),
-                    (None, None) => "--,--".to_string(),
+            .map(|chunk| {
+                let oid_str = if chunk.oidi == NONE {
+                    "--".to_string()
+                } else {
+                    format!("{}", chunk.oidi)
                 };
 
-                format!("{}({:<5})", &oid_str[..2], parents_formatted)
+                let parents_formatted = match (chunk.parent_a, chunk.parent_b) {
+                    (NONE, NONE) => "--,--".to_string(),
+                    (a, NONE) => format!("{:.2},--", a),
+                    (NONE, b) => format!("--,{:.2}", b),
+                    (a, b) => format!("{:.2},{:.2}", a, b),
+                };
+
+                format!("{}({:<5})", &oid_str, parents_formatted)
             })
             .collect::<Vec<String>>()
             .join(" ");
@@ -457,10 +465,11 @@ pub fn render_buffer_range(
 pub fn render_message_range(
     theme: &Theme,
     repo: &Repository,
-    oids: &[Oid],
-    tips_local: &HashMap<Oid, Vec<String>>,
-    visible_branches: &HashMap<Oid, Vec<String>>,
-    tip_colors: &mut HashMap<Oid, Color>,
+    oidi_sorted: &Vec<u32>,
+    oidi_to_oid: &Vec<Oid>,
+    tips_local: &HashMap<u32, Vec<String>>,
+    visible_branches: &HashMap<u32, Vec<String>>,
+    tip_colors: &mut HashMap<u32, Color>,
     start: usize,
     end: usize,
     selected: usize,
@@ -470,13 +479,15 @@ pub fn render_message_range(
 
     // Go through the commits, inferring the graph
     for global_idx in start..end {
-        let oid = *oids.get(global_idx).unwrap();
+        let oidi = oidi_sorted.get(global_idx).unwrap();
         let mut spans = Vec::new();
 
-        if oid != Oid::zero() {
-            let commit = repo.find_commit(*oids.get(global_idx).unwrap()).unwrap();
+        if *oidi != NONE {
+            let zero = Oid::zero();
+            let oid = oidi_to_oid.get(*oidi as usize).unwrap_or(&zero);
+            let commit = repo.find_commit(*oid).unwrap();
 
-            if let Some(visible) = visible_branches.get(&oid) {
+            if let Some(visible) = visible_branches.get(oidi) {
                 for branch in visible {
                     // Only render branches that are visible
                     if visible.iter().any(|b| b == branch) {
@@ -491,7 +502,7 @@ pub fn render_message_range(
                                 if is_local { SYM_COMMIT_BRANCH } else { "◆" },
                                 branch
                             ),
-                            Style::default().fg(if let Some(color) = tip_colors.get(&oid) {
+                            Style::default().fg(if let Some(color) = tip_colors.get(oidi) {
                                 *color
                             } else {
                                 theme.COLOR_TEXT
