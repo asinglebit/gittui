@@ -133,7 +133,7 @@ impl Buffer {
         let old = std::mem::take(&mut self.delta);
         self.deltas.push_back(old);
         let idx = self.deltas.len().saturating_sub(1);
-        if  idx % 500 == 0 {
+        if  idx % 100 == 0 {
             self.checkpoints.insert(idx, self.curr.clone());
         }        
     }
