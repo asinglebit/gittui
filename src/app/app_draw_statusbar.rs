@@ -13,12 +13,6 @@ use ratatui::{
 };
 #[rustfmt::skip]
 use crate::{
-    helpers::{
-        palette::*,
-    },
-};
-#[rustfmt::skip]
-use crate::{
     app::app::{
         App,
         Focus,
@@ -56,7 +50,7 @@ impl App {
 
         let total = match self.focus {
             Focus::Viewport => match self.viewport {
-                Viewport::Graph => self.oids.len(),
+                Viewport::Graph => self.oidi_sorted.len(),
                 Viewport::Viewer => self.viewer_lines.len(),
                 _ => 0,
             },

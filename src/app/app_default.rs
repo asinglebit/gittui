@@ -100,7 +100,9 @@ impl Default for App {
             walker_handle: None,
 
             // Walker data
-            oids: Vec::new(),
+            oidi_to_oid: Vec::new(),
+            oid_to_oidi: HashMap::new(),
+            oidi_sorted: Vec::new(),
             tips_local: HashMap::new(),
             tips_remote: HashMap::new(),
             tips: HashMap::new(),

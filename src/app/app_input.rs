@@ -21,7 +21,7 @@ use ratatui::{
 use edtui::{
     EditorMode,
 };
-use crate::git::actions::commits::{create_branch, delete_branch};
+use crate::{core::chunk::NONE, git::actions::commits::{create_branch, delete_branch}};
 #[rustfmt::skip]
 use crate::{
     app::app::{
@@ -223,8 +223,9 @@ impl App {
                             self.focus = Focus::Viewport;
                         }
                         KeyCode::Enter => {
-                            let oid = *self.oids.get(if self.graph_selected == 0 { 1 } else { self.graph_selected }).unwrap();
-                            match create_branch(&self.repo, &editor_state_to_string(&self.create_branch_editor), oid) {
+                            let oidi = self.oidi_sorted.get(if self.graph_selected == 0 { 1 } else { self.graph_selected }).unwrap(); 
+                            let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
+                            match create_branch(&self.repo, &editor_state_to_string(&self.create_branch_editor), *oid) {
                                 Ok(_) => {
                                     self.visible_branches.clear();
                                     self.create_branch_editor = edtui::EditorState::default();
@@ -369,10 +370,12 @@ impl App {
                 }
             }
             Focus::ModalCheckout => {
-                let oid = *self.oids.get(self.graph_selected).unwrap();
+                
+                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap(); 
+
                 let branches = self
                     .visible_branches
-                    .get(self.oids.get(self.graph_selected).unwrap())
+                    .get(oidi)
                     .cloned()
                     .unwrap_or_default();
                 
@@ -380,7 +383,7 @@ impl App {
                     &self.repo,
                     &mut self.visible_branches,
                     &mut self.tips_local,
-                    oid,
+                    *oidi,
                     branches.get(self.modal_checkout_selected as usize).unwrap(),
                 )
                 .expect("Error");
@@ -389,10 +392,10 @@ impl App {
                 self.reload();
             }
             Focus::ModalSolo => {
-                let oid = *self.oids.get(self.graph_selected).unwrap();
+                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap(); 
                 let branches = self
                     .visible_branches
-                    .get(self.oids.get(self.graph_selected).unwrap())
+                    .get(oidi)
                     .cloned()
                     .unwrap_or_default();
                 let branch = branches.get(self.modal_solo_selected as usize).unwrap();
@@ -400,15 +403,15 @@ impl App {
                 // Check if the same branch is already the only one visible
                 let already_visible = 
                     self.visible_branches.len() == 1 &&
-                    self.visible_branches.entry(oid).or_default().len() == 1 &&
-                    self.visible_branches.entry(oid).or_default().contains(branch);
+                    self.visible_branches.entry(*oidi).or_default().len() == 1 &&
+                    self.visible_branches.entry(*oidi).or_default().contains(branch);
 
                 if already_visible {
                     self.visible_branches.clear();
                 } else {
                     self.visible_branches.clear();
                     self.visible_branches
-                        .entry(oid)
+                        .entry(*oidi)
                         .and_modify(|branches| branches.push(branch.clone()))
                         .or_insert_with(|| vec![branch.clone()]);
                 }
@@ -418,9 +421,10 @@ impl App {
                 self.reload();
             }
             Focus::ModalDeleteBranch => {
+                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap(); 
                 let branches = self
                     .visible_branches
-                    .get(self.oids.get(self.graph_selected).unwrap())
+                    .get(oidi)
                     .cloned()
                     .unwrap_or_default();
                 let branch = branches.get(self.modal_delete_branch_selected as usize).unwrap();
@@ -550,8 +554,9 @@ impl App {
                             self.graph_selected = 0;
                         }
 
-                        if self.graph_selected != 0 && self.graph_selected < self.oids.len() {
-                            let oid = self.oids.get(self.graph_selected).unwrap();
+                        if self.graph_selected != 0 && self.graph_selected < self.oidi_sorted.len() {
+                            let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
+                            let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
                             self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                         }
                     }
@@ -584,8 +589,9 @@ impl App {
             _ => {}
         };
 
-        if self.graph_selected != 0 && self.graph_selected < self.oids.len() {
-            let oid = self.oids.get(self.graph_selected).unwrap();
+        if self.graph_selected != 0 && self.graph_selected < self.oidi_sorted.len() {
+            let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
+            let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
             self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
         }
     }
@@ -600,13 +606,14 @@ impl App {
                 let page = self.layout.graph.height as usize - 1;
                 match self.viewport {
                     Viewport::Graph => {
-                        if self.graph_selected + page < self.oids.len() {
+                        if self.graph_selected + page < self.oidi_sorted.len() {
                             self.graph_selected += page;
                         } else {
-                            self.graph_selected = self.oids.len() - 1;
+                            self.graph_selected = self.oidi_sorted.len() - 1;
                         }
-                        if self.graph_selected != 0 && self.graph_selected < self.oids.len() {
-                            let oid = self.oids.get(self.graph_selected).unwrap();
+                        if self.graph_selected != 0 && self.graph_selected < self.oidi_sorted.len() {
+                            let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
+                            let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
                             self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                         }
                     }
@@ -639,8 +646,9 @@ impl App {
             _ => {}
         };
 
-        if self.graph_selected != 0 && self.graph_selected < self.oids.len() {
-            let oid = self.oids.get(self.graph_selected).unwrap();
+        if self.graph_selected != 0 && self.graph_selected < self.oidi_sorted.len() {
+            let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
+            let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
             self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
         }
     }
@@ -659,8 +667,9 @@ impl App {
                                 self.focus = Focus::Viewport;
                             }
                         }
-                        if self.graph_selected != 0 && self.graph_selected < self.oids.len() {
-                            let oid = self.oids.get(self.graph_selected).unwrap();
+                        if self.graph_selected != 0 && self.graph_selected < self.oidi_sorted.len() {
+                            let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
+                            let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
                             self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                         }
                     }
@@ -687,9 +696,10 @@ impl App {
                 self.status_bottom_selected = self.status_bottom_selected.saturating_sub(1);
             }
             Focus::ModalCheckout => {
+                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
                 let branches = self
                     .visible_branches
-                    .entry(*self.oids.get(self.graph_selected).unwrap())
+                    .entry(*oidi)
                     .or_default();
                 self.modal_checkout_selected = if self.modal_checkout_selected - 1 < 0 {
                     branches.len() as i32 - 1
@@ -698,9 +708,10 @@ impl App {
                 };
             }
             Focus::ModalSolo => {
+                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
                 let branches = self
                     .visible_branches
-                    .entry(*self.oids.get(self.graph_selected).unwrap())
+                    .entry(*oidi)
                     .or_default();
                 self.modal_solo_selected = if self.modal_solo_selected - 1 < 0 {
                     branches.len() as i32 - 1
@@ -709,9 +720,10 @@ impl App {
                 };
             }
             Focus::ModalDeleteBranch => {
+                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
                 let branches = self
                     .visible_branches
-                    .entry(*self.oids.get(self.graph_selected).unwrap())
+                    .entry(*oidi)
                     .or_default();
                 let length = match get_current_branch(&self.repo) {
                     Some(current) => {
@@ -739,11 +751,12 @@ impl App {
             }
             Focus::Viewport => match self.viewport {
                 Viewport::Graph => {
-                    if self.graph_selected + 1 < self.oids.len() {
+                    if self.graph_selected + 1 < self.oidi_sorted.len() {
                         self.graph_selected += 1;
                     }
-                    if self.graph_selected != 0 && self.graph_selected < self.oids.len() {
-                        let oid = self.oids.get(self.graph_selected).unwrap();
+                    if self.graph_selected != 0 && self.graph_selected < self.oidi_sorted.len() {
+                        let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
+                        let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
                         self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                     }
                 }
@@ -768,9 +781,10 @@ impl App {
                 self.status_bottom_selected += 1;
             }
             Focus::ModalCheckout => {
+                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
                 let branches = self
                     .visible_branches
-                    .entry(*self.oids.get(self.graph_selected).unwrap())
+                    .entry(*oidi)
                     .or_default();
 
                 self.modal_checkout_selected =
@@ -781,9 +795,10 @@ impl App {
                     };
             }
             Focus::ModalSolo => {
+                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
                 let branches = self
                     .visible_branches
-                    .entry(*self.oids.get(self.graph_selected).unwrap())
+                    .entry(*oidi)
                     .or_default();
 
                 self.modal_solo_selected =
@@ -794,9 +809,10 @@ impl App {
                     };
             }
             Focus::ModalDeleteBranch => {
+                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
                 let branches = self
                     .visible_branches
-                    .entry(*self.oids.get(self.graph_selected).unwrap())
+                    .entry(*oidi)
                     .or_default();
                 let length = match get_current_branch(&self.repo) {
                     Some(current) => {
@@ -838,8 +854,8 @@ impl App {
         match self.focus {
             Focus::Viewport => match self.viewport {
                 Viewport::Graph => {
-                    self.graph_selected = (self.oids.len() - 1)
-                        .min(self.graph_selected + (self.oids.len() - self.graph_selected) / 2);
+                    self.graph_selected = (self.oidi_sorted.len() - 1)
+                        .min(self.graph_selected + (self.oidi_sorted.len() - self.graph_selected) / 2);
                 }
                 _ => {}
             },
@@ -890,16 +906,18 @@ impl App {
         match self.focus {
             Focus::Viewport => match self.viewport {
                 Viewport::Graph => {
-                    let current_oid = *self.oids.get(self.graph_selected).unwrap();
-                    if current_oid == Oid::zero() { return; }
+                    let current_oidi = *self.oidi_sorted.get(self.graph_selected).unwrap();
+                    let current_oid = self.oidi_to_oid.get(current_oidi as usize).unwrap();
+                    if current_oidi == NONE { return; }
                     
                     let child_positions: Vec<usize> = self
-                        .oids
+                        .oidi_sorted
                         .iter()
                         .enumerate()
-                        .filter_map(|(idx, &oid)| {
-                            let commit = self.repo.find_commit(oid).ok()?;
-                            if commit.parent_ids().any(|parent_oid| parent_oid == current_oid) {
+                        .filter_map(|(idx, &oidi)| {
+                            let oid = self.oidi_to_oid.get(oidi as usize).unwrap();
+                            let commit = self.repo.find_commit(*oid).ok()?;
+                            if commit.parent_ids().any(|parent_oid| parent_oid == *current_oid) {
                                 Some(idx)
                             } else {
                                 None
@@ -924,23 +942,26 @@ impl App {
         match self.focus {
             Focus::Viewport => match self.viewport {
                 Viewport::Graph => {
-                    let oid = *self.oids.get(self.graph_selected).unwrap();
-                    if oid == Oid::zero() {
+                    let oidi = *self.oidi_sorted.get(self.graph_selected).unwrap();
+                    let oid = self.oidi_to_oid.get(oidi as usize).unwrap();
+
+                    if oidi == NONE {
                         self.graph_selected = 1;
                         return;
                     }
 
-                    let commit = self.repo.find_commit(oid).unwrap();
+                    let commit = self.repo.find_commit(*oid).unwrap();
                     let mut parents = commit.parent_ids();
 
                     if parents.len() == 0 {
                         return;
                     } else {
                         let parent_oid = parents.next().unwrap();
+                        let parent_oidi = self.oid_to_oidi.get(&parent_oid).unwrap();
                         let next = self
-                            .oids
+                            .oidi_sorted
                             .iter()
-                            .position(|&oid| oid == parent_oid)
+                            .position(|&oidi| oidi == *parent_oidi)
                             .unwrap();
                         self.graph_selected = next;
                     }
@@ -1015,8 +1036,8 @@ impl App {
         match self.focus {
             Focus::Branches => {
                 self.viewport = Viewport::Graph;
-                let oid = self.oid_branch_vec.get(self.branches_selected).unwrap().0;
-                self.graph_selected = self.oids.iter().position(|o| o == &oid).unwrap_or(0);
+                let oidi = self.oid_branch_vec.get(self.branches_selected).unwrap().0;
+                self.graph_selected = self.oidi_sorted.iter().position(|o| o == &oidi).unwrap_or(0);
             }
             _ => {}
         };
@@ -1049,10 +1070,12 @@ impl App {
                 if self.focus == Focus::Viewport && self.viewport != Viewport::Graph || self.graph_selected == 0 {
                     return;
                 }
-                let oid = *self.oids.get(self.graph_selected).unwrap();
+
+                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
+
                 let branches = self
                     .visible_branches
-                    .get(self.oids.get(self.graph_selected).unwrap())
+                    .get(oidi)
                     .cloned()
                     .unwrap_or_default();
                 if branches.is_empty() {
@@ -1060,12 +1083,12 @@ impl App {
                 }
                 if branches.len() == 1 {
                     let branch = branches.first().unwrap();
-                    if self.visible_branches.len() == 1 && self.visible_branches.entry(oid).or_default().len() == 1 && self.visible_branches.entry(oid).or_default().contains(branch) {
+                    if self.visible_branches.len() == 1 && self.visible_branches.entry(*oidi).or_default().len() == 1 && self.visible_branches.entry(*oidi).or_default().contains(branch) {
                         self.visible_branches.clear();
                     } else {
                         self.visible_branches.clear();
                         self.visible_branches
-                            .entry(oid)
+                            .entry(*oidi)
                             .and_modify(|branches| branches.push(branch.clone()))
                             .or_insert_with(|| vec![branch.clone()]);
                     }self.reload();
@@ -1096,14 +1119,18 @@ impl App {
                 if self.focus == Focus::Viewport && self.viewport != Viewport::Graph {
                     return;
                 }
-                let oid = *self.oids.get(self.graph_selected).unwrap();
-                let branches = self.tips.entry(oid).or_default();
+                            
                 if self.graph_selected == 0 {
                     self.focus = Focus::Viewport;
                     return;
                 }
+
+                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
+                let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
+                let branches = self.tips.entry(*oidi).or_default();
+
                 if branches.is_empty() {
-                    checkout_head(&self.repo, oid);
+                    checkout_head(&self.repo, *oid);
                     self.focus = Focus::Viewport;
                     self.visible_branches.clear();
                     self.reload();
@@ -1112,7 +1139,7 @@ impl App {
                         &self.repo,
                         &mut self.visible_branches,
                         &mut self.tips_local,
-                        oid,
+                        *oidi,
                         branches.first().unwrap(),
                     )
                     .expect("Error");
@@ -1133,7 +1160,9 @@ impl App {
                 if self.focus == Focus::Viewport && self.viewport != Viewport::Graph {
                     return;
                 }
-                let oid = self.oids.get(self.graph_selected).unwrap();
+                            
+                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
+                let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
                 reset_to_commit(&self.repo, *oid, git2::ResetType::Hard).expect("Error");
                 self.reload();
                 self.focus = Focus::Viewport;
@@ -1148,7 +1177,9 @@ impl App {
                 if self.focus == Focus::Viewport && self.viewport != Viewport::Graph {
                     return;
                 }
-                let oid = self.oids.get(self.graph_selected).unwrap();
+                            
+                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
+                let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
                 reset_to_commit(&self.repo, *oid, git2::ResetType::Mixed).expect("Error");
                 self.reload();
                 self.focus = Focus::Viewport;
@@ -1252,11 +1283,11 @@ impl App {
                     }
                     Focus::Viewport => {
                         if self.graph_selected != 0 {
-
-                            let oid = *self.oids.get(if self.graph_selected == 0 { 1 } else { self.graph_selected }).unwrap();
+                            
+                            let oidi = self.oidi_sorted.get(if self.graph_selected == 0 { 1 } else { self.graph_selected }).unwrap();
                             let current = get_current_branch(&self.repo);
 
-                            if let Some(branches) = self.visible_branches.get(&oid) {
+                            if let Some(branches) = self.visible_branches.get(oidi) {
                                 // Filter out the current branch, if any
                                 let filtered_branches: Vec<_> = branches
                                     .iter()

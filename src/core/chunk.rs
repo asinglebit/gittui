@@ -1,6 +1,3 @@
-#[rustfmt::skip]
-use git2::Oid;
-
 #[derive(Clone, PartialEq)]
 pub enum Markers {
     Uncommitted,
@@ -8,27 +5,40 @@ pub enum Markers {
     Dummy,
 }
 
+pub const NONE: u32 = u32::MAX;
+
 #[derive(Clone)]
 pub struct Chunk {
-    pub oid: Option<Oid>,
-    pub parent_a: Option<Oid>,
-    pub parent_b: Option<Oid>,
+    pub oidi: u32,
+    pub parent_a: u32,
+    pub parent_b: u32,
     pub marker: Markers,
 }
 
-impl Chunk {
-    pub fn uncommitted(parent_a: Option<Oid>, parent_b: Option<Oid>) -> Self {
+impl Default for Chunk {
+    fn default() -> Self {
         Chunk {
-            oid: None,
+            oidi: NONE,
+            parent_a: NONE,
+            parent_b: NONE,
+            marker: Markers::Dummy
+        }
+    }
+}
+
+impl Chunk {
+    pub fn uncommitted(parent_a: u32, parent_b: u32) -> Self {
+        Chunk {
+            oidi: NONE,
             parent_a,
             parent_b,
             marker: Markers::Uncommitted,
         }
     }
 
-    pub fn commit(oid: Option<Oid>, parent_a: Option<Oid>, parent_b: Option<Oid>) -> Self {
+    pub fn commit(oidi: u32, parent_a: u32, parent_b: u32) -> Self {
         Chunk {
-            oid,
+            oidi,
             parent_a,
             parent_b,
             marker: Markers::Commit,
@@ -37,9 +47,9 @@ impl Chunk {
 
     pub fn dummy() -> Self {
         Chunk {
-            oid: None,
-            parent_a: None,
-            parent_b: None,
+            oidi: NONE,
+            parent_a: NONE,
+            parent_b: NONE,
             marker: Markers::Dummy,
         }
     }

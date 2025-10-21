@@ -28,8 +28,8 @@ impl App {
 
     pub fn draw_modal_solo(&mut self, frame: &mut Frame) {
         
-        let oid = *self.oids.get(self.graph_selected).unwrap();
-        let color = self.tip_colors.get(&oid).unwrap();
+        let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
+        let color = self.tip_colors.get(oidi).unwrap();
         let mut length = 39;
         let mut lines = vec![
             Line::from(vec![
@@ -38,7 +38,7 @@ impl App {
             Line::from("")
         ];
         let mut height = 6;
-        let branches = self.visible_branches.get(&oid).unwrap();
+        let branches = self.visible_branches.get(oidi).unwrap();
 
         branches.iter().enumerate().for_each(|(idx, branch)| {
             height += 1;

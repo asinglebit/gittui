@@ -10,7 +10,7 @@ use ratatui::{
         Scrollbar,
         ScrollbarOrientation,
         ScrollbarState,
-        Table,
+        Table
     },
 };
 #[rustfmt::skip]
@@ -24,23 +24,26 @@ use crate::{
     },
 };
 #[rustfmt::skip]
-use crate::app::app::{
-    App,
-    Focus
+use crate::{
+    app::app::{
+        App,
+        Focus
+    },
 };
 
 impl App {
     pub fn draw_graph(&mut self, frame: &mut Frame) {
         // Get vertical dimensions
-        let total_lines = self.oids.len();
-        let visible_height = self.layout.graph.height as usize;
-
+        let total_lines = self.oidi_sorted.len();
+        let mut visible_height = self.layout.graph.height as usize;
+        
         // Clamp selection
         if total_lines == 0 {
             self.graph_selected = 0;
         } else if self.graph_selected >= total_lines {
             self.graph_selected = total_lines - 1;
         }
+
 
         // Trap selection
         self.trap_selection(
@@ -58,30 +61,36 @@ impl App {
         let end = (start + visible_height).min(total_lines);
 
         // History
-        let history = self.buffer.borrow().history.clone();
-        let head = self.repo.head().unwrap().target().unwrap();
+        let mut buffer = self.buffer.borrow_mut();
+        buffer.decompress(start, end + 1);
+        let head_oid = self.repo.head().unwrap().target().unwrap();
+        let head_oidi = *self.oid_to_oidi.entry(head_oid).or_insert_with(|| {
+            self.oidi_to_oid.push(head_oid);
+            self.oidi_to_oid.len() as u32 - 1
+        });
 
         // Rendered lines
-        let buffer_range = render_buffer_range(&self.theme, &self.oids, &history, start, end + 1);
+        let buffer_range = render_buffer_range(&self.theme, &self.oidi_sorted, &self.oidi_to_oid, &buffer.history, start, end + 1);
         let graph_range = render_graph_range(
             &self.theme,
-            &self.oids,
+            &self.oidi_sorted,
+            &self.oidi_to_oid,
             &self.tips,
             &mut self.layers,
             &mut self.tip_colors,
-            &history,
-            head,
+            &buffer.history,
+            head_oidi,
             start,
             end,
         );
         let message_range = render_message_range(
             &self.theme,
             &self.repo,
-            &self.oids,
+            &self.oidi_sorted,
+            &self.oidi_to_oid,
             &self.tips_local,
             &self.visible_branches,
             &mut self.tip_colors,
-            &history,
             start,
             end,
             self.graph_selected,

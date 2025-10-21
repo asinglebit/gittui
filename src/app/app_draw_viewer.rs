@@ -20,12 +20,6 @@ use ratatui::{
 };
 #[rustfmt::skip]
 use crate::{
-    helpers::{
-        palette::*
-    },
-};
-#[rustfmt::skip]
-use crate::{
     app::app::{
         App,
         Focus,
@@ -143,7 +137,9 @@ impl App {
                     );
 
                     // Update the viewer to show the file at the selected commit OID
-                    self.update_viewer(*self.oids.get(self.graph_selected).unwrap());
+                    let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
+                    let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
+                    self.update_viewer(*oid);
                     self.viewport = Viewport::Viewer;
 
                 } else if self.graph_selected == 0 && self.uncommitted.is_staged {

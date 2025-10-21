@@ -16,20 +16,28 @@ use crate::{
 };
 
 // Returns a map of commit OIDs to the branch names that point to them
-pub fn get_tip_oids(repo: &Repository) -> (HashMap<Oid, Vec<String>>, HashMap<Oid, Vec<String>>) {
-    let mut tips_local: HashMap<Oid, Vec<String>> = HashMap::new();
-    let mut tips_remote: HashMap<Oid, Vec<String>> = HashMap::new();
+pub fn get_tip_oids(repo: &Repository, oidi_to_oid: &mut Vec<Oid>, oid_to_oidi: &mut HashMap<Oid, u32>) -> (HashMap<u32, Vec<String>>, HashMap<u32, Vec<String>>) {
+    
+    let mut tips_local: HashMap<u32, Vec<String>> = HashMap::new();
+    let mut tips_remote: HashMap<u32, Vec<String>> = HashMap::new();
 
     // Iterate all refs once
     for reference in repo.references().unwrap().flatten() {
         // Only handle direct refs (skip symbolic ones like HEAD)
         if let Some(oid) = reference.target() {
+            
+            // Get the oidi
+            let oidi = *oid_to_oidi.entry(oid).or_insert_with(|| {
+                oidi_to_oid.push(oid);
+                oidi_to_oid.len() as u32 - 1
+            });
+
             let name = reference.name().unwrap_or("unknown");
 
             if let Some(stripped) = name.strip_prefix("refs/heads/") {
-                tips_local.entry(oid).or_default().push(stripped.to_string());
+                tips_local.entry(oidi).or_default().push(stripped.to_string());
             } else if let Some(stripped) = name.strip_prefix("refs/remotes/") {
-                tips_remote.entry(oid).or_default().push(stripped.to_string());
+                tips_remote.entry(oidi).or_default().push(stripped.to_string());
             }
         }
     }
@@ -43,11 +51,13 @@ pub fn get_tip_oids(repo: &Repository) -> (HashMap<Oid, Vec<String>>, HashMap<Oi
 #[allow(clippy::too_many_arguments)]
 pub fn get_branches_and_sorted_oids(
     walker: &LazyWalker,
-    tips_local: &HashMap<Oid, Vec<String>>,
-    tips_remote: &HashMap<Oid, Vec<String>>,
-    oids: &mut [Oid],
-    branch_oid_map: &mut HashMap<String, Oid>,
-    sorted: &mut Vec<Oid>,
+    tips_local: &HashMap<u32, Vec<String>>,
+    tips_remote: &HashMap<u32, Vec<String>>,
+    oidi_sorted: &mut Vec<u32>,
+    oidi_to_oid: &mut Vec<Oid>,
+    oid_to_oidi: &mut HashMap<Oid, u32>,
+    branch_oid_map: &mut HashMap<String, u32>,
+    sorted: &mut Vec<u32>,
     amount: usize,
 ) {
     // Get the next batch of commits
@@ -58,17 +68,24 @@ pub fn get_branches_and_sorted_oids(
     }
 
     // Seed each tip with its branch names
-    if oids.len() == 1 {
-        for (oid, branches) in tips_local.iter().chain(tips_remote) {
+    if oidi_sorted.len() == 1 {
+        for (oidi, branches) in tips_local.iter().chain(tips_remote) {
             for name in branches {
-                branch_oid_map.entry(name.clone()).or_insert(*oid);
+                branch_oid_map.entry(name.clone()).or_insert(*oidi);
             }
         }
     }
 
     // Walk all commits topologically and propagate branch membership backwards
     for oid in chunk {
-        sorted.push(oid);
+
+        // Get the oidi
+        let oidi = *oid_to_oidi.entry(oid).or_insert_with(|| {
+            oidi_to_oid.push(oid);
+            oidi_to_oid.len() as u32 - 1
+        });
+
+        sorted.push(oidi);
     }
 }
 

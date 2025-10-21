@@ -38,9 +38,9 @@ pub fn checkout_head(repo: &Repository, oid: Oid) {
 
 pub fn checkout_branch(
     repo: &Repository,
-    visible_branches: &mut HashMap<Oid, Vec<String>>,
-    tips_local: &mut HashMap<Oid, Vec<String>>,
-    oid: Oid,
+    visible_branches: &mut HashMap<u32, Vec<String>>,
+    tips_local: &mut HashMap<u32, Vec<String>>,
+    oidi: u32,
     branch_name: &str,
 ) -> Result<(), git2::Error> {
     // Helper to checkout a local branch
@@ -67,11 +67,11 @@ pub fn checkout_branch(
 
             let mut local_branch = repo.branch(branch, &commit, false)?;
             local_branch.set_upstream(Some(branch_name))?;
-            tips_local.entry(oid)
+            tips_local.entry(oidi)
                 .or_insert_with(Vec::new)
                 .push(branch.to_string());
             visible_branches
-                .entry(oid)
+                .entry(oidi)
                 .or_insert_with(Vec::new)
                 .push(branch.to_string());
 
