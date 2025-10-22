@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 #[rustfmt::skip]
 use ratatui::style::Color;
 
@@ -43,10 +45,14 @@ pub struct Theme {
     pub COLOR_TEXT_SELECTED: Color,
 }
 
-impl Theme {
-    pub fn default() -> Self {
+impl Default for Theme {
+    fn default() -> Self {
         Self::classic()
-    }   
+    }
+}
+
+impl Theme {
+
     pub fn classic() -> Self {
         Self {
             name:                   ThemeNames::Classic,
