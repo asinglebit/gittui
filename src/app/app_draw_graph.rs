@@ -32,10 +32,11 @@ use crate::{
 };
 
 impl App {
+
     pub fn draw_graph(&mut self, frame: &mut Frame) {
         // Get vertical dimensions
         let total_lines = self.commit_manager.oidi_sorted.len();
-        let mut visible_height = self.layout.graph.height as usize;
+        let visible_height = self.layout.graph.height as usize;
         
         // Clamp selection
         if total_lines == 0 {
@@ -43,7 +44,6 @@ impl App {
         } else if self.graph_selected >= total_lines {
             self.graph_selected = total_lines - 1;
         }
-
 
         // Trap selection
         self.trap_selection(
@@ -54,40 +54,38 @@ impl App {
         );
 
         // Calculate scroll
-        let start = self
-            .graph_scroll
-            .get()
-            .min(total_lines.saturating_sub(visible_height));
+        let start = self.graph_scroll.get().min(total_lines.saturating_sub(visible_height));
         let end = (start + visible_height).min(total_lines);
 
         // History
         let mut buffer = self.buffer.borrow_mut();
         buffer.decompress(start, end + 1);
+
+        // Get head
         let head_oid = self.repo.head().unwrap().target().unwrap();
-        let head_oidi = *self.commit_manager.oid_to_oidi.entry(head_oid).or_insert_with(|| {
-            self.commit_manager.oidi_to_oid.push(head_oid);
-            self.commit_manager.oidi_to_oid.len() as u32 - 1
-        });
+        let head_oid_alias = self.commit_manager.get_alias_by_oid(head_oid);
 
         // Rendered lines
-        let buffer_range = render_buffer_range(&self.theme, &self.commit_manager.oidi_sorted, &self.commit_manager.oidi_to_oid, &buffer.history, start, end + 1);
+        let buffer_range = render_buffer_range(
+            &self.theme,
+            &self.commit_manager,
+            &buffer.history,
+            start,
+            end + 1
+        );
         let graph_range = render_graph_range(
             &self.theme,
-            &self.commit_manager.oidi_sorted,
-            &self.commit_manager.oidi_to_oid,
+            &self.commit_manager,
             &self.branch_manager.tips,
-            &mut self.layers,
-            &mut self.branch_manager.tip_colors,
             &buffer.history,
-            head_oidi,
+            head_oid_alias,
             start,
             end,
         );
         let message_range = render_message_range(
             &self.theme,
             &self.repo,
-            &self.commit_manager.oidi_sorted,
-            &self.commit_manager.oidi_to_oid,
+            &self.commit_manager,
             &self.branch_manager.tips_local,
             &self.visible_branches,
             &mut self.branch_manager.tip_colors,
@@ -97,12 +95,9 @@ impl App {
             &self.uncommitted,
         );
 
-        // Start with fake commit row
-        let mut rows = Vec::with_capacity(end - start + 1); // preallocate for efficiency
-
-        // Add the rest of the commits
+        // Add rows
+        let mut rows = Vec::with_capacity(end - start + 1);
         let mut width = 0;
-
         if !graph_range.is_empty() {
             for idx in 0..graph_range.len() {
                 width = graph_range

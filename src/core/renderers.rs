@@ -27,7 +27,7 @@ use ratatui::{
         Span
     },
 };
-use crate::core::{chunk::NONE, layers::LayersContext};
+use crate::{app::app::CommitManager, core::{chunk::NONE}};
 #[rustfmt::skip]
 use crate::{
     core::chunk::Chunk,
@@ -54,33 +54,25 @@ use crate::{
 
 pub fn render_graph_range(
     theme: &Theme,
-    oidi_sorted: &Vec<u32>,
-    oidi_to_oid: &Vec<Oid>,
+    commit_manager: &CommitManager,
     tips: &HashMap<u32, Vec<String>>,
-    layers: &mut LayersContext,
-    tip_colors: &mut HashMap<u32, Color>,
     history: &Vector<Vector<Chunk>>,
     head_oidi: u32,
     start: usize,
     end: usize,
 ) -> Vec<Line<'static>> {
-    // Clamp the range to valid indices
-    // let start = start.min(history.len());
-    // let end = end.min(history.len().saturating_sub(1));
+
     let mut layers = layers!(Rc::new(RefCell::new(ColorPicker::default())));
     let mut lines: Vec<Line> = Vec::new();
 
-    // for (global_idx, oid) in oids.iter().enumerate().take(end).skip(start) {
-    // lines.push(Line::from(format!("{} {} {} {}", global_idx - start, start, end, history.len())));
-    // }
-    // return lines;
+    // Go through the sorted commits, inferring the graph
+    let sorted_aliases = commit_manager.get_sorted_aliases();
+    for (global_idx, oidi) in sorted_aliases.iter().enumerate().take(end).skip(start) {
 
-    // Go through the commits, inferring the graph
-    for (global_idx, oidi) in oidi_sorted.iter().enumerate().take(end).skip(start) {
+        // Get commit oid
+        let oid = commit_manager.get_oid_by_alias(*oidi);
 
-        let zero = Oid::zero();
-        let oid = oidi_to_oid.get(*oidi as usize).unwrap_or(&zero);
-
+        // Clear the render line
         layers.clear();
         let mut spans = vec![Span::raw(" ")];
 
@@ -89,18 +81,12 @@ pub fn render_graph_range(
         let mut is_merged_before = false;
         let mut lane_idx = 0;
 
-        let p = global_idx - start - 1;
-        let l = global_idx - start;
-        let d = history.len() - (end - start);
+        let delta = history.len() - end + global_idx;
+        let prev = history.get(delta - 1);
+        let last = history.get(delta).unwrap();
 
-        let prev = history.get(d + global_idx - start - 1);
-        let last = history.get(d + global_idx - start).unwrap();
-
-        if *oid == Oid::zero() {
-            lines.push(Line::from(Span::styled(
-                " ◌",
-                Style::default().fg(theme.COLOR_GREY_400),
-            )));
+        if commit_manager.is_zero(&oid) {
+            lines.push(Line::from(Span::styled(" ◌", Style::default().fg(theme.COLOR_GREY_400))));
             continue;
         }
 
@@ -108,12 +94,8 @@ pub fn render_graph_range(
         let mut branching_lanes: Vec<usize> = Vec::new();
         for (lane_idx, chunk) in last.iter().enumerate() {
             if chunk.is_dummy() {
-                if let Some(prev_snapshot) = prev
-                    && let Some(prev) = prev_snapshot.get(lane_idx)
-                {
-                    if (prev.parent_a != NONE && prev.parent_b == NONE)
-                        || (prev.parent_a == NONE && prev.parent_b != NONE)
-                    {
+                if let Some(prev_snapshot) = prev && let Some(prev) = prev_snapshot.get(lane_idx) {
+                    if (prev.parent_a != NONE && prev.parent_b == NONE) || (prev.parent_a == NONE && prev.parent_b != NONE) {
                         branching_lanes.push(lane_idx);
                     }
                 }
@@ -125,28 +107,22 @@ pub fn render_graph_range(
                 if let Some(&closest_lane) = branching_lanes.first() {
                     if closest_lane == lane_idx {
                         branching_lanes.remove(0);
-                    } else {
-                        if lane_idx < closest_lane {
-                            layers.merge(SYM_EMPTY, closest_lane);
-                            layers.merge(SYM_EMPTY, closest_lane);
-                            layers.commit(SYM_EMPTY, closest_lane);
-                            layers.commit(SYM_EMPTY, closest_lane);
-                            layers.pipe(SYM_HORIZONTAL, closest_lane);
-                            layers.pipe(SYM_HORIZONTAL, closest_lane);
-                            lane_idx += 1;
-                            continue;
-                        }
+                    } else if lane_idx < closest_lane {
+                        layers.merge(SYM_EMPTY, closest_lane);
+                        layers.merge(SYM_EMPTY, closest_lane);
+                        layers.commit(SYM_EMPTY, closest_lane);
+                        layers.commit(SYM_EMPTY, closest_lane);
+                        layers.pipe(SYM_HORIZONTAL, closest_lane);
+                        layers.pipe(SYM_HORIZONTAL, closest_lane);
+                        lane_idx += 1;
+                        continue;
                     }
                 }
             }
 
             if chunk.is_dummy() {
-                if let Some(prev_snapshot) = prev
-                    && let Some(prev) = prev_snapshot.get(lane_idx)
-                {
-                    if (prev.parent_a != NONE && prev.parent_b == NONE)
-                        || (prev.parent_a == NONE && prev.parent_b != NONE)
-                    {
+                if let Some(prev_snapshot) = prev && let Some(prev) = prev_snapshot.get(lane_idx) {
+                    if (prev.parent_a != NONE && prev.parent_b == NONE) || (prev.parent_a == NONE && prev.parent_b != NONE) {
                         layers.commit(SYM_EMPTY, lane_idx);
                         layers.commit(SYM_EMPTY, lane_idx);
                         layers.pipe(SYM_BRANCH_UP, lane_idx);
@@ -163,9 +139,8 @@ pub fn render_graph_range(
                 let is_two_parents = chunk.parent_a != NONE && chunk.parent_b != NONE;
                 if is_two_parents && !(tips.contains_key(oidi)) {
                     layers.commit(SYM_MERGE, lane_idx);
-                } else if (tips.contains_key(oidi)) {
+                } else if tips.contains_key(oidi) {
                     layers.commit(SYM_COMMIT_BRANCH, lane_idx);
-                    // tip_colors.insert(*oid, color.borrow().get(lane_idx));
                 } else {
                     layers.commit(SYM_COMMIT, lane_idx);
                 }
@@ -179,11 +154,10 @@ pub fn render_graph_range(
                 if is_two_parents {
                     let mut is_merger_found = false;
                     let mut merger_idx: usize = 0;
-
                     for chunk_nested in last {
-                        if ((chunk_nested.parent_a != NONE && chunk_nested.parent_b == NONE)
-                            || (chunk_nested.parent_a == NONE && chunk_nested.parent_b != NONE))
-                            && chunk.parent_b == chunk_nested.parent_a
+                        if ((chunk_nested.parent_a != NONE && chunk_nested.parent_b == NONE) ||
+                            (chunk_nested.parent_a == NONE && chunk_nested.parent_b != NONE)) &&
+                            chunk.parent_b == chunk_nested.parent_a
                         {
                             is_merger_found = true;
                             break;
@@ -212,17 +186,14 @@ pub fn render_graph_range(
                                 layers.merge(SYM_EMPTY, merger_idx);
                                 layers.merge(SYM_EMPTY, merger_idx);
                             } else {
+
                                 // Before the commit
                                 if !is_merger_found {
                                     layers.merge(SYM_EMPTY, merger_idx);
                                     layers.merge(SYM_EMPTY, merger_idx);
-                                } else if ((chunk_nested.parent_a != NONE
-                                    && chunk_nested.parent_b == NONE)
-                                    || (chunk_nested.parent_a == NONE
-                                        && chunk_nested.parent_b != NONE))
-                                    && (chunk.parent_a == chunk_nested.parent_a
-                                        || chunk.parent_b
-                                            == chunk_nested.parent_a)
+                                } else if ((chunk_nested.parent_a != NONE && chunk_nested.parent_b == NONE) ||
+                                    (chunk_nested.parent_a == NONE && chunk_nested.parent_b != NONE)) &&
+                                    (chunk.parent_a == chunk_nested.parent_a || chunk.parent_b == chunk_nested.parent_a)
                                 {
                                     // We need to find if the merger is further to the left than on the next lane
                                     if chunk_nested_idx == merger_idx {
@@ -253,12 +224,9 @@ pub fn render_graph_range(
                         } else {
                             // After the commit
                             if is_merger_found && !is_merged_before {
-                                if ((chunk_nested.parent_a != NONE
-                                    && chunk_nested.parent_b == NONE)
-                                    || (chunk_nested.parent_a == NONE
-                                        && chunk_nested.parent_b != NONE))
-                                    && (chunk.parent_a == chunk_nested.parent_a
-                                        || chunk.parent_b == chunk_nested.parent_a)
+                                if ((chunk_nested.parent_a != NONE && chunk_nested.parent_b == NONE) ||
+                                    (chunk_nested.parent_a == NONE && chunk_nested.parent_b != NONE)) &&
+                                    (chunk.parent_a == chunk_nested.parent_a || chunk.parent_b == chunk_nested.parent_a)
                                 {
                                     layers.merge(SYM_MERGE_LEFT_FROM, merger_idx);
                                     layers.merge(SYM_EMPTY, merger_idx);
@@ -318,13 +286,9 @@ pub fn render_graph_range(
             } else {
                 layers.commit(SYM_EMPTY, lane_idx);
                 layers.commit(SYM_EMPTY, lane_idx);
-                if (chunk.parent_a == head_oidi
-                    || chunk.parent_b == head_oidi)
-                    && lane_idx == 0
-                {
+                if (chunk.parent_a == head_oidi || chunk.parent_b == head_oidi) && lane_idx == 0 {
                     layers.pipe_custom(SYM_VERTICAL_DOTTED, lane_idx, theme.COLOR_GREY_500);
                 } else if chunk.parent_a == NONE && chunk.parent_b == NONE {
-                    // layers.pipe(SYM_VERTICAL_DOTTED, lane_idx);
                     layers.pipe(" ", lane_idx);
                 } else {
                     layers.pipe(SYM_VERTICAL, lane_idx);
@@ -338,7 +302,6 @@ pub fn render_graph_range(
         if !is_commit_found {
             if tips.contains_key(oidi) {
                 layers.commit(SYM_COMMIT_BRANCH, lane_idx);
-                // tip_colors.insert(*oid, color.borrow().get(lane_idx));
             } else {
                 layers.commit(SYM_COMMIT, lane_idx);
             };
@@ -405,30 +368,27 @@ pub fn remove_empty_columns(lines: &mut Vec<Line<'_>>) {
 #[allow(dead_code)]
 pub fn render_buffer_range(
     theme: &Theme,
-    oidi_sorted: &Vec<u32>,
-    oidi_to_oid: &Vec<Oid>,
+    commit_manager: &CommitManager,
     history: &Vector<Vector<Chunk>>,
     start: usize,
     end: usize,
 ) -> Vec<Line<'static>> {
-    // Clamp the range to valid indices
-    // let start = start.min(history.len());
-    // let end = end.min(history.len());
-    let mut lines_buffer: Vec<Line> = Vec::new();
+    
     let mut idx = start;
+    let mut lines_buffer: Vec<Line> = Vec::new();
+
     // Iterate over the selected snapshots
     for snapshot in history.iter().skip(start + 1).take(end + 1 - start - 1) {
-        let mut spans = Vec::new();
+        
+        // Get the oid of the commit
+        let oid = commit_manager.get_oid_by_idx(idx);
 
-        let oidi = oidi_sorted.get(idx).unwrap_or(&NONE);
-        let zero = Oid::zero();
-        let oid = oidi_to_oid.get(*oidi as usize).unwrap_or(&zero);
+        // Setup the line
+        let mut spans =vec![
+            Span::styled(format!("{:.2} ", oid), Style::default().fg(theme.COLOR_TEXT))
+        ];
 
-        spans.push(Span::styled(
-            format!("{:.2} ", oid),
-            Style::default().fg(theme.COLOR_TEXT),
-        ));
-
+        // Parse the snaphshot
         let formatted_snapshot: String = snapshot
             .iter()
             .map(|chunk| {
@@ -450,11 +410,15 @@ pub fn render_buffer_range(
             .collect::<Vec<String>>()
             .join(" ");
 
+        // Append to the line
         spans.push(Span::styled(
             formatted_snapshot,
             Style::default().fg(theme.COLOR_TEXT),
         ));
+
+        // Push back the line for the current snapshot
         lines_buffer.push(Line::from(spans));
+
         idx += 1;
     }
 
@@ -465,8 +429,7 @@ pub fn render_buffer_range(
 pub fn render_message_range(
     theme: &Theme,
     repo: &Repository,
-    oidi_sorted: &Vec<u32>,
-    oidi_to_oid: &Vec<Oid>,
+    commit_manager: &CommitManager,
     tips_local: &HashMap<u32, Vec<String>>,
     visible_branches: &HashMap<u32, Vec<String>>,
     tip_colors: &mut HashMap<u32, Color>,
@@ -479,15 +442,14 @@ pub fn render_message_range(
 
     // Go through the commits, inferring the graph
     for global_idx in start..end {
-        let oidi = oidi_sorted.get(global_idx).unwrap();
+        let alias = commit_manager.get_alias_by_idx(global_idx);
         let mut spans = Vec::new();
 
-        if *oidi != NONE {
-            let zero = Oid::zero();
-            let oid = oidi_to_oid.get(*oidi as usize).unwrap_or(&zero);
+        if alias != NONE {
+            let oid = commit_manager.get_oid_by_alias(alias);
             let commit = repo.find_commit(*oid).unwrap();
 
-            if let Some(visible) = visible_branches.get(oidi) {
+            if let Some(visible) = visible_branches.get(&alias) {
                 for branch in visible {
                     // Only render branches that are visible
                     if visible.iter().any(|b| b == branch) {
@@ -502,7 +464,7 @@ pub fn render_message_range(
                                 if is_local { SYM_COMMIT_BRANCH } else { "◆" },
                                 branch
                             ),
-                            Style::default().fg(if let Some(color) = tip_colors.get(oidi) {
+                            Style::default().fg(if let Some(color) = tip_colors.get(&alias) {
                                 *color
                             } else {
                                 theme.COLOR_TEXT

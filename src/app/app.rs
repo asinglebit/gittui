@@ -57,6 +57,7 @@ use ratatui::{
         Span
     },
 };
+use crate::core::chunk::NONE;
 #[rustfmt::skip]
 use crate::{
     layers,
@@ -150,6 +151,7 @@ pub enum Direction {
 }
 
 pub struct CommitManager {
+    pub zero: Oid,
     pub oidi_to_oid: Vec<Oid>,
     pub oid_to_oidi: HashMap<Oid, u32>,
     pub oidi_sorted: Vec<u32>,
@@ -159,10 +161,41 @@ impl Default for CommitManager {
     fn default() -> Self {
         
         CommitManager {
+            zero: Oid::zero(),
             oidi_to_oid: Vec::new(),
             oid_to_oidi: HashMap::new(),
             oidi_sorted: Vec::new(),
         }
+    }
+}
+
+impl CommitManager {
+    pub fn get_alias_by_oid(&mut self, oid: Oid) -> u32 {
+        *self.oid_to_oidi.entry(oid).or_insert_with(|| {
+            self.oidi_to_oid.push(oid);
+            self.oidi_to_oid.len() as u32 - 1
+        })
+    }
+
+    pub fn get_alias_by_idx(&self, idx: usize) -> u32 {
+        *self.oidi_sorted.get(idx).unwrap()
+    }
+
+    pub fn get_oid_by_alias(&self, alias: u32) -> &Oid {
+        self.oidi_to_oid.get(alias as usize).unwrap_or(&self.zero)
+    }
+
+    pub fn get_oid_by_idx(&self, idx: usize) -> &Oid {
+        let alias = *self.oidi_sorted.get(idx).unwrap_or(&NONE);
+        self.oidi_to_oid.get(alias as usize).unwrap_or(&self.zero)
+    }
+
+    pub fn get_sorted_aliases(&self) -> &Vec<u32> {
+        &self.oidi_sorted
+    }
+
+    pub fn is_zero(&self, oid: &Oid) -> bool {
+        self.zero == *oid
     }
 }
 

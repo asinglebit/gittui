@@ -18,9 +18,6 @@ use ratatui::{
 use crate::helpers::text::truncate_with_ellipsis;
 #[rustfmt::skip]
 use crate::{
-    helpers::{
-        palette::*
-    },
     app::app::{
         App,
         Focus
