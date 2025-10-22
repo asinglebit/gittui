@@ -19,8 +19,8 @@ use crate::{
 // Returns a map of commit OIDs to the branch names that point to them
 pub fn get_tip_oids(repo: &Repository, oid_manager: &mut OidManager) -> (HashMap<u32, Vec<String>>, HashMap<u32, Vec<String>>) {
     
-    let mut tips_local: HashMap<u32, Vec<String>> = HashMap::new();
-    let mut tips_remote: HashMap<u32, Vec<String>> = HashMap::new();
+    let mut local: HashMap<u32, Vec<String>> = HashMap::new();
+    let mut remote: HashMap<u32, Vec<String>> = HashMap::new();
 
     // Iterate all refs once
     for reference in repo.references().unwrap().flatten() {
@@ -32,14 +32,14 @@ pub fn get_tip_oids(repo: &Repository, oid_manager: &mut OidManager) -> (HashMap
             let name = reference.name().unwrap_or("unknown");
 
             if let Some(stripped) = name.strip_prefix("refs/heads/") {
-                tips_local.entry(alias).or_default().push(stripped.to_string());
+                local.entry(alias).or_default().push(stripped.to_string());
             } else if let Some(stripped) = name.strip_prefix("refs/remotes/") {
-                tips_remote.entry(alias).or_default().push(stripped.to_string());
+                remote.entry(alias).or_default().push(stripped.to_string());
             }
         }
     }
 
-    (tips_local, tips_remote)
+    (local, remote)
 }
 
 // Outcomes:

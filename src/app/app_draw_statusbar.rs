@@ -69,7 +69,7 @@ impl App {
                     + self.uncommitted.unstaged.deleted.len()
             }
             Focus::Branches => {
-                self.oid_branch_vec.len()
+                self.branch_manager.sorted.len()
             }
             _ => 0,
         };
@@ -86,7 +86,7 @@ impl App {
                 Focus::StatusTop => self.status_top_selected + 1,
                 Focus::StatusBottom => self.status_bottom_selected + 1,
                 Focus::Branches => {
-                    self.visible_branches.values().map(|branches| branches.len()).sum()
+                    self.branch_manager.visible.values().map(|branches| branches.len()).sum()
                 }
                 _ => 0,
             }

@@ -42,20 +42,20 @@ impl App {
 
         // Lines
         let mut lines: Vec<Line<'_>> = Vec::new();
-        for (oid, branch) in self.oid_branch_vec.iter() {
+        for (oid, branch) in self.branch_manager.sorted.iter() {
             let is_visible = self
-                .visible_branches
+                .branch_manager.visible
                 .get(oid)
                 .is_some_and(|branches| branches.iter().any(|b| b == branch));
 
-            let is_local = self.branch_manager.tips_local.values().any(|branches| branches.iter().any(|b| b.as_str() == branch));
+            let is_local = self.branch_manager.local.values().any(|branches| branches.iter().any(|b| b.as_str() == branch));
 
             lines.push(Line::from(vec![
                 Span::styled(
                     format!("{} {}", if is_visible { if is_local { "●" } else { "◆" } } else if is_local { "○" } else { "◇" }, truncate_with_ellipsis(branch, max_text_width - 1)),
                     Style::default().fg(
                         if is_visible {
-                            *self.branch_manager.tip_colors.get(oid).unwrap_or(&self.theme.COLOR_TEXT)
+                            *self.branch_manager.colors.get(oid).unwrap_or(&self.theme.COLOR_TEXT)
                         } else {
                             self.theme.COLOR_TEXT
                         },

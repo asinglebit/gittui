@@ -48,10 +48,10 @@ impl LazyWalker {
     // Creates a new LazyWalker by building a revwalk from the repo
     pub fn new(
         repo: Rc<Repository>,
-        visible_branches: HashMap<u32, Vec<String>>,
+        visible: HashMap<u32, Vec<String>>,
         oid_manager: &mut OidManager
     ) -> Result<Self, git2::Error> {
-        let revwalk = Self::build_revwalk(&repo, visible_branches, oid_manager)?;
+        let revwalk = Self::build_revwalk(&repo, visible, oid_manager)?;
         Ok(Self {
             revwalk: Mutex::new(revwalk),
         })
@@ -61,10 +61,10 @@ impl LazyWalker {
     pub fn reset(
         &self,
         repo: Rc<Repository>,
-        visible_branches: HashMap<u32, Vec<String>>,
+        visible: HashMap<u32, Vec<String>>,
         oid_manager: &mut OidManager
     ) -> Result<(), git2::Error> {
-        let revwalk = Self::build_revwalk(&repo, visible_branches, oid_manager)?;
+        let revwalk = Self::build_revwalk(&repo, visible, oid_manager)?;
         let mut guard = self.revwalk.lock().unwrap();
         *guard = revwalk;
         Ok(())
@@ -83,7 +83,7 @@ impl LazyWalker {
     // Internal helper to build a revwalk for all branch tips
     fn build_revwalk(
         repo: &Repository,
-        visible_branches: HashMap<u32, Vec<String>>,
+        visible: HashMap<u32, Vec<String>>,
         oid_manager: &mut OidManager
     ) -> Result<Revwalk<'static>, git2::Error> {
         // Safe: we keep repo alive in Rc, so transmute to 'static is safe
@@ -101,7 +101,7 @@ impl LazyWalker {
                     // Get the oidi
                     let alias = oid_manager.get_alias_by_oid(oid);
 
-                    if visible_branches.is_empty() || visible_branches.contains_key(&alias) {
+                    if visible.is_empty() || visible.contains_key(&alias) {
                         revwalk.push(oid)?;
                     }
                 }
@@ -129,8 +129,8 @@ pub struct Walker {
     pub oid_manager: OidManager,
 
     pub tip_lanes: HashMap<u32, usize>,
-    pub tips_local: HashMap<u32, Vec<String>>,
-    pub tips_remote: HashMap<u32, Vec<String>>,
+    pub local: HashMap<u32, Vec<String>>,
+    pub remote: HashMap<u32, Vec<String>>,
 
     // Pagination
     pub amount: usize
@@ -146,8 +146,8 @@ pub struct WalkerOutput {
     pub oid_manager: OidManager,
 
     pub tip_lanes: HashMap<u32, usize>,
-    pub tips_local: HashMap<u32, Vec<String>>,
-    pub tips_remote: HashMap<u32, Vec<String>>,
+    pub local: HashMap<u32, Vec<String>>,
+    pub remote: HashMap<u32, Vec<String>>,
 
     // Pagination
     pub again: bool,
@@ -159,7 +159,7 @@ impl Walker {
     pub fn new(
         path: String,
         amount: usize,
-        visible_branches: HashMap<u32, Vec<String>>,
+        visible: HashMap<u32, Vec<String>>,
     ) -> Result<Self, git2::Error> {
         let path = path.clone();
         let repo = Rc::new(Repository::open(path).expect("Failed to open repo"));
@@ -170,10 +170,10 @@ impl Walker {
         // Walker data
         let mut oid_manager = OidManager::default();
         let tip_lanes = HashMap::new();
-        let (tips_local, tips_remote) = get_tip_oids(&repo, &mut oid_manager);
+        let (local, remote) = get_tip_oids(&repo, &mut oid_manager);
         
         // Lazy walker
-        let walker = LazyWalker::new(repo.clone(), visible_branches, &mut oid_manager).expect("Error");
+        let walker = LazyWalker::new(repo.clone(), visible, &mut oid_manager).expect("Error");
 
         Ok(Self {
             repo,
@@ -187,8 +187,8 @@ impl Walker {
             // Walker data
             oid_manager,
             tip_lanes,
-            tips_local,
-            tips_remote,
+            local,
+            remote,
 
             // Pagination
             amount
@@ -247,7 +247,7 @@ impl Walker {
                 if !chunk.is_dummy() && alias == chunk.oidi {
                     is_commit_found = true;
 
-                    if self.tips_local.contains_key(&alias) || self.tips_remote.contains_key(&alias) {
+                    if self.local.contains_key(&alias) || self.remote.contains_key(&alias) {
                         self.tip_lanes.insert(alias, lane_idx);
                     }
 

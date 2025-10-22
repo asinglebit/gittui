@@ -208,12 +208,82 @@ impl OidManager {
 
 #[derive(Default)]
 pub struct BranchManager {
-    pub tips_local: HashMap<u32, Vec<String>>,
-    pub tips_remote: HashMap<u32, Vec<String>>,
-    pub tips: HashMap<u32, Vec<String>>,
-    pub tip_colors: HashMap<u32, Color>,
+    pub local: HashMap<u32, Vec<String>>,
+    pub remote: HashMap<u32, Vec<String>>,
+    pub all: HashMap<u32, Vec<String>>,
+    pub colors: HashMap<u32, Color>,
+    pub sorted: Vec<(u32, String)>,
+    pub indices: Vec<usize>,
+    pub visible: HashMap<u32, Vec<String>>,
 }
 
+impl BranchManager {
+    pub fn feed(
+        &mut self,
+        oid_manager: &OidManager,
+        color: &Rc<RefCell<ColorPicker>>,
+        lanes: &HashMap<u32, usize>,
+        local: HashMap<u32, Vec<String>>,
+        remote: HashMap<u32, Vec<String>>
+    ) {
+        // Initialize
+        self.local = local;
+        self.remote = remote;
+        self.all = HashMap::new();
+        self.colors = HashMap::new();
+        self.sorted = Vec::new();
+        self.indices = Vec::new();
+        
+        // Combine local and remote branches
+        for (&alias, branches) in self.local.iter() {
+            self.all.insert(alias, branches.clone());
+        }
+        for (&oidi, branches) in self.remote.iter() {
+            self.all
+                .entry(oidi)
+                .and_modify(|existing| existing.extend(branches.iter().cloned()))
+                .or_insert_with(|| branches.clone());
+        }
+
+        // Make all branches visible if none are
+        if self.visible.is_empty() {
+            for (&alias, branches) in self.all.iter() {
+                self.visible.insert(alias, branches.clone());
+            }
+        }
+        
+        // Branch tuple vectors
+        let mut local: Vec<(u32, String)> = self.local.iter().flat_map(|(&alias, branches)| {
+                branches.iter().map(move |branch| (alias, branch.clone()))
+            }).collect();
+        let mut remote: Vec<(u32, String)> = self.remote.iter().flat_map(|(&alias, branches)| {
+                branches.iter().map(move |branch| (alias, branch.clone()))
+            }).collect();
+
+        // Sorting tuples
+        local.sort_by(|a, b| a.1.cmp(&b.1));
+        remote.sort_by(|a, b| a.1.cmp(&b.1));
+
+        // Combining into sorted
+        self.sorted = local.into_iter().chain(remote).collect();
+
+        // Set branch colors
+        for (oidi, &lane_idx) in lanes.iter() {
+            self.colors.insert(*oidi, color.borrow().get_lane(lane_idx));
+        }
+        
+        // Build a lookup of branch aliases to positions in sorted aliases
+        let mut sorted_time = self.sorted.clone();
+        let index_map: std::collections::HashMap<u32, usize> = oid_manager.get_sorted_aliases().iter().enumerate().map(|(i, &oidi)| (oidi, i)).collect();
+
+        // Sort the vector using the index map
+        sorted_time.sort_by_key(|(oidi, _)| index_map.get(oidi).copied().unwrap_or(usize::MAX));
+        self.indices = Vec::new();
+        sorted_time.iter().for_each(|(oidi, _)| {
+            self.indices.push(oid_manager.get_sorted_aliases().iter().position(|o| oidi == o).unwrap_or(usize::MAX));
+        });
+    }
+}
 
 pub struct App {
     // General
@@ -247,10 +317,6 @@ pub struct App {
     pub current_diff: Vec<FileChange>,
     pub file_name: Option<String>,
     pub viewer_lines: Vec<ListItem<'static>>,
-    pub oid_branch_vec: Vec<(u32, String)>,
-    pub oid_branch_vec_chronological: Vec<(u32, String)>,
-    pub oid_branch_indices: Vec<usize>,
-    pub visible_branches: HashMap<u32, Vec<String>>,
 
     // Interface
     pub layout: Layout,
@@ -471,12 +537,12 @@ impl App  {
 
         // Copy the repo path and visible branches
         let path = self.path.clone();
-        let visible_branches = self.visible_branches.clone();
+        let visible = self.branch_manager.visible.clone();
 
         // Spawn a thread that computes something; it will check cancel flag between iterations
         let handle = thread::spawn(move || {
             // Create the walker
-            let mut walk_ctx = Walker::new(path, 10000, visible_branches).expect("Error");
+            let mut walk_ctx = Walker::new(path, 10000, visible).expect("Error");
             let mut is_first_batch = true;
 
             // Walker loop
@@ -492,8 +558,8 @@ impl App  {
                 if tx.send(WalkerOutput {
                     oid_manager: walk_ctx.oid_manager.clone(),
                     tip_lanes: walk_ctx.tip_lanes.clone(),
-                    tips_local: walk_ctx.tips_local.clone(),
-                    tips_remote: walk_ctx.tips_remote.clone(),
+                    local: walk_ctx.local.clone(),
+                    remote: walk_ctx.remote.clone(),
                     buffer: walk_ctx.buffer.clone(),
                     is_first_batch,
                     again,
@@ -518,10 +584,9 @@ impl App  {
         if let Some(rx) = &self.walker_rx && let Ok(result) = rx.try_recv() {
 
             // Crude check to see if this is a first iteration
-            if result.is_first_batch
-                && self.viewport == Viewport::Splash {
-                    self.viewport = Viewport::Graph;
-                }
+            if result.is_first_batch && self.viewport == Viewport::Splash {
+                self.viewport = Viewport::Graph;
+            }
 
             // Reset utilities
             self.buffer = RefCell::new(Buffer::default());
@@ -533,66 +598,19 @@ impl App  {
             // Lookup tables
             self.oid_manager = result.oid_manager;
 
-            // Mapping of tip oids of the branches to the colors
-            self.branch_manager.tip_colors = HashMap::new();
-            self.branch_manager.tips = HashMap::new();
-            self.branch_manager.tips_local = result.tips_local;
-            self.branch_manager.tips_remote = result.tips_remote;
-            
-            // Combine local and remote branches
-            for (oidi, branches) in self.branch_manager.tips_local.iter() {
-                self.branch_manager.tips.insert(*oidi, branches.clone());
-            }
-            for (oidi, branches) in self.branch_manager.tips_remote.iter() {
-                self.branch_manager.tips
-                    .entry(*oidi)
-                    .and_modify(|existing| existing.extend(branches.iter().cloned()))
-                    .or_insert_with(|| branches.clone());
-            }
-
-            // Make all branches visible if none are
-            if self.visible_branches.is_empty() {
-                for (oidi, branches) in self.branch_manager.tips.iter() {
-                    self.visible_branches.insert(*oidi, branches.clone());
-                }
-            }
-            
-            // Sorted branch list
-            let mut local_oidi_branch_tuples: Vec<(u32, String)> = self.branch_manager.tips_local
-                .iter()
-                .flat_map(|(oidi, branches)| {
-                    branches.iter().map(move |branch| (*oidi, branch.clone()))
-                })
-                .collect();
-            let mut remote_oidi_branch_tuples: Vec<(u32, String)> = self.branch_manager.tips_remote
-                .iter()
-                .flat_map(|(oidi, branches)| {
-                    branches.iter().map(move |branch| (*oidi, branch.clone()))
-                })
-                .collect();
-            local_oidi_branch_tuples.sort_by(|a, b| a.1.cmp(&b.1));
-            remote_oidi_branch_tuples.sort_by(|a, b| a.1.cmp(&b.1));
-            self.oid_branch_vec = local_oidi_branch_tuples.into_iter().chain(remote_oidi_branch_tuples).collect();
-
+            // Buffer
             self.buffer = result.buffer;
 
-            for (oidi, lane_idx) in result.tip_lanes.iter() {
-                self.branch_manager.tip_colors.insert(*oidi, self.color.borrow().get_lane(*lane_idx));
-            }
-            
-            // Build a lookup: oidi -> position in self.oids
-            self.oid_branch_vec_chronological = self.oid_branch_vec.clone();
-            let index_map: std::collections::HashMap<u32, usize> = self.oid_manager.get_sorted_aliases().iter().enumerate().map(|(i, &oidi)| (oidi, i)).collect();
-
-            // Sort the vector using the index map
-            self.oid_branch_vec_chronological.sort_by_key(|(oidi, _)| index_map.get(oidi).copied().unwrap_or(usize::MAX));
-            self.oid_branch_indices = Vec::new();
-            self.oid_branch_vec_chronological.iter().for_each(|(oidi, _)| {
-                self.oid_branch_indices.push(self.oid_manager.get_sorted_aliases().iter().position(|o| oidi == o).unwrap_or(usize::MAX));
-            });
+            // Mapping of tip oids of the branches to the colors            
+            self.branch_manager.feed(
+                &self.oid_manager,
+                &self.color,
+                &result.tip_lanes,
+                result.local,
+                result.remote
+            );
 
             if !result.again {
-                // self.walker_rx = None;
                 self.spinner.stop();
             }
         }

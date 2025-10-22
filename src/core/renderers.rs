@@ -59,7 +59,7 @@ use crate::{
 pub fn render_graph_range(
     theme: &Theme,
     oid_manager: &OidManager,
-    tips: &HashMap<u32, Vec<String>>,
+    all: &HashMap<u32, Vec<String>>,
     history: &Vector<Vector<Chunk>>,
     head_oidi: u32,
     start: usize,
@@ -139,9 +139,9 @@ pub fn render_graph_range(
             } else if *oidi == chunk.oidi {
                 is_commit_found = true;
                 let is_two_parents = chunk.parent_a != NONE && chunk.parent_b != NONE;
-                if is_two_parents && !(tips.contains_key(oidi)) {
+                if is_two_parents && !(all.contains_key(oidi)) {
                     layers.commit(SYM_MERGE, lane_idx);
-                } else if tips.contains_key(oidi) {
+                } else if all.contains_key(oidi) {
                     layers.commit(SYM_COMMIT_BRANCH, lane_idx);
                 } else {
                     layers.commit(SYM_COMMIT, lane_idx);
@@ -302,7 +302,7 @@ pub fn render_graph_range(
         }
 
         if !is_commit_found {
-            if tips.contains_key(oidi) {
+            if all.contains_key(oidi) {
                 layers.commit(SYM_COMMIT_BRANCH, lane_idx);
             } else {
                 layers.commit(SYM_COMMIT, lane_idx);
@@ -432,9 +432,9 @@ pub fn render_message_range(
     theme: &Theme,
     repo: &Repository,
     oid_manager: &OidManager,
-    tips_local: &HashMap<u32, Vec<String>>,
-    visible_branches: &HashMap<u32, Vec<String>>,
-    tip_colors: &mut HashMap<u32, Color>,
+    local: &HashMap<u32, Vec<String>>,
+    visible: &HashMap<u32, Vec<String>>,
+    colors: &mut HashMap<u32, Color>,
     start: usize,
     end: usize,
     selected: usize,
@@ -451,12 +451,12 @@ pub fn render_message_range(
             let oid = oid_manager.get_oid_by_alias(alias);
             let commit = repo.find_commit(*oid).unwrap();
 
-            if let Some(visible) = visible_branches.get(&alias) {
+            if let Some(visible) = visible.get(&alias) {
                 for branch in visible {
                     // Only render branches that are visible
                     if visible.iter().any(|b| b == branch) {
                         // Check if the branch ios local
-                        let is_local = tips_local
+                        let is_local = local
                             .values()
                             .any(|branches| branches.iter().any(|b| b.as_str() == branch));
 
@@ -466,7 +466,7 @@ pub fn render_message_range(
                                 if is_local { SYM_COMMIT_BRANCH } else { "◆" },
                                 branch
                             ),
-                            Style::default().fg(if let Some(color) = tip_colors.get(&alias) {
+                            Style::default().fg(if let Some(color) = colors.get(&alias) {
                                 *color
                             } else {
                                 theme.COLOR_TEXT

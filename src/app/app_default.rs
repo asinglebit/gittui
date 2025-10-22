@@ -1,8 +1,5 @@
 #[rustfmt::skip]
 use std::{
-    collections::{
-        HashMap
-    },
     env,
     path::PathBuf,
     rc::Rc,
@@ -109,10 +106,6 @@ impl Default for App {
             current_diff: Vec::new(),
             file_name: None,
             viewer_lines: Vec::new(),
-            oid_branch_vec: Vec::new(),
-            oid_branch_vec_chronological: Vec::new(),
-            oid_branch_indices: Vec::new(),
-            visible_branches: HashMap::new(),
 
             // Interface
             layout: Layout::default(),

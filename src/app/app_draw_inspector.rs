@@ -82,8 +82,8 @@ impl App {
                 )]));
             }
 
-            if let Some(branches) = self.branch_manager.tips.get(&alias)
-                && let Some(color) = self.branch_manager.tip_colors.get(&alias) {
+            if let Some(branches) = self.branch_manager.all.get(&alias)
+                && let Some(color) = self.branch_manager.colors.get(&alias) {
                     lines.extend(vec![
                         Line::default(),
                     ]);

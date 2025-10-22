@@ -38,8 +38,8 @@ pub fn checkout_head(repo: &Repository, oid: Oid) {
 
 pub fn checkout_branch(
     repo: &Repository,
-    visible_branches: &mut HashMap<u32, Vec<String>>,
-    tips_local: &mut HashMap<u32, Vec<String>>,
+    visible: &mut HashMap<u32, Vec<String>>,
+    local: &mut HashMap<u32, Vec<String>>,
     oidi: u32,
     branch_name: &str,
 ) -> Result<(), git2::Error> {
@@ -67,10 +67,10 @@ pub fn checkout_branch(
 
             let mut local_branch = repo.branch(branch, &commit, false)?;
             local_branch.set_upstream(Some(branch_name))?;
-            tips_local.entry(oidi)
+            local.entry(oidi)
                 .or_default()
                 .push(branch.to_string());
-            visible_branches
+            visible
                 .entry(oidi)
                 .or_default()
                 .push(branch.to_string());
