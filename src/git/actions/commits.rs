@@ -68,11 +68,11 @@ pub fn checkout_branch(
             let mut local_branch = repo.branch(branch, &commit, false)?;
             local_branch.set_upstream(Some(branch_name))?;
             tips_local.entry(oidi)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(branch.to_string());
             visible_branches
                 .entry(oidi)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(branch.to_string());
 
             return checkout(repo, branch);

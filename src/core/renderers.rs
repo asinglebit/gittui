@@ -85,12 +85,12 @@ pub fn render_graph_range(
         let mut is_merged_before = false;
         let mut lane_idx = 0;
 
-        if history.len() < 1 {return vec![Line::default()];}
+        if history.is_empty() {return vec![Line::default()];}
         let delta = history.len() + global_idx - end;
         let prev = if delta == 0 { None } else { history.get(delta - 1) };
         let last = history.get(delta).unwrap();
 
-        if oid_manager.is_zero(&oid) {
+        if oid_manager.is_zero(oid) {
             lines.push(Line::from(Span::styled(" ◌", Style::default().fg(theme.COLOR_GREY_400))));
             continue;
         }
@@ -98,18 +98,16 @@ pub fn render_graph_range(
         // Find branching lanes
         let mut branching_lanes: Vec<usize> = Vec::new();
         for (lane_idx, chunk) in last.iter().enumerate() {
-            if chunk.is_dummy() {
-                if let Some(prev_snapshot) = prev && let Some(prev) = prev_snapshot.get(lane_idx) {
-                    if (prev.parent_a != NONE && prev.parent_b == NONE) || (prev.parent_a == NONE && prev.parent_b != NONE) {
+            if chunk.is_dummy()
+                && let Some(prev_snapshot) = prev && let Some(prev) = prev_snapshot.get(lane_idx)
+                    && ((prev.parent_a != NONE && prev.parent_b == NONE) || (prev.parent_a == NONE && prev.parent_b != NONE)) {
                         branching_lanes.push(lane_idx);
                     }
-                }
-            }
         }
 
         for chunk in last.iter() {
-            if is_commit_found && !branching_lanes.is_empty() {
-                if let Some(&closest_lane) = branching_lanes.first() {
+            if is_commit_found && !branching_lanes.is_empty()
+                && let Some(&closest_lane) = branching_lanes.first() {
                     if closest_lane == lane_idx {
                         branching_lanes.remove(0);
                     } else if lane_idx < closest_lane {
@@ -123,7 +121,6 @@ pub fn render_graph_range(
                         continue;
                     }
                 }
-            }
 
             if chunk.is_dummy() {
                 if let Some(prev_snapshot) = prev && let Some(prev) = prev_snapshot.get(lane_idx) {

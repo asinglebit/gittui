@@ -88,7 +88,7 @@ impl LayersContext {
             if let Some(tokens) = self.builder.layers.get_mut(&layer) {
                 while tokens
                     .last()
-                    .map_or(false, |(sym, _)| sym.trim().is_empty())
+                    .is_some_and(|(sym, _)| sym.trim().is_empty())
                 {
                     tokens.pop();
                 }

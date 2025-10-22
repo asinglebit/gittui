@@ -79,7 +79,7 @@ impl App {
 
         branches
             .iter()
-            .filter(|branch| current.as_ref().map_or(true, |c| c != *branch))
+            .filter(|branch| current.as_ref() != Some(*branch))
             .enumerate()
             .for_each(|(idx, branch)| {
                 height += 1;

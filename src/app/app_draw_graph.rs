@@ -118,10 +118,8 @@ impl App {
                 ]);
                 if idx + start == self.graph_selected && self.focus == Focus::Viewport {
                     row = row.style(Style::default().bg(self.theme.COLOR_GREY_800));
-                } else {
-                    if (idx + start) % 2 == 0 {
-                        row = row.style(Style::default().bg(self.theme.COLOR_GREY_900));
-                    }
+                } else if (idx + start).is_multiple_of(2) {
+                    row = row.style(Style::default().bg(self.theme.COLOR_GREY_900));
                 }
                 rows.push(row);
             }

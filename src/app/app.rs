@@ -206,6 +206,7 @@ impl OidManager {
     }
 }
 
+#[derive(Default)]
 pub struct BranchManager {
     pub tips_local: HashMap<u32, Vec<String>>,
     pub tips_remote: HashMap<u32, Vec<String>>,
@@ -213,16 +214,6 @@ pub struct BranchManager {
     pub tip_colors: HashMap<u32, Color>,
 }
 
-impl Default for BranchManager {
-    fn default() -> Self {
-        BranchManager {
-            tips_local: HashMap::new(),
-            tips_remote: HashMap::new(),
-            tips: HashMap::new(),
-            tip_colors: HashMap::new(),
-        }
-    }
-}
 
 pub struct App {
     // General
@@ -527,11 +518,10 @@ impl App  {
         if let Some(rx) = &self.walker_rx && let Ok(result) = rx.try_recv() {
 
             // Crude check to see if this is a first iteration
-            if result.is_first_batch {
-                if self.viewport == Viewport::Splash {
+            if result.is_first_batch
+                && self.viewport == Viewport::Splash {
                     self.viewport = Viewport::Graph;
                 }
-            }
 
             // Reset utilities
             self.buffer = RefCell::new(Buffer::default());
@@ -582,7 +572,7 @@ impl App  {
                 .collect();
             local_oidi_branch_tuples.sort_by(|a, b| a.1.cmp(&b.1));
             remote_oidi_branch_tuples.sort_by(|a, b| a.1.cmp(&b.1));
-            self.oid_branch_vec = local_oidi_branch_tuples.into_iter().chain(remote_oidi_branch_tuples.into_iter()).collect();
+            self.oid_branch_vec = local_oidi_branch_tuples.into_iter().chain(remote_oidi_branch_tuples).collect();
 
             self.buffer = result.buffer;
 

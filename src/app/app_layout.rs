@@ -84,8 +84,8 @@ impl App {
         let mut inspector = chunks_pane[0];
         inspector.y += 1;
         if self.is_status && self.graph_selected != 0 {
-           inspector.height = inspector.height + 2; 
-           inspector_scrollbar.height = inspector_scrollbar.height + 2; 
+           inspector.height += 2; 
+           inspector_scrollbar.height += 2; 
         }
 
         let mut status_top_scrollbar = chunks_status[0];
@@ -100,10 +100,10 @@ impl App {
 
         let mut status_bottom_scrollbar = chunks_status[1];
         status_bottom_scrollbar.y = status_bottom_scrollbar.y.saturating_sub(1);
-        status_bottom_scrollbar.height = status_bottom_scrollbar.height + 1;
+        status_bottom_scrollbar.height += 1;
         let mut status_bottom = chunks_status[1];
         status_bottom.y = status_bottom.y.saturating_sub(1);
-        status_bottom.height = status_bottom.height + 1;
+        status_bottom.height += 1;
         status_bottom.width = status_bottom.width.saturating_sub(1);
 
         self.layout = Layout {
