@@ -60,11 +60,8 @@ impl App {
         if !is_showing_uncommitted {
             
             // Query commit info
-            let zero = Oid::zero();
-            let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
-            let oid = self.commit_manager.oidi_to_oid.get(*oidi as usize).unwrap_or(&zero);
-            
-            
+            let alias = self.commit_manager.get_alias_by_idx(self.graph_selected);
+            let oid = self.commit_manager.get_oid_by_alias(alias);
             let commit = self.repo.find_commit(*oid).unwrap();
             let author = commit.author();
             let committer = commit.committer();
@@ -89,8 +86,8 @@ impl App {
                 )]));
             }
 
-            if let Some(branches) = self.branch_manager.tips.get(oidi)
-                && let Some(color) = self.branch_manager.tip_colors.get(oidi) {
+            if let Some(branches) = self.branch_manager.tips.get(&alias)
+                && let Some(color) = self.branch_manager.tip_colors.get(&alias) {
                     lines.extend(vec![
                         Line::default(),
                     ]);

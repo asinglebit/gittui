@@ -152,9 +152,9 @@ pub enum Direction {
 
 pub struct CommitManager {
     pub zero: Oid,
-    pub oidi_to_oid: Vec<Oid>,
-    pub oid_to_oidi: HashMap<Oid, u32>,
-    pub oidi_sorted: Vec<u32>,
+    pub oids: Vec<Oid>,
+    pub aliases: HashMap<Oid, u32>,
+    pub sorted_aliases: Vec<u32>,
 }
 
 impl Default for CommitManager {
@@ -162,36 +162,40 @@ impl Default for CommitManager {
         
         CommitManager {
             zero: Oid::zero(),
-            oidi_to_oid: Vec::new(),
-            oid_to_oidi: HashMap::new(),
-            oidi_sorted: Vec::new(),
+            oids: Vec::new(),
+            aliases: HashMap::new(),
+            sorted_aliases: Vec::new(),
         }
     }
 }
 
 impl CommitManager {
     pub fn get_alias_by_oid(&mut self, oid: Oid) -> u32 {
-        *self.oid_to_oidi.entry(oid).or_insert_with(|| {
-            self.oidi_to_oid.push(oid);
-            self.oidi_to_oid.len() as u32 - 1
+        *self.aliases.entry(oid).or_insert_with(|| {
+            self.oids.push(oid);
+            self.oids.len() as u32 - 1
         })
     }
 
     pub fn get_alias_by_idx(&self, idx: usize) -> u32 {
-        *self.oidi_sorted.get(idx).unwrap()
+        *self.sorted_aliases.get(idx).unwrap()
     }
 
     pub fn get_oid_by_alias(&self, alias: u32) -> &Oid {
-        self.oidi_to_oid.get(alias as usize).unwrap_or(&self.zero)
+        self.oids.get(alias as usize).unwrap_or(&self.zero)
     }
 
     pub fn get_oid_by_idx(&self, idx: usize) -> &Oid {
-        let alias = *self.oidi_sorted.get(idx).unwrap_or(&NONE);
-        self.oidi_to_oid.get(alias as usize).unwrap_or(&self.zero)
+        let alias = *self.sorted_aliases.get(idx).unwrap_or(&NONE);
+        self.oids.get(alias as usize).unwrap_or(&self.zero)
     }
 
     pub fn get_sorted_aliases(&self) -> &Vec<u32> {
-        &self.oidi_sorted
+        &self.sorted_aliases
+    }
+
+    pub fn get_commit_count(&self) -> usize {
+        self.sorted_aliases.len()
     }
 
     pub fn is_zero(&self, oid: &Oid) -> bool {
@@ -539,9 +543,9 @@ impl App  {
             self.uncommitted = get_filenames_diff_at_workdir(&self.repo).expect("Error");
             
             // Lookup tables
-            self.commit_manager.oidi_to_oid = result.oidi_to_oid;
-            self.commit_manager.oid_to_oidi = result.oid_to_oidi;
-            self.commit_manager.oidi_sorted = result.oidi_sorted;            
+            self.commit_manager.oids = result.oidi_to_oid;
+            self.commit_manager.aliases = result.oid_to_oidi;
+            self.commit_manager.sorted_aliases = result.oidi_sorted;            
 
             // Mapping of tip oids of the branches to the colors
             self.branch_manager.tip_colors = HashMap::new();
@@ -593,17 +597,13 @@ impl App  {
             
             // Build a lookup: oidi -> position in self.oids
             self.oid_branch_vec_chronological = self.oid_branch_vec.clone();
-            let index_map: std::collections::HashMap<u32, usize> = self.commit_manager.oidi_sorted
-                .iter()
-                .enumerate()
-                .map(|(i, &oidi)| (oidi, i))
-                .collect();
+            let index_map: std::collections::HashMap<u32, usize> = self.commit_manager.get_sorted_aliases().iter().enumerate().map(|(i, &oidi)| (oidi, i)).collect();
 
             // Sort the vector using the index map
             self.oid_branch_vec_chronological.sort_by_key(|(oidi, _)| index_map.get(oidi).copied().unwrap_or(usize::MAX));
             self.oid_branch_indices = Vec::new();
             self.oid_branch_vec_chronological.iter().for_each(|(oidi, _)| {
-                self.oid_branch_indices.push(self.commit_manager.oidi_sorted.iter().position(|o| oidi == o).unwrap_or(usize::MAX));
+                self.oid_branch_indices.push(self.commit_manager.get_sorted_aliases().iter().position(|o| oidi == o).unwrap_or(usize::MAX));
             });
 
             if !result.again {

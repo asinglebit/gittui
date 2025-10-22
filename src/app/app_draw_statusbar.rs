@@ -50,7 +50,7 @@ impl App {
 
         let total = match self.focus {
             Focus::Viewport => match self.viewport {
-                Viewport::Graph => self.commit_manager.oidi_sorted.len(),
+                Viewport::Graph => self.commit_manager.get_commit_count(),
                 Viewport::Viewer => self.viewer_lines.len(),
                 _ => 0,
             },

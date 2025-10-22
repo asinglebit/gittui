@@ -28,8 +28,8 @@ impl App {
 
     pub fn draw_modal_checkout(&mut self, frame: &mut Frame) {
         
-        let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
-        let color = self.branch_manager.tip_colors.get(oidi).unwrap();
+        let alias = self.commit_manager.get_alias_by_idx(self.graph_selected);
+        let color = self.branch_manager.tip_colors.get(&alias).unwrap();
         let mut length = 39;
         let mut lines = vec![
             Line::from(vec![
@@ -38,7 +38,7 @@ impl App {
             Line::from("")
         ];
         let mut height = 6;
-        let branches = self.visible_branches.get(oidi).unwrap();
+        let branches = self.visible_branches.get(&alias).unwrap();
 
         branches.iter().enumerate().for_each(|(idx, branch)| {
             height += 1;

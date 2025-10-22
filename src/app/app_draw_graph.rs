@@ -35,7 +35,7 @@ impl App {
 
     pub fn draw_graph(&mut self, frame: &mut Frame) {
         // Get vertical dimensions
-        let total_lines = self.commit_manager.oidi_sorted.len();
+        let total_lines = self.commit_manager.get_commit_count();
         let visible_height = self.layout.graph.height as usize;
         
         // Clamp selection

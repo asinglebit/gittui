@@ -137,8 +137,7 @@ impl App {
                     );
 
                     // Update the viewer to show the file at the selected commit OID
-                    let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
-                    let oid = self.commit_manager.oidi_to_oid.get(*oidi as usize).unwrap();
+                    let oid = self.commit_manager.get_oid_by_idx(self.graph_selected);
                     self.update_viewer(*oid);
                     self.viewport = Viewport::Viewer;
 
