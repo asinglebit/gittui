@@ -223,8 +223,8 @@ impl App {
                             self.focus = Focus::Viewport;
                         }
                         KeyCode::Enter => {
-                            let oidi = self.oidi_sorted.get(if self.graph_selected == 0 { 1 } else { self.graph_selected }).unwrap(); 
-                            let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
+                            let oidi = self.commit_manager.oidi_sorted.get(if self.graph_selected == 0 { 1 } else { self.graph_selected }).unwrap(); 
+                            let oid = self.commit_manager.oidi_to_oid.get(*oidi as usize).unwrap();
                             match create_branch(&self.repo, &editor_state_to_string(&self.create_branch_editor), *oid) {
                                 Ok(_) => {
                                     self.visible_branches.clear();
@@ -371,7 +371,7 @@ impl App {
             }
             Focus::ModalCheckout => {
                 
-                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap(); 
+                let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap(); 
 
                 let branches = self
                     .visible_branches
@@ -382,7 +382,7 @@ impl App {
                 checkout_branch(
                     &self.repo,
                     &mut self.visible_branches,
-                    &mut self.tips_local,
+                    &mut self.branch_manager.tips_local,
                     *oidi,
                     branches.get(self.modal_checkout_selected as usize).unwrap(),
                 )
@@ -392,7 +392,7 @@ impl App {
                 self.reload();
             }
             Focus::ModalSolo => {
-                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap(); 
+                let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap(); 
                 let branches = self
                     .visible_branches
                     .get(oidi)
@@ -421,7 +421,7 @@ impl App {
                 self.reload();
             }
             Focus::ModalDeleteBranch => {
-                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap(); 
+                let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap(); 
                 let branches = self
                     .visible_branches
                     .get(oidi)
@@ -554,9 +554,9 @@ impl App {
                             self.graph_selected = 0;
                         }
 
-                        if self.graph_selected != 0 && self.graph_selected < self.oidi_sorted.len() {
-                            let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
-                            let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
+                        if self.graph_selected != 0 && self.graph_selected < self.commit_manager.oidi_sorted.len() {
+                            let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
+                            let oid = self.commit_manager.oidi_to_oid.get(*oidi as usize).unwrap();
                             self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                         }
                     }
@@ -589,9 +589,9 @@ impl App {
             _ => {}
         };
 
-        if self.graph_selected != 0 && self.graph_selected < self.oidi_sorted.len() {
-            let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
-            let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
+        if self.graph_selected != 0 && self.graph_selected < self.commit_manager.oidi_sorted.len() {
+            let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
+            let oid = self.commit_manager.oidi_to_oid.get(*oidi as usize).unwrap();
             self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
         }
     }
@@ -606,14 +606,14 @@ impl App {
                 let page = self.layout.graph.height as usize - 1;
                 match self.viewport {
                     Viewport::Graph => {
-                        if self.graph_selected + page < self.oidi_sorted.len() {
+                        if self.graph_selected + page < self.commit_manager.oidi_sorted.len() {
                             self.graph_selected += page;
                         } else {
-                            self.graph_selected = self.oidi_sorted.len() - 1;
+                            self.graph_selected = self.commit_manager.oidi_sorted.len() - 1;
                         }
-                        if self.graph_selected != 0 && self.graph_selected < self.oidi_sorted.len() {
-                            let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
-                            let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
+                        if self.graph_selected != 0 && self.graph_selected < self.commit_manager.oidi_sorted.len() {
+                            let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
+                            let oid = self.commit_manager.oidi_to_oid.get(*oidi as usize).unwrap();
                             self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                         }
                     }
@@ -646,9 +646,9 @@ impl App {
             _ => {}
         };
 
-        if self.graph_selected != 0 && self.graph_selected < self.oidi_sorted.len() {
-            let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
-            let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
+        if self.graph_selected != 0 && self.graph_selected < self.commit_manager.oidi_sorted.len() {
+            let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
+            let oid = self.commit_manager.oidi_to_oid.get(*oidi as usize).unwrap();
             self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
         }
     }
@@ -667,9 +667,9 @@ impl App {
                                 self.focus = Focus::Viewport;
                             }
                         }
-                        if self.graph_selected != 0 && self.graph_selected < self.oidi_sorted.len() {
-                            let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
-                            let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
+                        if self.graph_selected != 0 && self.graph_selected < self.commit_manager.oidi_sorted.len() {
+                            let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
+                            let oid = self.commit_manager.oidi_to_oid.get(*oidi as usize).unwrap();
                             self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                         }
                     }
@@ -696,7 +696,7 @@ impl App {
                 self.status_bottom_selected = self.status_bottom_selected.saturating_sub(1);
             }
             Focus::ModalCheckout => {
-                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
+                let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
                 let branches = self
                     .visible_branches
                     .entry(*oidi)
@@ -708,7 +708,7 @@ impl App {
                 };
             }
             Focus::ModalSolo => {
-                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
+                let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
                 let branches = self
                     .visible_branches
                     .entry(*oidi)
@@ -720,7 +720,7 @@ impl App {
                 };
             }
             Focus::ModalDeleteBranch => {
-                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
+                let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
                 let branches = self
                     .visible_branches
                     .entry(*oidi)
@@ -751,12 +751,12 @@ impl App {
             }
             Focus::Viewport => match self.viewport {
                 Viewport::Graph => {
-                    if self.graph_selected + 1 < self.oidi_sorted.len() {
+                    if self.graph_selected + 1 < self.commit_manager.oidi_sorted.len() {
                         self.graph_selected += 1;
                     }
-                    if self.graph_selected != 0 && self.graph_selected < self.oidi_sorted.len() {
-                        let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
-                        let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
+                    if self.graph_selected != 0 && self.graph_selected < self.commit_manager.oidi_sorted.len() {
+                        let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
+                        let oid = self.commit_manager.oidi_to_oid.get(*oidi as usize).unwrap();
                         self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                     }
                 }
@@ -781,7 +781,7 @@ impl App {
                 self.status_bottom_selected += 1;
             }
             Focus::ModalCheckout => {
-                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
+                let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
                 let branches = self
                     .visible_branches
                     .entry(*oidi)
@@ -795,7 +795,7 @@ impl App {
                     };
             }
             Focus::ModalSolo => {
-                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
+                let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
                 let branches = self
                     .visible_branches
                     .entry(*oidi)
@@ -809,7 +809,7 @@ impl App {
                     };
             }
             Focus::ModalDeleteBranch => {
-                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
+                let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
                 let branches = self
                     .visible_branches
                     .entry(*oidi)
@@ -854,8 +854,8 @@ impl App {
         match self.focus {
             Focus::Viewport => match self.viewport {
                 Viewport::Graph => {
-                    self.graph_selected = (self.oidi_sorted.len() - 1)
-                        .min(self.graph_selected + (self.oidi_sorted.len() - self.graph_selected) / 2);
+                    self.graph_selected = (self.commit_manager.oidi_sorted.len() - 1)
+                        .min(self.graph_selected + (self.commit_manager.oidi_sorted.len() - self.graph_selected) / 2);
                 }
                 _ => {}
             },
@@ -906,16 +906,15 @@ impl App {
         match self.focus {
             Focus::Viewport => match self.viewport {
                 Viewport::Graph => {
-                    let current_oidi = *self.oidi_sorted.get(self.graph_selected).unwrap();
-                    let current_oid = self.oidi_to_oid.get(current_oidi as usize).unwrap();
+                    let current_oidi = *self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
+                    let current_oid = self.commit_manager.oidi_to_oid.get(current_oidi as usize).unwrap();
                     if current_oidi == NONE { return; }
                     
-                    let child_positions: Vec<usize> = self
-                        .oidi_sorted
+                    let child_positions: Vec<usize> = self.commit_manager.oidi_sorted
                         .iter()
                         .enumerate()
                         .filter_map(|(idx, &oidi)| {
-                            let oid = self.oidi_to_oid.get(oidi as usize).unwrap();
+                            let oid = self.commit_manager.oidi_to_oid.get(oidi as usize).unwrap();
                             let commit = self.repo.find_commit(*oid).ok()?;
                             if commit.parent_ids().any(|parent_oid| parent_oid == *current_oid) {
                                 Some(idx)
@@ -942,8 +941,8 @@ impl App {
         match self.focus {
             Focus::Viewport => match self.viewport {
                 Viewport::Graph => {
-                    let oidi = *self.oidi_sorted.get(self.graph_selected).unwrap();
-                    let oid = self.oidi_to_oid.get(oidi as usize).unwrap();
+                    let oidi = *self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
+                    let oid = self.commit_manager.oidi_to_oid.get(oidi as usize).unwrap();
 
                     if oidi == NONE {
                         self.graph_selected = 1;
@@ -957,9 +956,8 @@ impl App {
                         return;
                     } else {
                         let parent_oid = parents.next().unwrap();
-                        let parent_oidi = self.oid_to_oidi.get(&parent_oid).unwrap();
-                        let next = self
-                            .oidi_sorted
+                        let parent_oidi = self.commit_manager.oid_to_oidi.get(&parent_oid).unwrap();
+                        let next = self.commit_manager.oidi_sorted
                             .iter()
                             .position(|&oidi| oidi == *parent_oidi)
                             .unwrap();
@@ -1037,7 +1035,7 @@ impl App {
             Focus::Branches => {
                 self.viewport = Viewport::Graph;
                 let oidi = self.oid_branch_vec.get(self.branches_selected).unwrap().0;
-                self.graph_selected = self.oidi_sorted.iter().position(|o| o == &oidi).unwrap_or(0);
+                self.graph_selected = self.commit_manager.oidi_sorted.iter().position(|o| o == &oidi).unwrap_or(0);
             }
             _ => {}
         };
@@ -1071,7 +1069,7 @@ impl App {
                     return;
                 }
 
-                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
+                let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
 
                 let branches = self
                     .visible_branches
@@ -1125,9 +1123,9 @@ impl App {
                     return;
                 }
 
-                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
-                let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
-                let branches = self.tips.entry(*oidi).or_default();
+                let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
+                let oid = self.commit_manager.oidi_to_oid.get(*oidi as usize).unwrap();
+                let branches = self.branch_manager.tips.entry(*oidi).or_default();
 
                 if branches.is_empty() {
                     checkout_head(&self.repo, *oid);
@@ -1138,7 +1136,7 @@ impl App {
                     checkout_branch(
                         &self.repo,
                         &mut self.visible_branches,
-                        &mut self.tips_local,
+                        &mut self.branch_manager.tips_local,
                         *oidi,
                         branches.first().unwrap(),
                     )
@@ -1161,8 +1159,8 @@ impl App {
                     return;
                 }
                             
-                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
-                let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
+                let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
+                let oid = self.commit_manager.oidi_to_oid.get(*oidi as usize).unwrap();
                 reset_to_commit(&self.repo, *oid, git2::ResetType::Hard).expect("Error");
                 self.reload();
                 self.focus = Focus::Viewport;
@@ -1178,8 +1176,8 @@ impl App {
                     return;
                 }
                             
-                let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
-                let oid = self.oidi_to_oid.get(*oidi as usize).unwrap();
+                let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
+                let oid = self.commit_manager.oidi_to_oid.get(*oidi as usize).unwrap();
                 reset_to_commit(&self.repo, *oid, git2::ResetType::Mixed).expect("Error");
                 self.reload();
                 self.focus = Focus::Viewport;
@@ -1284,7 +1282,7 @@ impl App {
                     Focus::Viewport => {
                         if self.graph_selected != 0 {
                             
-                            let oidi = self.oidi_sorted.get(if self.graph_selected == 0 { 1 } else { self.graph_selected }).unwrap();
+                            let oidi = self.commit_manager.oidi_sorted.get(if self.graph_selected == 0 { 1 } else { self.graph_selected }).unwrap();
                             let current = get_current_branch(&self.repo);
 
                             if let Some(branches) = self.visible_branches.get(oidi) {

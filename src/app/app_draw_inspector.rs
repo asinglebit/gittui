@@ -61,8 +61,8 @@ impl App {
             
             // Query commit info
             let zero = Oid::zero();
-            let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
-            let oid = self.oidi_to_oid.get(*oidi as usize).unwrap_or(&zero);
+            let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
+            let oid = self.commit_manager.oidi_to_oid.get(*oidi as usize).unwrap_or(&zero);
             
             
             let commit = self.repo.find_commit(*oid).unwrap();
@@ -70,29 +70,27 @@ impl App {
             let committer = commit.committer();
             let summary = commit.summary().unwrap_or("⊘ no summary").to_string();
             let body = commit.body().unwrap_or("⊘ no body").to_string();
-            let color = self.oid_colors.get(oidi);
 
             // Assemble lines
             lines = vec![
                 Line::from(vec![Span::styled("commit sha:", Style::default().fg(self.theme.COLOR_GREY_500))]),
                 Line::from(vec![Span::styled(
                     truncate_with_ellipsis(&format!("#{}", oid), max_text_width),
-                    Style::default().fg(if color.is_some() { *color.unwrap() } else { self.theme.COLOR_TEXT }),
+                    Style::default().fg(self.theme.COLOR_TEXT),
                 )]),
                 Line::default(),
                 Line::from(vec![Span::styled("parent shas:", Style::default().fg(self.theme.COLOR_GREY_500))]),
             ];
 
             for parent_id in commit.parent_ids() {
-                let parent_oidi = self.oid_to_oidi.get(&parent_id).unwrap();
                 lines.push(Line::from(vec![Span::styled(
                     truncate_with_ellipsis(&format!("#{}", parent_id), max_text_width),
-                    Style::default().fg(*self.oid_colors.get(parent_oidi).unwrap_or(&self.theme.COLOR_TEXT)),
+                    Style::default().fg(self.theme.COLOR_TEXT),
                 )]));
             }
 
-            if let Some(branches) = self.tips.get(oidi)
-                && let Some(color) = self.tip_colors.get(oidi) {
+            if let Some(branches) = self.branch_manager.tips.get(oidi)
+                && let Some(color) = self.branch_manager.tip_colors.get(oidi) {
                     lines.extend(vec![
                         Line::default(),
                     ]);

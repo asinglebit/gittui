@@ -24,6 +24,7 @@ use edtui::{
     EditorEventHandler,
     EditorState
 };
+use crate::app::app::{BranchManager, CommitManager};
 #[rustfmt::skip]
 use crate::{
     layers,
@@ -100,16 +101,8 @@ impl Default for App {
             walker_handle: None,
 
             // Walker data
-            oidi_to_oid: Vec::new(),
-            oid_to_oidi: HashMap::new(),
-            oidi_sorted: Vec::new(),
-            tips_local: HashMap::new(),
-            tips_remote: HashMap::new(),
-            tips: HashMap::new(),
-            oid_colors: HashMap::new(),
-            tip_colors: HashMap::new(),
-            branch_oid_map: HashMap::new(),
-            oid_branch_map: HashMap::new(),
+            commit_manager: CommitManager::default(),
+            branch_manager: BranchManager::default(),
             uncommitted: UncommittedChanges::default(),
 
             // Cache

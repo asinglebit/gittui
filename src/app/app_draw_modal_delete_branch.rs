@@ -38,8 +38,8 @@ impl App {
     pub fn draw_modal_delete_branch(&mut self, frame: &mut Frame) {
         
         let current = get_current_branch(&self.repo);
-        let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
-        let color = self.tip_colors.get(oidi).unwrap();
+        let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
+        let color = self.branch_manager.tip_colors.get(oidi).unwrap();
         
         let mut lines = Vec::new();
         let mut length = 25;
@@ -83,8 +83,7 @@ impl App {
             .enumerate()
             .for_each(|(idx, branch)| {
                 height += 1;
-                let is_local = self
-                    .tips_local
+                let is_local = self.branch_manager.tips_local
                     .values()
                     .any(|branches| branches.iter().any(|b| b.as_str() == branch));
 

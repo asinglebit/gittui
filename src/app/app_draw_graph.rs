@@ -34,7 +34,7 @@ use crate::{
 impl App {
     pub fn draw_graph(&mut self, frame: &mut Frame) {
         // Get vertical dimensions
-        let total_lines = self.oidi_sorted.len();
+        let total_lines = self.commit_manager.oidi_sorted.len();
         let mut visible_height = self.layout.graph.height as usize;
         
         // Clamp selection
@@ -64,20 +64,20 @@ impl App {
         let mut buffer = self.buffer.borrow_mut();
         buffer.decompress(start, end + 1);
         let head_oid = self.repo.head().unwrap().target().unwrap();
-        let head_oidi = *self.oid_to_oidi.entry(head_oid).or_insert_with(|| {
-            self.oidi_to_oid.push(head_oid);
-            self.oidi_to_oid.len() as u32 - 1
+        let head_oidi = *self.commit_manager.oid_to_oidi.entry(head_oid).or_insert_with(|| {
+            self.commit_manager.oidi_to_oid.push(head_oid);
+            self.commit_manager.oidi_to_oid.len() as u32 - 1
         });
 
         // Rendered lines
-        let buffer_range = render_buffer_range(&self.theme, &self.oidi_sorted, &self.oidi_to_oid, &buffer.history, start, end + 1);
+        let buffer_range = render_buffer_range(&self.theme, &self.commit_manager.oidi_sorted, &self.commit_manager.oidi_to_oid, &buffer.history, start, end + 1);
         let graph_range = render_graph_range(
             &self.theme,
-            &self.oidi_sorted,
-            &self.oidi_to_oid,
-            &self.tips,
+            &self.commit_manager.oidi_sorted,
+            &self.commit_manager.oidi_to_oid,
+            &self.branch_manager.tips,
             &mut self.layers,
-            &mut self.tip_colors,
+            &mut self.branch_manager.tip_colors,
             &buffer.history,
             head_oidi,
             start,
@@ -86,11 +86,11 @@ impl App {
         let message_range = render_message_range(
             &self.theme,
             &self.repo,
-            &self.oidi_sorted,
-            &self.oidi_to_oid,
-            &self.tips_local,
+            &self.commit_manager.oidi_sorted,
+            &self.commit_manager.oidi_to_oid,
+            &self.branch_manager.tips_local,
             &self.visible_branches,
-            &mut self.tip_colors,
+            &mut self.branch_manager.tip_colors,
             start,
             end,
             self.graph_selected,

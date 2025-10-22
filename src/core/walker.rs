@@ -141,7 +141,8 @@ pub struct Walker {
     pub branch_oid_map: HashMap<String, u32>,
 
     // Pagination
-    pub amount: usize,
+    pub amount: usize
+
 }
 
 // Output structure for walk results
@@ -161,6 +162,7 @@ pub struct WalkerOutput {
 
     // Pagination
     pub again: bool,
+    pub is_first_batch: bool
 }
 
 impl Walker {
@@ -206,7 +208,7 @@ impl Walker {
             branch_oid_map,
 
             // Pagination
-            amount,
+            amount
         })
     }
 
@@ -320,6 +322,7 @@ impl Walker {
             self.buffer.borrow_mut().backup();
             return false;
         }
+
         true
     }
 }

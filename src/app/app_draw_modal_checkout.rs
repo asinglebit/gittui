@@ -28,8 +28,8 @@ impl App {
 
     pub fn draw_modal_checkout(&mut self, frame: &mut Frame) {
         
-        let oidi = self.oidi_sorted.get(self.graph_selected).unwrap();
-        let color = self.tip_colors.get(oidi).unwrap();
+        let oidi = self.commit_manager.oidi_sorted.get(self.graph_selected).unwrap();
+        let color = self.branch_manager.tip_colors.get(oidi).unwrap();
         let mut length = 39;
         let mut lines = vec![
             Line::from(vec![
@@ -42,7 +42,7 @@ impl App {
 
         branches.iter().enumerate().for_each(|(idx, branch)| {
             height += 1;
-            let is_local = self.tips_local.values().any(|branches| branches.iter().any(|b| b.as_str() == branch));
+            let is_local = self.branch_manager.tips_local.values().any(|branches| branches.iter().any(|b| b.as_str() == branch));
             length = (10 + branch.len()).max(length);
             lines.push(Line::from(Span::styled(
                 format!("{} {} ", if is_local { "●" } else { "◆" }, branch),
