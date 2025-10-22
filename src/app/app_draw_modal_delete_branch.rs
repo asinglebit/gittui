@@ -38,7 +38,7 @@ impl App {
     pub fn draw_modal_delete_branch(&mut self, frame: &mut Frame) {
         
         let current = get_current_branch(&self.repo);
-        let alias = self.commit_manager.get_alias_by_idx(self.graph_selected);
+        let alias = self.oid_manager.get_alias_by_idx(self.graph_selected);
         let color = self.branch_manager.tip_colors.get(&alias).unwrap();
         
         let mut lines = Vec::new();

@@ -137,7 +137,7 @@ impl App {
                     );
 
                     // Update the viewer to show the file at the selected commit OID
-                    let oid = self.commit_manager.get_oid_by_idx(self.graph_selected);
+                    let oid = self.oid_manager.get_oid_by_idx(self.graph_selected);
                     self.update_viewer(*oid);
                     self.viewport = Viewport::Viewer;
 

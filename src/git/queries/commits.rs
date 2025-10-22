@@ -6,6 +6,7 @@ use git2::{
     Repository,
     Time
 };
+use crate::app::app::OidManager;
 #[rustfmt::skip]
 use crate::{
     core::{
@@ -16,7 +17,7 @@ use crate::{
 };
 
 // Returns a map of commit OIDs to the branch names that point to them
-pub fn get_tip_oids(repo: &Repository, oidi_to_oid: &mut Vec<Oid>, oid_to_oidi: &mut HashMap<Oid, u32>) -> (HashMap<u32, Vec<String>>, HashMap<u32, Vec<String>>) {
+pub fn get_tip_oids(repo: &Repository, oid_manager: &mut OidManager) -> (HashMap<u32, Vec<String>>, HashMap<u32, Vec<String>>) {
     
     let mut tips_local: HashMap<u32, Vec<String>> = HashMap::new();
     let mut tips_remote: HashMap<u32, Vec<String>> = HashMap::new();
@@ -26,18 +27,14 @@ pub fn get_tip_oids(repo: &Repository, oidi_to_oid: &mut Vec<Oid>, oid_to_oidi: 
         // Only handle direct refs (skip symbolic ones like HEAD)
         if let Some(oid) = reference.target() {
             
-            // Get the oidi
-            let oidi = *oid_to_oidi.entry(oid).or_insert_with(|| {
-                oidi_to_oid.push(oid);
-                oidi_to_oid.len() as u32 - 1
-            });
-
+            // Get the alias
+            let alias = oid_manager.get_alias_by_oid(oid);
             let name = reference.name().unwrap_or("unknown");
 
             if let Some(stripped) = name.strip_prefix("refs/heads/") {
-                tips_local.entry(oidi).or_default().push(stripped.to_string());
+                tips_local.entry(alias).or_default().push(stripped.to_string());
             } else if let Some(stripped) = name.strip_prefix("refs/remotes/") {
-                tips_remote.entry(oidi).or_default().push(stripped.to_string());
+                tips_remote.entry(alias).or_default().push(stripped.to_string());
             }
         }
     }
@@ -53,9 +50,7 @@ pub fn get_branches_and_sorted_oids(
     walker: &LazyWalker,
     tips_local: &HashMap<u32, Vec<String>>,
     tips_remote: &HashMap<u32, Vec<String>>,
-    oidi_sorted: &mut Vec<u32>,
-    oidi_to_oid: &mut Vec<Oid>,
-    oid_to_oidi: &mut HashMap<Oid, u32>,
+    oid_manager: &mut OidManager,
     branch_oid_map: &mut HashMap<String, u32>,
     sorted: &mut Vec<u32>,
     amount: usize,
@@ -68,7 +63,7 @@ pub fn get_branches_and_sorted_oids(
     }
 
     // Seed each tip with its branch names
-    if oidi_sorted.len() == 1 {
+    if oid_manager.get_commit_count() == 1 {
         for (oidi, branches) in tips_local.iter().chain(tips_remote) {
             for name in branches {
                 branch_oid_map.entry(name.clone()).or_insert(*oidi);
@@ -78,14 +73,10 @@ pub fn get_branches_and_sorted_oids(
 
     // Walk all commits topologically and propagate branch membership backwards
     for oid in chunk {
-
-        // Get the oidi
-        let oidi = *oid_to_oidi.entry(oid).or_insert_with(|| {
-            oidi_to_oid.push(oid);
-            oidi_to_oid.len() as u32 - 1
-        });
-
-        sorted.push(oidi);
+        
+        // Get the alias
+        let alias = oid_manager.get_alias_by_oid(oid);
+        sorted.push(alias);
     }
 }
 

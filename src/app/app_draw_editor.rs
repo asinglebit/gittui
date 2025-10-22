@@ -88,7 +88,7 @@ impl App {
         editor_view.render(self.layout.graph, frame.buffer_mut());
 
         // Render the scrollbar
-        let total_lines = self.commit_manager.get_commit_count();
+        let total_lines = self.oid_manager.get_commit_count();
         let visible_height = self.layout.graph.height as usize;
         if total_lines > visible_height {
             let mut scrollbar_state = ScrollbarState::new(total_lines).position(self.graph_scroll.get());

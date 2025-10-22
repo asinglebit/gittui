@@ -35,7 +35,7 @@ impl App {
 
     pub fn draw_graph(&mut self, frame: &mut Frame) {
         // Get vertical dimensions
-        let total_lines = self.commit_manager.get_commit_count();
+        let total_lines = self.oid_manager.get_commit_count();
         let visible_height = self.layout.graph.height as usize;
         
         // Clamp selection
@@ -63,19 +63,19 @@ impl App {
 
         // Get head
         let head_oid = self.repo.head().unwrap().target().unwrap();
-        let head_oid_alias = self.commit_manager.get_alias_by_oid(head_oid);
+        let head_oid_alias = self.oid_manager.get_alias_by_oid(head_oid);
 
         // Rendered lines
         let buffer_range = render_buffer_range(
             &self.theme,
-            &self.commit_manager,
+            &self.oid_manager,
             &buffer.history,
             start,
             end + 1
         );
         let graph_range = render_graph_range(
             &self.theme,
-            &self.commit_manager,
+            &self.oid_manager,
             &self.branch_manager.tips,
             &buffer.history,
             head_oid_alias,
@@ -85,7 +85,7 @@ impl App {
         let message_range = render_message_range(
             &self.theme,
             &self.repo,
-            &self.commit_manager,
+            &self.oid_manager,
             &self.branch_manager.tips_local,
             &self.visible_branches,
             &mut self.branch_manager.tip_colors,

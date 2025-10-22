@@ -18,7 +18,7 @@ use git2::{
     Repository,
     Revwalk,
 };
-use crate::core::chunk::NONE;
+use crate::{app::app::OidManager, core::chunk::NONE};
 #[rustfmt::skip]
 use crate::{
     core::{
@@ -49,10 +49,9 @@ impl LazyWalker {
     pub fn new(
         repo: Rc<Repository>,
         visible_branches: HashMap<u32, Vec<String>>,
-        oidi_to_oid: &mut Vec<Oid>,
-        oid_to_oidi: &mut HashMap<Oid, u32>,
+        oid_manager: &mut OidManager
     ) -> Result<Self, git2::Error> {
-        let revwalk = Self::build_revwalk(&repo, visible_branches, oidi_to_oid, oid_to_oidi)?;
+        let revwalk = Self::build_revwalk(&repo, visible_branches, oid_manager)?;
         Ok(Self {
             revwalk: Mutex::new(revwalk),
         })
@@ -63,10 +62,9 @@ impl LazyWalker {
         &self,
         repo: Rc<Repository>,
         visible_branches: HashMap<u32, Vec<String>>,
-        oidi_to_oid: &mut Vec<Oid>,
-        oid_to_oidi: &mut HashMap<Oid, u32>,
+        oid_manager: &mut OidManager
     ) -> Result<(), git2::Error> {
-        let revwalk = Self::build_revwalk(&repo, visible_branches, oidi_to_oid, oid_to_oidi)?;
+        let revwalk = Self::build_revwalk(&repo, visible_branches, oid_manager)?;
         let mut guard = self.revwalk.lock().unwrap();
         *guard = revwalk;
         Ok(())
@@ -86,8 +84,7 @@ impl LazyWalker {
     fn build_revwalk(
         repo: &Repository,
         visible_branches: HashMap<u32, Vec<String>>,
-        oidi_to_oid: &mut Vec<Oid>,
-        oid_to_oidi: &mut HashMap<Oid, u32>
+        oid_manager: &mut OidManager
     ) -> Result<Revwalk<'static>, git2::Error> {
         // Safe: we keep repo alive in Rc, so transmute to 'static is safe
         let repo_ref: &'static Repository =
@@ -102,12 +99,9 @@ impl LazyWalker {
                 if let Some(oid) = branch.get().target() {
 
                     // Get the oidi
-                    let oidi = *oid_to_oidi.entry(oid).or_insert_with(|| {
-                        oidi_to_oid.push(oid);
-                        oidi_to_oid.len() as u32 - 1
-                    });
+                    let alias = oid_manager.get_alias_by_oid(oid);
 
-                    if visible_branches.is_empty() || visible_branches.contains_key(&oidi) {
+                    if visible_branches.is_empty() || visible_branches.contains_key(&alias) {
                         revwalk.push(oid)?;
                     }
                 }
@@ -132,9 +126,8 @@ pub struct Walker {
     pub buffer: RefCell<Buffer>,
 
     // Walker data
-    pub oidi_to_oid: Vec<Oid>,
-    pub oid_to_oidi: HashMap<Oid, u32>,
-    pub oidi_sorted: Vec<u32>,
+    pub oid_manager: OidManager,
+
     pub tip_lanes: HashMap<u32, usize>,
     pub tips_local: HashMap<u32, Vec<String>>,
     pub tips_remote: HashMap<u32, Vec<String>>,
@@ -142,7 +135,6 @@ pub struct Walker {
 
     // Pagination
     pub amount: usize
-
 }
 
 // Output structure for walk results
@@ -152,9 +144,8 @@ pub struct WalkerOutput {
     pub buffer: RefCell<Buffer>,
 
     // Walker data
-    pub oidi_to_oid: Vec<Oid>,
-    pub oid_to_oidi: HashMap<Oid, u32>,
-    pub oidi_sorted: Vec<u32>,
+    pub oid_manager: OidManager,
+
     pub tip_lanes: HashMap<u32, usize>,
     pub tips_local: HashMap<u32, Vec<String>>,
     pub tips_remote: HashMap<u32, Vec<String>>,
@@ -179,15 +170,13 @@ impl Walker {
         let buffer = RefCell::new(Buffer::default());
 
         // Walker data
-        let mut oidi_to_oid: Vec<Oid> = Vec::new();
-        let mut oid_to_oidi: HashMap<Oid, u32> = HashMap::new();
-        let oidi_sorted = vec![NONE];
+        let mut oid_manager = OidManager::default();
         let tip_lanes = HashMap::new();
-        let (tips_local, tips_remote) = get_tip_oids(&repo, &mut oidi_to_oid, &mut oid_to_oidi);
+        let (tips_local, tips_remote) = get_tip_oids(&repo, &mut oid_manager);
         let branch_oid_map: HashMap<String, u32> = HashMap::new();
         
         // Lazy walker
-        let walker = LazyWalker::new(repo.clone(), visible_branches, &mut oidi_to_oid, &mut oid_to_oidi).expect("Error");
+        let walker = LazyWalker::new(repo.clone(), visible_branches, &mut oid_manager).expect("Error");
 
         Ok(Self {
             repo,
@@ -199,9 +188,7 @@ impl Walker {
             buffer,
 
             // Walker data
-            oidi_to_oid,
-            oid_to_oidi,
-            oidi_sorted,
+            oid_manager,
             tip_lanes,
             tips_local,
             tips_remote,
@@ -219,56 +206,43 @@ impl Walker {
         let head_oid = self.repo.head().unwrap().target().unwrap();
 
         // Get the oidi
-        let head_oidi = *self.oid_to_oidi.entry(head_oid).or_insert_with(|| {
-            self.oidi_to_oid.push(head_oid);
-            self.oidi_to_oid.len() as u32 - 1
-        });
+        let head_alias = self.oid_manager.get_alias_by_oid(head_oid);
 
         // Sort commits
-        let mut sorted: Vec<u32> = Vec::new();
+        let mut sorted_batch: Vec<u32> = Vec::new();
         get_branches_and_sorted_oids(
             &self.walker,
             &self.tips_local,
             &self.tips_remote,
-            &mut self.oidi_sorted,
-            &mut self.oidi_to_oid,
-            &mut self.oid_to_oidi,
+            &mut self.oid_manager,
             &mut self.branch_oid_map,
-            &mut sorted,
+            &mut sorted_batch,
             self.amount,
         );
 
         // Make a fake commit for unstaged changes
-        if self.oidi_sorted.len() == 1 {
+        if self.oid_manager.get_commit_count() == 1 {
             self.buffer
                 .borrow_mut()
-                .update(Chunk::uncommitted(head_oidi, NONE));
+                .update(Chunk::uncommitted(head_alias, NONE));
         }
 
         // Go through the commits, inferring the graph
-        for &oidi in sorted.iter() {
+        for &alias in sorted_batch.iter() {
             let mut merger_oidi: u32 = NONE;
-            let oid = self.oidi_to_oid.get(oidi as usize).unwrap();
+            let oid = self.oid_manager.get_oid_by_alias(alias);
             let commit = self.repo.find_commit(*oid).unwrap();
             let parents: Vec<Oid> = commit.parent_ids().collect();
 
+            // Gat parent aliases
             let parent_a = if let Some(parent) = parents.first() {
-                // Get the oidi
-                *self.oid_to_oidi.entry(*parent).or_insert_with(|| {
-                    self.oidi_to_oid.push(*parent);
-                    self.oidi_to_oid.len() as u32 - 1
-                })
+                self.oid_manager.get_alias_by_oid(*parent)
             } else { NONE };
-
             let parent_b = if let Some(parent) = parents.get(1) {
-                // Get the oidi
-                *self.oid_to_oidi.entry(*parent).or_insert_with(|| {
-                    self.oidi_to_oid.push(*parent);
-                    self.oidi_to_oid.len() as u32 - 1
-                })
+                self.oid_manager.get_alias_by_oid(*parent)
             } else { NONE };
 
-            let chunk = Chunk::commit(oidi, parent_a, parent_b);
+            let chunk = Chunk::commit(alias, parent_a, parent_b);
 
             let mut is_commit_found = false;
             let mut lane_idx = 0;
@@ -277,11 +251,11 @@ impl Walker {
             self.buffer.borrow_mut().update(chunk);
 
             for chunk in &self.buffer.borrow().curr {
-                if !chunk.is_dummy() && oidi == chunk.oidi {
+                if !chunk.is_dummy() && alias == chunk.oidi {
                     is_commit_found = true;
 
-                    if self.tips_local.contains_key(&oidi) || self.tips_remote.contains_key(&oidi) {
-                        self.tip_lanes.insert(oidi, lane_idx);
+                    if self.tips_local.contains_key(&alias) || self.tips_remote.contains_key(&alias) {
+                        self.tip_lanes.insert(alias, lane_idx);
                     }
 
                     if chunk.parent_a != NONE && chunk.parent_b != NONE {
@@ -304,7 +278,7 @@ impl Walker {
             }
 
             if !is_commit_found {
-                self.tip_lanes.insert(oidi, lane_idx);
+                self.tip_lanes.insert(alias, lane_idx);
             }
 
             // Now we can borrow mutably
@@ -313,12 +287,12 @@ impl Walker {
             }
 
             // Serialize
-            self.oidi_sorted.push(oidi);
+            self.oid_manager.append_sorted_alias(alias);
         }
 
         // Indicate whether repeats are needed
         // Too lazy to make an off by one mistake here, zero is fine
-        if sorted.is_empty() {
+        if sorted_batch.is_empty() {
             self.buffer.borrow_mut().backup();
             return false;
         }

@@ -27,7 +27,7 @@ use ratatui::{
         Span
     },
 };
-use crate::{app::app::CommitManager, core::{chunk::NONE}};
+use crate::{app::app::OidManager, core::{chunk::NONE}};
 #[rustfmt::skip]
 use crate::{
     core::chunk::Chunk,
@@ -54,7 +54,7 @@ use crate::{
 
 pub fn render_graph_range(
     theme: &Theme,
-    commit_manager: &CommitManager,
+    oid_manager: &OidManager,
     tips: &HashMap<u32, Vec<String>>,
     history: &Vector<Vector<Chunk>>,
     head_oidi: u32,
@@ -66,11 +66,11 @@ pub fn render_graph_range(
     let mut lines: Vec<Line> = Vec::new();
 
     // Go through the sorted commits, inferring the graph
-    let sorted_aliases = commit_manager.get_sorted_aliases();
+    let sorted_aliases = oid_manager.get_sorted_aliases();
     for (global_idx, oidi) in sorted_aliases.iter().enumerate().take(end).skip(start) {
 
         // Get commit oid
-        let oid = commit_manager.get_oid_by_alias(*oidi);
+        let oid = oid_manager.get_oid_by_alias(*oidi);
 
         // Clear the render line
         layers.clear();
@@ -85,7 +85,7 @@ pub fn render_graph_range(
         let prev = history.get(delta - 1);
         let last = history.get(delta).unwrap();
 
-        if commit_manager.is_zero(&oid) {
+        if oid_manager.is_zero(&oid) {
             lines.push(Line::from(Span::styled(" ◌", Style::default().fg(theme.COLOR_GREY_400))));
             continue;
         }
@@ -368,7 +368,7 @@ pub fn remove_empty_columns(lines: &mut Vec<Line<'_>>) {
 #[allow(dead_code)]
 pub fn render_buffer_range(
     theme: &Theme,
-    commit_manager: &CommitManager,
+    oid_manager: &OidManager,
     history: &Vector<Vector<Chunk>>,
     start: usize,
     end: usize,
@@ -381,7 +381,7 @@ pub fn render_buffer_range(
     for snapshot in history.iter().skip(start + 1).take(end + 1 - start - 1) {
         
         // Get the oid of the commit
-        let oid = commit_manager.get_oid_by_idx(idx);
+        let oid = oid_manager.get_oid_by_idx(idx);
 
         // Setup the line
         let mut spans =vec![
@@ -429,7 +429,7 @@ pub fn render_buffer_range(
 pub fn render_message_range(
     theme: &Theme,
     repo: &Repository,
-    commit_manager: &CommitManager,
+    oid_manager: &OidManager,
     tips_local: &HashMap<u32, Vec<String>>,
     visible_branches: &HashMap<u32, Vec<String>>,
     tip_colors: &mut HashMap<u32, Color>,
@@ -442,11 +442,11 @@ pub fn render_message_range(
 
     // Go through the commits, inferring the graph
     for global_idx in start..end {
-        let alias = commit_manager.get_alias_by_idx(global_idx);
+        let alias = oid_manager.get_alias_by_idx(global_idx);
         let mut spans = Vec::new();
 
         if alias != NONE {
-            let oid = commit_manager.get_oid_by_alias(alias);
+            let oid = oid_manager.get_oid_by_alias(alias);
             let commit = repo.find_commit(*oid).unwrap();
 
             if let Some(visible) = visible_branches.get(&alias) {

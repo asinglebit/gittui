@@ -15,8 +15,7 @@ use std::{
         }
     },
     collections::{
-        HashMap,
-        HashSet
+        HashMap
     },
     time::{
         Duration
@@ -57,7 +56,6 @@ use ratatui::{
         Span
     },
 };
-use crate::core::chunk::NONE;
 #[rustfmt::skip]
 use crate::{
     layers,
@@ -66,6 +64,7 @@ use crate::{
         KeyBinding
     },
     core::{
+        chunk::NONE,
         layers::{
             LayersContext,
         },
@@ -150,17 +149,18 @@ pub enum Direction {
     Up,
 }
 
-pub struct CommitManager {
+#[derive(Clone)]
+pub struct OidManager {
     pub zero: Oid,
     pub oids: Vec<Oid>,
     pub aliases: HashMap<Oid, u32>,
     pub sorted_aliases: Vec<u32>,
 }
 
-impl Default for CommitManager {
+impl Default for OidManager {
     fn default() -> Self {
         
-        CommitManager {
+        OidManager {
             zero: Oid::zero(),
             oids: Vec::new(),
             aliases: HashMap::new(),
@@ -169,7 +169,7 @@ impl Default for CommitManager {
     }
 }
 
-impl CommitManager {
+impl OidManager {
     pub fn get_alias_by_oid(&mut self, oid: Oid) -> u32 {
         *self.aliases.entry(oid).or_insert_with(|| {
             self.oids.push(oid);
@@ -192,6 +192,10 @@ impl CommitManager {
 
     pub fn get_sorted_aliases(&self) -> &Vec<u32> {
         &self.sorted_aliases
+    }
+
+    pub fn append_sorted_alias(&mut self, alias: u32) {
+        self.sorted_aliases.push(alias);
     }
 
     pub fn get_commit_count(&self) -> usize {
@@ -223,7 +227,6 @@ impl Default for BranchManager {
     }
 }
 
-
 pub struct App {
     // General
     pub logo: Vec<Span<'static>>,
@@ -248,7 +251,7 @@ pub struct App {
     pub walker_handle: Option<std::thread::JoinHandle<()>>,
 
     // Walker data
-    pub commit_manager: CommitManager,
+    pub oid_manager: OidManager,
     pub branch_manager: BranchManager,
     pub uncommitted: UncommittedChanges,
 
@@ -436,6 +439,7 @@ impl App  {
     }
 
     pub fn reload(&mut self) {
+
         // Update colors        
         self.color = Rc::new(RefCell::new(ColorPicker::from_theme(&self.theme)));
         self.layers = layers!(Rc::new(RefCell::new(ColorPicker::from_theme(&self.theme))));
@@ -498,9 +502,7 @@ impl App  {
 
                 // Send the message to the main thread
                 if tx.send(WalkerOutput {
-                    oidi_to_oid: walk_ctx.oidi_to_oid.clone(),
-                    oid_to_oidi: walk_ctx.oid_to_oidi.clone(),
-                    oidi_sorted: walk_ctx.oidi_sorted.clone(),
+                    oid_manager: walk_ctx.oid_manager.clone(),
                     tip_lanes: walk_ctx.tip_lanes.clone(),
                     tips_local: walk_ctx.tips_local.clone(),
                     tips_remote: walk_ctx.tips_remote.clone(),
@@ -543,9 +545,7 @@ impl App  {
             self.uncommitted = get_filenames_diff_at_workdir(&self.repo).expect("Error");
             
             // Lookup tables
-            self.commit_manager.oids = result.oidi_to_oid;
-            self.commit_manager.aliases = result.oid_to_oidi;
-            self.commit_manager.sorted_aliases = result.oidi_sorted;            
+            self.oid_manager = result.oid_manager;
 
             // Mapping of tip oids of the branches to the colors
             self.branch_manager.tip_colors = HashMap::new();
@@ -597,13 +597,13 @@ impl App  {
             
             // Build a lookup: oidi -> position in self.oids
             self.oid_branch_vec_chronological = self.oid_branch_vec.clone();
-            let index_map: std::collections::HashMap<u32, usize> = self.commit_manager.get_sorted_aliases().iter().enumerate().map(|(i, &oidi)| (oidi, i)).collect();
+            let index_map: std::collections::HashMap<u32, usize> = self.oid_manager.get_sorted_aliases().iter().enumerate().map(|(i, &oidi)| (oidi, i)).collect();
 
             // Sort the vector using the index map
             self.oid_branch_vec_chronological.sort_by_key(|(oidi, _)| index_map.get(oidi).copied().unwrap_or(usize::MAX));
             self.oid_branch_indices = Vec::new();
             self.oid_branch_vec_chronological.iter().for_each(|(oidi, _)| {
-                self.oid_branch_indices.push(self.commit_manager.get_sorted_aliases().iter().position(|o| oidi == o).unwrap_or(usize::MAX));
+                self.oid_branch_indices.push(self.oid_manager.get_sorted_aliases().iter().position(|o| oidi == o).unwrap_or(usize::MAX));
             });
 
             if !result.again {

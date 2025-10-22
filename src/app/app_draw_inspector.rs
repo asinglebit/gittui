@@ -60,8 +60,8 @@ impl App {
         if !is_showing_uncommitted {
             
             // Query commit info
-            let alias = self.commit_manager.get_alias_by_idx(self.graph_selected);
-            let oid = self.commit_manager.get_oid_by_alias(alias);
+            let alias = self.oid_manager.get_alias_by_idx(self.graph_selected);
+            let oid = self.oid_manager.get_oid_by_alias(alias);
             let commit = self.repo.find_commit(*oid).unwrap();
             let author = commit.author();
             let committer = commit.committer();

@@ -223,7 +223,7 @@ impl App {
                             self.focus = Focus::Viewport;
                         }
                         KeyCode::Enter => {
-                            let oid = self.commit_manager.get_oid_by_idx(if self.graph_selected == 0 { 1 } else { self.graph_selected });
+                            let oid = self.oid_manager.get_oid_by_idx(if self.graph_selected == 0 { 1 } else { self.graph_selected });
                             match create_branch(&self.repo, &editor_state_to_string(&self.create_branch_editor), *oid) {
                                 Ok(_) => {
                                     self.visible_branches.clear();
@@ -369,7 +369,7 @@ impl App {
                 }
             }
             Focus::ModalCheckout => {
-                let alias = self.commit_manager.get_alias_by_idx(self.graph_selected);
+                let alias = self.oid_manager.get_alias_by_idx(self.graph_selected);
                 let branches = self.visible_branches.get(&alias).cloned().unwrap_or_default();
                 checkout_branch(
                     &self.repo,
@@ -384,7 +384,7 @@ impl App {
                 self.reload();
             }
             Focus::ModalSolo => {
-                let alias = self.commit_manager.get_alias_by_idx(self.graph_selected);
+                let alias = self.oid_manager.get_alias_by_idx(self.graph_selected);
                 let branches = self
                     .visible_branches
                     .get(&alias)
@@ -412,7 +412,7 @@ impl App {
                 self.reload();
             }
             Focus::ModalDeleteBranch => {
-                let alias = self.commit_manager.get_alias_by_idx(self.graph_selected);
+                let alias = self.oid_manager.get_alias_by_idx(self.graph_selected);
                 let branches = self.visible_branches.get(&alias).cloned().unwrap_or_default();
                 let branch = branches.get(self.modal_delete_branch_selected as usize).unwrap();
                 match delete_branch(&self.repo, branch) {
@@ -540,8 +540,8 @@ impl App {
                         } else {
                             self.graph_selected = 0;
                         }
-                        if self.graph_selected != 0 && self.graph_selected < self.commit_manager.get_commit_count() {
-                            let oid = self.commit_manager.get_oid_by_idx(self.graph_selected);
+                        if self.graph_selected != 0 && self.graph_selected < self.oid_manager.get_commit_count() {
+                            let oid = self.oid_manager.get_oid_by_idx(self.graph_selected);
                             self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                         }
                     }
@@ -574,8 +574,8 @@ impl App {
             _ => {}
         };
 
-        if self.graph_selected != 0 && self.graph_selected < self.commit_manager.get_commit_count() {
-            let oid = self.commit_manager.get_oid_by_idx(self.graph_selected);
+        if self.graph_selected != 0 && self.graph_selected < self.oid_manager.get_commit_count() {
+            let oid = self.oid_manager.get_oid_by_idx(self.graph_selected);
             self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
         }
     }
@@ -590,13 +590,13 @@ impl App {
                 let page = self.layout.graph.height as usize - 1;
                 match self.viewport {
                     Viewport::Graph => {
-                        if self.graph_selected + page < self.commit_manager.get_commit_count() {
+                        if self.graph_selected + page < self.oid_manager.get_commit_count() {
                             self.graph_selected += page;
                         } else {
-                            self.graph_selected = self.commit_manager.get_commit_count() - 1;
+                            self.graph_selected = self.oid_manager.get_commit_count() - 1;
                         }
-                        if self.graph_selected != 0 && self.graph_selected < self.commit_manager.get_commit_count() {
-                            let oid = self.commit_manager.get_oid_by_idx(self.graph_selected);
+                        if self.graph_selected != 0 && self.graph_selected < self.oid_manager.get_commit_count() {
+                            let oid = self.oid_manager.get_oid_by_idx(self.graph_selected);
                             self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                         }
                     }
@@ -628,8 +628,8 @@ impl App {
             }
             _ => {}
         };
-        if self.graph_selected != 0 && self.graph_selected < self.commit_manager.get_commit_count() {
-            let oid = self.commit_manager.get_oid_by_idx(self.graph_selected);
+        if self.graph_selected != 0 && self.graph_selected < self.oid_manager.get_commit_count() {
+            let oid = self.oid_manager.get_oid_by_idx(self.graph_selected);
             self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
         }
     }
@@ -648,8 +648,8 @@ impl App {
                                 self.focus = Focus::Viewport;
                             }
                         }
-                        if self.graph_selected != 0 && self.graph_selected < self.commit_manager.get_commit_count() {
-                            let oid = self.commit_manager.get_oid_by_idx(self.graph_selected);
+                        if self.graph_selected != 0 && self.graph_selected < self.oid_manager.get_commit_count() {
+                            let oid = self.oid_manager.get_oid_by_idx(self.graph_selected);
                             self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                         }
                     }
@@ -676,7 +676,7 @@ impl App {
                 self.status_bottom_selected = self.status_bottom_selected.saturating_sub(1);
             }
             Focus::ModalCheckout => {
-                let alias = self.commit_manager.get_alias_by_idx(self.graph_selected);
+                let alias = self.oid_manager.get_alias_by_idx(self.graph_selected);
                 let branches = self.visible_branches.entry(alias).or_default();
                 self.modal_checkout_selected = if self.modal_checkout_selected - 1 < 0 {
                     branches.len() as i32 - 1
@@ -685,7 +685,7 @@ impl App {
                 };
             }
             Focus::ModalSolo => {
-                let alias = self.commit_manager.get_alias_by_idx(self.graph_selected);
+                let alias = self.oid_manager.get_alias_by_idx(self.graph_selected);
                 let branches = self.visible_branches.entry(alias).or_default();
                 self.modal_solo_selected = if self.modal_solo_selected - 1 < 0 {
                     branches.len() as i32 - 1
@@ -694,7 +694,7 @@ impl App {
                 };
             }
             Focus::ModalDeleteBranch => {
-                let alias = self.commit_manager.get_alias_by_idx(self.graph_selected);
+                let alias = self.oid_manager.get_alias_by_idx(self.graph_selected);
                 let branches = self.visible_branches.entry(alias).or_default();
                 let length = match get_current_branch(&self.repo) {
                     Some(current) => branches.iter().filter(|branch| current != **branch).count(),
@@ -717,11 +717,11 @@ impl App {
             }
             Focus::Viewport => match self.viewport {
                 Viewport::Graph => {
-                    if self.graph_selected + 1 < self.commit_manager.get_commit_count() {
+                    if self.graph_selected + 1 < self.oid_manager.get_commit_count() {
                         self.graph_selected += 1;
                     }
-                    if self.graph_selected != 0 && self.graph_selected < self.commit_manager.get_commit_count() {
-                        let oid = self.commit_manager.get_oid_by_idx(self.graph_selected);
+                    if self.graph_selected != 0 && self.graph_selected < self.oid_manager.get_commit_count() {
+                        let oid = self.oid_manager.get_oid_by_idx(self.graph_selected);
                         self.current_diff = get_filenames_diff_at_oid(&self.repo, *oid);
                     }
                 }
@@ -746,7 +746,7 @@ impl App {
                 self.status_bottom_selected += 1;
             }
             Focus::ModalCheckout => {
-                let alias = self.commit_manager.get_alias_by_idx(self.graph_selected);
+                let alias = self.oid_manager.get_alias_by_idx(self.graph_selected);
                 let branches = self.visible_branches.entry(alias).or_default();
                 self.modal_checkout_selected = if self.modal_checkout_selected + 1 > branches.len() as i32 - 1 {
                     0
@@ -755,7 +755,7 @@ impl App {
                 };
             }
             Focus::ModalSolo => {
-                let alias = self.commit_manager.get_alias_by_idx(self.graph_selected);
+                let alias = self.oid_manager.get_alias_by_idx(self.graph_selected);
                 let branches = self.visible_branches.entry(alias).or_default();
                 self.modal_solo_selected = if self.modal_solo_selected + 1 > branches.len() as i32 - 1 {
                     0
@@ -764,7 +764,7 @@ impl App {
                 };
             }
             Focus::ModalDeleteBranch => {
-                let alias = self.commit_manager.get_alias_by_idx(self.graph_selected);
+                let alias = self.oid_manager.get_alias_by_idx(self.graph_selected);
                 let branches = self.visible_branches.entry(alias).or_default();
                 let length = match get_current_branch(&self.repo) {
                     Some(current) => branches.iter().filter(|branch| current != **branch).count(),
@@ -800,8 +800,8 @@ impl App {
         match self.focus {
             Focus::Viewport => match self.viewport {
                 Viewport::Graph => {
-                    self.graph_selected = (self.commit_manager.get_commit_count() - 1)
-                        .min(self.graph_selected + (self.commit_manager.get_commit_count() - self.graph_selected) / 2);
+                    self.graph_selected = (self.oid_manager.get_commit_count() - 1)
+                        .min(self.graph_selected + (self.oid_manager.get_commit_count() - self.graph_selected) / 2);
                 }
                 _ => {}
             },
@@ -852,17 +852,17 @@ impl App {
         match self.focus {
             Focus::Viewport => match self.viewport {
                 Viewport::Graph => {
-                    let oid = self.commit_manager.get_oid_by_idx(self.graph_selected);
+                    let oid = self.oid_manager.get_oid_by_idx(self.graph_selected);
 
-                    if self.commit_manager.is_zero(oid) {
+                    if self.oid_manager.is_zero(oid) {
                         return;
                     }
                     
-                    let child_positions: Vec<usize> = self.commit_manager.get_sorted_aliases()
+                    let child_positions: Vec<usize> = self.oid_manager.get_sorted_aliases()
                         .iter()
                         .enumerate()
                         .filter_map(|(idx, &alias)| {
-                            let child_oid = self.commit_manager.get_oid_by_alias(alias);
+                            let child_oid = self.oid_manager.get_oid_by_alias(alias);
                             let commit = self.repo.find_commit(*child_oid).ok()?;
                             if commit.parent_ids().any(|parent_oid| parent_oid == *oid) {
                                 Some(idx)
@@ -889,9 +889,9 @@ impl App {
         match self.focus {
             Focus::Viewport => match self.viewport {
                 Viewport::Graph => {
-                    let oid = self.commit_manager.get_oid_by_idx(self.graph_selected);
+                    let oid = self.oid_manager.get_oid_by_idx(self.graph_selected);
 
-                    if self.commit_manager.is_zero(oid) {
+                    if self.oid_manager.is_zero(oid) {
                         self.graph_selected = 1;
                         return;
                     }
@@ -903,8 +903,8 @@ impl App {
                         return;
                     } else {
                         let parent_oid = parents.next().unwrap();
-                        let parent_alias = self.commit_manager.get_alias_by_oid(parent_oid);
-                        let next = self.commit_manager.get_sorted_aliases()
+                        let parent_alias = self.oid_manager.get_alias_by_oid(parent_oid);
+                        let next = self.oid_manager.get_sorted_aliases()
                             .iter()
                             .position(|&alias| alias == parent_alias)
                             .unwrap();
@@ -982,7 +982,7 @@ impl App {
             Focus::Branches => {
                 self.viewport = Viewport::Graph;
                 let oidi = self.oid_branch_vec.get(self.branches_selected).unwrap().0;
-                self.graph_selected = self.commit_manager.get_sorted_aliases().iter().position(|o| o == &oidi).unwrap_or(0);
+                self.graph_selected = self.oid_manager.get_sorted_aliases().iter().position(|o| o == &oidi).unwrap_or(0);
             }
             _ => {}
         };
@@ -1016,7 +1016,7 @@ impl App {
                     return;
                 }
 
-                let alias = self.commit_manager.get_alias_by_idx(self.graph_selected);
+                let alias = self.oid_manager.get_alias_by_idx(self.graph_selected);
 
                 let branches = self
                     .visible_branches
@@ -1070,8 +1070,8 @@ impl App {
                     return;
                 }
 
-                let alias = self.commit_manager.get_alias_by_idx(self.graph_selected);
-                let oid = self.commit_manager.get_oid_by_alias(alias);
+                let alias = self.oid_manager.get_alias_by_idx(self.graph_selected);
+                let oid = self.oid_manager.get_oid_by_alias(alias);
                 let branches = self.branch_manager.tips.entry(alias).or_default();
 
                 if branches.is_empty() {
@@ -1105,7 +1105,7 @@ impl App {
                 if self.focus == Focus::Viewport && self.viewport != Viewport::Graph {
                     return;
                 }
-                let oid = self.commit_manager.get_oid_by_idx(self.graph_selected);
+                let oid = self.oid_manager.get_oid_by_idx(self.graph_selected);
                 reset_to_commit(&self.repo, *oid, git2::ResetType::Hard).expect("Error");
                 self.reload();
                 self.focus = Focus::Viewport;
@@ -1120,7 +1120,7 @@ impl App {
                 if self.focus == Focus::Viewport && self.viewport != Viewport::Graph {
                     return;
                 }
-                let oid = self.commit_manager.get_oid_by_idx(self.graph_selected);
+                let oid = self.oid_manager.get_oid_by_idx(self.graph_selected);
                 reset_to_commit(&self.repo, *oid, git2::ResetType::Mixed).expect("Error");
                 self.reload();
                 self.focus = Focus::Viewport;
@@ -1225,7 +1225,7 @@ impl App {
                     Focus::Viewport => {
                         if self.graph_selected != 0 {
                             
-                            let alias = self.commit_manager.get_alias_by_idx(if self.graph_selected == 0 { 1 } else { self.graph_selected });
+                            let alias = self.oid_manager.get_alias_by_idx(if self.graph_selected == 0 { 1 } else { self.graph_selected });
                             let current = get_current_branch(&self.repo);
 
                             if let Some(branches) = self.visible_branches.get(&alias) {
