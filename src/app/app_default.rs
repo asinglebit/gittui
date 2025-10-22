@@ -21,19 +21,27 @@ use edtui::{
     EditorEventHandler,
     EditorState
 };
-use crate::app::app::{BranchManager, OidManager};
 #[rustfmt::skip]
 use crate::{
-    layers,
-    app::app::{
-        App,
-        Layout,
-        Viewport,
-        Focus
+    app::{
+        app::{
+            App,
+            Viewport,
+            Focus
+        },
+        app_layout::{
+            Layout
+        }
     },
     core::{
         buffer::{
             Buffer
+        },
+        branches::{
+            Branches
+        },
+        oids::{
+            Oids
         }
     },
     helpers::{
@@ -53,18 +61,11 @@ use crate::{
 impl Default for App {
     fn default() -> Self {
         let args: Vec<String> = env::args().collect();
-        let path = if args.len() > 1 {
-            &args[1]
-        } else {
-            &".".to_string()
-        };
+        let path = if args.len() > 1 { &args[1] } else { &".".to_string() };
         let theme = Theme::default();
         let color = Rc::new(RefCell::new(ColorPicker::from_theme(&theme)));
-        let layers = layers!(Rc::new(RefCell::new(ColorPicker::from_theme(&theme))));
-        let absolute_path: PathBuf = std::fs::canonicalize(path)
-            .unwrap_or_else(|_| PathBuf::from(path));
+        let absolute_path: PathBuf = std::fs::canonicalize(path).unwrap_or_else(|_| PathBuf::from(path));
         let repo = Rc::new(Repository::open(absolute_path.clone()).expect("Could not open repo"));
-
         let logo = vec![
             Span::styled("  g", Style::default().fg(theme.COLOR_GRASS)),
             Span::styled("u", Style::default().fg(theme.COLOR_GRASS)),
@@ -91,15 +92,14 @@ impl Default for App {
 
             // Walker utilities    
             color,
-            layers,
             buffer: RefCell::new(Buffer::default()),
             walker_rx: None,
             walker_cancel: None,
             walker_handle: None,
 
             // Walker data
-            oid_manager: OidManager::default(),
-            branch_manager: BranchManager::default(),
+            oids: Oids::default(),
+            branches: Branches::default(),
             uncommitted: UncommittedChanges::default(),
 
             // Cache

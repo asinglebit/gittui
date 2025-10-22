@@ -28,37 +28,46 @@ use ratatui::{
 };
 #[rustfmt::skip]
 use crate::{
-    core::chunk::Chunk,
-    git::queries::helpers::UncommittedChanges,
-    helpers::colors::ColorPicker,
     layers,
-};
-#[rustfmt::skip]
-use crate::{
     app::{
-        app::OidManager,
         app_input::{
             Command,
             KeyBinding
         }
     },
+    git::{
+        queries::{
+            helpers::{
+                UncommittedChanges
+            }
+        }
+    },
     core::{
-        chunk::NONE
+        oids::{
+            Oids
+        },
+        chunk::{
+            Chunk,
+            NONE
+        }
     },
     helpers::{
         palette::*,
         symbols::*,
+        colors::{
+            ColorPicker,
+        },
         text::{
             keycode_to_string,
             modifiers_to_string,
             pascal_to_spaced
-        }
+        },
     }
 };
 
 pub fn render_graph_range(
     theme: &Theme,
-    oid_manager: &OidManager,
+    oids: &Oids,
     all: &HashMap<u32, Vec<String>>,
     history: &Vector<Vector<Chunk>>,
     head_oidi: u32,
@@ -66,15 +75,15 @@ pub fn render_graph_range(
     end: usize,
 ) -> Vec<Line<'static>> {
 
-    let mut layers = layers!(Rc::new(RefCell::new(ColorPicker::default())));
+    let mut layers = layers!(Rc::new(RefCell::new(ColorPicker::from_theme(theme))));
     let mut lines: Vec<Line> = Vec::new();
 
     // Go through the sorted commits, inferring the graph
-    let sorted_aliases = oid_manager.get_sorted_aliases();
+    let sorted_aliases = oids.get_sorted_aliases();
     for (global_idx, oidi) in sorted_aliases.iter().enumerate().take(end).skip(start) {
 
         // Get commit oid
-        let oid = oid_manager.get_oid_by_alias(*oidi);
+        let oid = oids.get_oid_by_alias(*oidi);
 
         // Clear the render line
         layers.clear();
@@ -90,7 +99,7 @@ pub fn render_graph_range(
         let prev = if delta == 0 { None } else { history.get(delta - 1) };
         let last = history.get(delta).unwrap();
 
-        if oid_manager.is_zero(oid) {
+        if oids.is_zero(oid) {
             lines.push(Line::from(Span::styled(" ◌", Style::default().fg(theme.COLOR_GREY_400))));
             continue;
         }
@@ -370,7 +379,7 @@ pub fn remove_empty_columns(lines: &mut Vec<Line<'_>>) {
 #[allow(dead_code)]
 pub fn render_buffer_range(
     theme: &Theme,
-    oid_manager: &OidManager,
+    oids: &Oids,
     history: &Vector<Vector<Chunk>>,
     start: usize,
     end: usize,
@@ -383,7 +392,7 @@ pub fn render_buffer_range(
     for snapshot in history.iter().skip(start + 1).take(end + 1 - start - 1) {
         
         // Get the oid of the commit
-        let oid = oid_manager.get_oid_by_idx(idx);
+        let oid = oids.get_oid_by_idx(idx);
 
         // Setup the line
         let mut spans =vec![
@@ -431,7 +440,7 @@ pub fn render_buffer_range(
 pub fn render_message_range(
     theme: &Theme,
     repo: &Repository,
-    oid_manager: &OidManager,
+    oids: &Oids,
     local: &HashMap<u32, Vec<String>>,
     visible: &HashMap<u32, Vec<String>>,
     colors: &mut HashMap<u32, Color>,
@@ -444,11 +453,11 @@ pub fn render_message_range(
 
     // Go through the commits, inferring the graph
     for global_idx in start..end {
-        let alias = oid_manager.get_alias_by_idx(global_idx);
+        let alias = oids.get_alias_by_idx(global_idx);
         let mut spans = Vec::new();
 
         if alias != NONE {
-            let oid = oid_manager.get_oid_by_alias(alias);
+            let oid = oids.get_oid_by_alias(alias);
             let commit = repo.find_commit(*oid).unwrap();
 
             if let Some(visible) = visible.get(&alias) {

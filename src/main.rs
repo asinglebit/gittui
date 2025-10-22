@@ -29,6 +29,9 @@ mod core {
     pub mod layers;
     pub mod renderers;
     pub mod walker;
+    pub mod batcher;
+    pub mod oids;
+    pub mod branches;
 }
 pub mod git {
     pub mod actions {

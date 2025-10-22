@@ -1,5 +1,6 @@
 #[rustfmt::skip]
 use std::cell::Cell;
+use ratatui::layout::Rect;
 #[rustfmt::skip]
 use ratatui::{
     Frame,
@@ -7,9 +8,27 @@ use ratatui::{
 #[rustfmt::skip]
 use crate::app::app::{
     App,
-    Layout,
     Viewport
 };
+
+#[derive(Default)]
+pub struct Layout {
+    pub title_left: Rect,
+    pub title_right: Rect,
+    pub app: Rect,
+    pub branches: Rect,
+    pub branches_scrollbar: Rect,
+    pub graph: Rect,
+    pub graph_scrollbar: Rect,
+    pub inspector: Rect,
+    pub inspector_scrollbar: Rect,
+    pub status_top: Rect,
+    pub status_top_scrollbar: Rect,
+    pub status_bottom: Rect,
+    pub status_bottom_scrollbar: Rect,
+    pub statusbar_left: Rect,
+    pub statusbar_right: Rect,
+}
 
 impl App {
 
@@ -70,16 +89,19 @@ impl App {
             ])
             .split(chunks_vertical[2]);
 
+        // Branches
         let mut branches_scrollbar = chunks_horizontal[0];
         branches_scrollbar.width += 1;
         let mut branches = chunks_horizontal[0];
         branches.y += 1; 
 
+        // Graph
         let graph_scrollbar = chunks_horizontal[1];
         let mut graph = chunks_horizontal[1];
         graph.y += 1;
         graph.height = graph.height.saturating_sub(2);
 
+        // Inspector
         let mut inspector_scrollbar = chunks_pane[0];
         let mut inspector = chunks_pane[0];
         inspector.y += 1;
@@ -88,6 +110,7 @@ impl App {
            inspector_scrollbar.height += 2; 
         }
 
+        // Status top
         let mut status_top_scrollbar = chunks_status[0];
         if self.is_inspector && self.graph_selected != 0 {
             status_top_scrollbar.y += 1;
@@ -98,6 +121,7 @@ impl App {
         status_top.height = if self.is_inspector && self.graph_selected != 0 { status_top.height.saturating_sub(1) } else { status_top.height };
         status_top.width = status_top.width.saturating_sub(1);
 
+        // Status bottom
         let mut status_bottom_scrollbar = chunks_status[1];
         status_bottom_scrollbar.y = status_bottom_scrollbar.y.saturating_sub(1);
         status_bottom_scrollbar.height += 1;

@@ -50,7 +50,7 @@ impl App {
 
         let total = match self.focus {
             Focus::Viewport => match self.viewport {
-                Viewport::Graph => self.oid_manager.get_commit_count(),
+                Viewport::Graph => self.oids.get_commit_count(),
                 Viewport::Viewer => self.viewer_lines.len(),
                 _ => 0,
             },
@@ -69,7 +69,7 @@ impl App {
                     + self.uncommitted.unstaged.deleted.len()
             }
             Focus::Branches => {
-                self.branch_manager.sorted.len()
+                self.branches.sorted.len()
             }
             _ => 0,
         };
@@ -86,7 +86,7 @@ impl App {
                 Focus::StatusTop => self.status_top_selected + 1,
                 Focus::StatusBottom => self.status_bottom_selected + 1,
                 Focus::Branches => {
-                    self.branch_manager.visible.values().map(|branches| branches.len()).sum()
+                    self.branches.visible.values().map(|branches| branches.len()).sum()
                 }
                 _ => 0,
             }

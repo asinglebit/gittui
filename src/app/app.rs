@@ -14,9 +14,6 @@ use std::{
             AtomicBool
         }
     },
-    collections::{
-        HashMap
-    },
     time::{
         Duration
     },
@@ -30,7 +27,6 @@ use edtui::{
 };
 #[rustfmt::skip]
 use git2::{
-    Oid,
     Repository
 };
 #[rustfmt::skip]
@@ -41,9 +37,7 @@ use indexmap::{
 use ratatui::{
     DefaultTerminal,
     Frame,
-    layout::Rect,
     style::{
-        Color,
         Style
     },
     crossterm::event,
@@ -58,15 +52,21 @@ use ratatui::{
 };
 #[rustfmt::skip]
 use crate::{
-    layers,
-    app::app_input::{
-        Command,
-        KeyBinding
+    app::{
+        app_input::{
+            Command,
+            KeyBinding
+        },
+        app_layout::{
+            Layout
+        }
     },
     core::{
-        chunk::NONE,
-        layers::{
-            LayersContext,
+        oids::{
+            Oids
+        },
+        branches::{
+            Branches
         },
         walker::{
             Walker,
@@ -101,25 +101,6 @@ use crate::{
     },
 };
 
-#[derive(Default)]
-pub struct Layout {
-    pub title_left: Rect,
-    pub title_right: Rect,
-    pub app: Rect,
-    pub branches: Rect,
-    pub branches_scrollbar: Rect,
-    pub graph: Rect,
-    pub graph_scrollbar: Rect,
-    pub inspector: Rect,
-    pub inspector_scrollbar: Rect,
-    pub status_top: Rect,
-    pub status_top_scrollbar: Rect,
-    pub status_bottom: Rect,
-    pub status_bottom_scrollbar: Rect,
-    pub statusbar_left: Rect,
-    pub statusbar_right: Rect,
-}
-
 #[derive(PartialEq, Eq, Debug)]
 pub enum Viewport {
     Graph,
@@ -149,143 +130,8 @@ pub enum Direction {
     Up,
 }
 
-#[derive(Clone)]
-pub struct OidManager {
-    pub zero: Oid,
-    pub oids: Vec<Oid>,
-    pub aliases: HashMap<Oid, u32>,
-    pub sorted_aliases: Vec<u32>,
-}
-
-impl Default for OidManager {
-    fn default() -> Self {
-        OidManager {
-            zero: Oid::zero(),
-            oids: Vec::new(),
-            aliases: HashMap::new(),
-            sorted_aliases: vec![NONE],
-        }
-    }
-}
-
-impl OidManager {
-    pub fn get_alias_by_oid(&mut self, oid: Oid) -> u32 {
-        *self.aliases.entry(oid).or_insert_with(|| {
-            self.oids.push(oid);
-            self.oids.len() as u32 - 1
-        })
-    }
-
-    pub fn get_alias_by_idx(&self, idx: usize) -> u32 {
-        *self.sorted_aliases.get(idx).unwrap()
-    }
-
-    pub fn get_oid_by_alias(&self, alias: u32) -> &Oid {
-        self.oids.get(alias as usize).unwrap_or(&self.zero)
-    }
-
-    pub fn get_oid_by_idx(&self, idx: usize) -> &Oid {
-        let alias = *self.sorted_aliases.get(idx).unwrap_or(&NONE);
-        self.oids.get(alias as usize).unwrap_or(&self.zero)
-    }
-
-    pub fn get_sorted_aliases(&self) -> &Vec<u32> {
-        &self.sorted_aliases
-    }
-
-    pub fn append_sorted_alias(&mut self, alias: u32) {
-        self.sorted_aliases.push(alias);
-    }
-
-    pub fn get_commit_count(&self) -> usize {
-        self.sorted_aliases.len()
-    }
-
-    pub fn is_zero(&self, oid: &Oid) -> bool {
-        self.zero == *oid
-    }
-}
-
-#[derive(Default)]
-pub struct BranchManager {
-    pub local: HashMap<u32, Vec<String>>,
-    pub remote: HashMap<u32, Vec<String>>,
-    pub all: HashMap<u32, Vec<String>>,
-    pub colors: HashMap<u32, Color>,
-    pub sorted: Vec<(u32, String)>,
-    pub indices: Vec<usize>,
-    pub visible: HashMap<u32, Vec<String>>,
-}
-
-impl BranchManager {
-    pub fn feed(
-        &mut self,
-        oid_manager: &OidManager,
-        color: &Rc<RefCell<ColorPicker>>,
-        lanes: &HashMap<u32, usize>,
-        local: HashMap<u32, Vec<String>>,
-        remote: HashMap<u32, Vec<String>>
-    ) {
-        // Initialize
-        self.local = local;
-        self.remote = remote;
-        self.all = HashMap::new();
-        self.colors = HashMap::new();
-        self.sorted = Vec::new();
-        self.indices = Vec::new();
-        
-        // Combine local and remote branches
-        for (&alias, branches) in self.local.iter() {
-            self.all.insert(alias, branches.clone());
-        }
-        for (&oidi, branches) in self.remote.iter() {
-            self.all
-                .entry(oidi)
-                .and_modify(|existing| existing.extend(branches.iter().cloned()))
-                .or_insert_with(|| branches.clone());
-        }
-
-        // Make all branches visible if none are
-        if self.visible.is_empty() {
-            for (&alias, branches) in self.all.iter() {
-                self.visible.insert(alias, branches.clone());
-            }
-        }
-        
-        // Branch tuple vectors
-        let mut local: Vec<(u32, String)> = self.local.iter().flat_map(|(&alias, branches)| {
-                branches.iter().map(move |branch| (alias, branch.clone()))
-            }).collect();
-        let mut remote: Vec<(u32, String)> = self.remote.iter().flat_map(|(&alias, branches)| {
-                branches.iter().map(move |branch| (alias, branch.clone()))
-            }).collect();
-
-        // Sorting tuples
-        local.sort_by(|a, b| a.1.cmp(&b.1));
-        remote.sort_by(|a, b| a.1.cmp(&b.1));
-
-        // Combining into sorted
-        self.sorted = local.into_iter().chain(remote).collect();
-
-        // Set branch colors
-        for (oidi, &lane_idx) in lanes.iter() {
-            self.colors.insert(*oidi, color.borrow().get_lane(lane_idx));
-        }
-        
-        // Build a lookup of branch aliases to positions in sorted aliases
-        let mut sorted_time = self.sorted.clone();
-        let index_map: std::collections::HashMap<u32, usize> = oid_manager.get_sorted_aliases().iter().enumerate().map(|(i, &oidi)| (oidi, i)).collect();
-
-        // Sort the vector using the index map
-        sorted_time.sort_by_key(|(oidi, _)| index_map.get(oidi).copied().unwrap_or(usize::MAX));
-        self.indices = Vec::new();
-        sorted_time.iter().for_each(|(oidi, _)| {
-            self.indices.push(oid_manager.get_sorted_aliases().iter().position(|o| oidi == o).unwrap_or(usize::MAX));
-        });
-    }
-}
-
 pub struct App {
+
     // General
     pub logo: Vec<Span<'static>>,
     pub path: String,
@@ -303,14 +149,13 @@ pub struct App {
     // Walker utilities
     pub color: Rc<RefCell<ColorPicker>>,
     pub buffer: RefCell<Buffer>,
-    pub layers: LayersContext,
     pub walker_rx: Option<std::sync::mpsc::Receiver<WalkerOutput>>,
     pub walker_cancel: Option<Arc<AtomicBool>>,
     pub walker_handle: Option<std::thread::JoinHandle<()>>,
 
     // Walker data
-    pub oid_manager: OidManager,
-    pub branch_manager: BranchManager,
+    pub oids: Oids,
+    pub branches: Branches,
     pub uncommitted: UncommittedChanges,
 
     // Cache
@@ -414,13 +259,6 @@ impl App  {
         let is_splash = self.viewport == Viewport::Splash;
 
         frame.render_widget( Block::default()
-            // .title(vec![
-            //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
-            //     Span::styled(" graph ", Style::default().fg(if self.focus == Focus::Viewport { COLOR_GREY_500 } else { COLOR_TEXT } )),
-            //     Span::styled("─", Style::default().fg(COLOR_BORDER)),
-            // ])
-            // .title_alignment(ratatui::layout::Alignment::Right)
-            // .title_style(Style::default().fg(COLOR_GREY_400))
             .borders(if is_splash { Borders::NONE } else { Borders::ALL })
             .border_style(Style::default().fg(self.theme.COLOR_BORDER))
             .border_type(ratatui::widgets::BorderType::Rounded), self.layout.app);
@@ -496,7 +334,8 @@ impl App  {
 
         // Update colors        
         self.color = Rc::new(RefCell::new(ColorPicker::from_theme(&self.theme)));
-        self.layers = layers!(Rc::new(RefCell::new(ColorPicker::from_theme(&self.theme))));
+
+        // Update logo
         self.logo = vec![
             Span::styled("  g", Style::default().fg(self.theme.COLOR_GRASS)),
             Span::styled("u", Style::default().fg(self.theme.COLOR_GRASS)),
@@ -537,42 +376,44 @@ impl App  {
 
         // Copy the repo path and visible branches
         let path = self.path.clone();
-        let visible = self.branch_manager.visible.clone();
+        let visible = self.branches.visible.clone();
 
         // Spawn a thread that computes something; it will check cancel flag between iterations
         let handle = thread::spawn(move || {
             // Create the walker
             let mut walk_ctx = Walker::new(path, 10000, visible).expect("Error");
-            let mut is_first_batch = true;
+            let mut is_first = true;
 
             // Walker loop
             loop {
+
+                // Breaker
                 if cancel_clone.load(std::sync::atomic::Ordering::SeqCst) {
                     break;
                 }
 
                 // Parse a chunk
-                let again = walk_ctx.walk();
+                let is_again = walk_ctx.walk();
 
                 // Send the message to the main thread
                 if tx.send(WalkerOutput {
-                    oid_manager: walk_ctx.oid_manager.clone(),
-                    tip_lanes: walk_ctx.tip_lanes.clone(),
-                    local: walk_ctx.local.clone(),
-                    remote: walk_ctx.remote.clone(),
+                    oids: walk_ctx.oids.clone(),
+                    branches_lanes: walk_ctx.branches_lanes.clone(),
+                    branches_local: walk_ctx.branches_local.clone(),
+                    branches_remote: walk_ctx.branches_remote.clone(),
                     buffer: walk_ctx.buffer.clone(),
-                    is_first_batch,
-                    again,
+                    is_first,
+                    is_again,
                 }).is_err() {
                     // Receiver dropped, stop
                     break;
                 }
 
                 // Break the loop if walker finished
-                if !again {
+                if !is_again {
                     break;
                 } else {
-                    is_first_batch = false;
+                    is_first = false;
                 }
             }
         });
@@ -584,33 +425,34 @@ impl App  {
         if let Some(rx) = &self.walker_rx && let Ok(result) = rx.try_recv() {
 
             // Crude check to see if this is a first iteration
-            if result.is_first_batch && self.viewport == Viewport::Splash {
-                self.viewport = Viewport::Graph;
-            }
+            if result.is_first {
 
-            // Reset utilities
-            self.buffer = RefCell::new(Buffer::default());
-            self.layers = layers!(self.color.clone());
+                // Transition from the splash screen on startup
+                if self.viewport == Viewport::Splash {
+                    self.viewport = Viewport::Graph;
+                }
+
+                // Get uncomitted changes info
+                self.uncommitted = get_filenames_diff_at_workdir(&self.repo).expect("Error");
+            }
             
-            // Get uncomitted changes info
-            self.uncommitted = get_filenames_diff_at_workdir(&self.repo).expect("Error");
             
             // Lookup tables
-            self.oid_manager = result.oid_manager;
+            self.oids = result.oids;
 
             // Buffer
             self.buffer = result.buffer;
 
             // Mapping of tip oids of the branches to the colors            
-            self.branch_manager.feed(
-                &self.oid_manager,
+            self.branches.feed(
+                &self.oids,
                 &self.color,
-                &result.tip_lanes,
-                result.local,
-                result.remote
+                &result.branches_lanes,
+                result.branches_local,
+                result.branches_remote
             );
 
-            if !result.again {
+            if !result.is_again {
                 self.spinner.stop();
             }
         }

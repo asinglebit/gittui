@@ -6,18 +6,20 @@ use git2::{
     Repository,
     Time
 };
-use crate::app::app::OidManager;
 #[rustfmt::skip]
 use crate::{
     core::{
-        walker::{
-            LazyWalker
+        oids::{
+            Oids
+        },
+        batcher::{
+            Batcher
         }
     }
 };
 
 // Returns a map of commit OIDs to the branch names that point to them
-pub fn get_tip_oids(repo: &Repository, oid_manager: &mut OidManager) -> (HashMap<u32, Vec<String>>, HashMap<u32, Vec<String>>) {
+pub fn get_tip_oids(repo: &Repository, oids: &mut Oids) -> (HashMap<u32, Vec<String>>, HashMap<u32, Vec<String>>) {
     
     let mut local: HashMap<u32, Vec<String>> = HashMap::new();
     let mut remote: HashMap<u32, Vec<String>> = HashMap::new();
@@ -28,7 +30,7 @@ pub fn get_tip_oids(repo: &Repository, oid_manager: &mut OidManager) -> (HashMap
         if let Some(oid) = reference.target() {
             
             // Get the alias
-            let alias = oid_manager.get_alias_by_oid(oid);
+            let alias = oids.get_alias_by_oid(oid);
             let name = reference.name().unwrap_or("unknown");
 
             if let Some(stripped) = name.strip_prefix("refs/heads/") {
@@ -46,13 +48,13 @@ pub fn get_tip_oids(repo: &Repository, oid_manager: &mut OidManager) -> (HashMap
 // Update the oids vector
 #[allow(clippy::too_many_arguments)]
 pub fn get_branches_and_sorted_oids(
-    walker: &LazyWalker,
-    oid_manager: &mut OidManager,
+    batcher: &Batcher,
+    oids: &mut Oids,
     sorted: &mut Vec<u32>,
     amount: usize,
 ) {
     // Get the next batch of commits
-    let chunk = walker.next_chunk(amount);
+    let chunk = batcher.next(amount);
     if chunk.is_empty() {
         // No more commits left
         return;
@@ -62,7 +64,7 @@ pub fn get_branches_and_sorted_oids(
     for oid in chunk {
 
         // Get the alias
-        let alias = oid_manager.get_alias_by_oid(oid);
+        let alias = oids.get_alias_by_oid(oid);
         sorted.push(alias);
     }
 }

@@ -56,8 +56,8 @@ impl App {
         if !is_showing_uncommitted {
             
             // Query commit info
-            let alias = self.oid_manager.get_alias_by_idx(self.graph_selected);
-            let oid = self.oid_manager.get_oid_by_alias(alias);
+            let alias = self.oids.get_alias_by_idx(self.graph_selected);
+            let oid = self.oids.get_oid_by_alias(alias);
             let commit = self.repo.find_commit(*oid).unwrap();
             let author = commit.author();
             let committer = commit.committer();
@@ -82,8 +82,8 @@ impl App {
                 )]));
             }
 
-            if let Some(branches) = self.branch_manager.all.get(&alias)
-                && let Some(color) = self.branch_manager.colors.get(&alias) {
+            if let Some(branches) = self.branches.all.get(&alias)
+                && let Some(color) = self.branches.colors.get(&alias) {
                     lines.extend(vec![
                         Line::default(),
                     ]);

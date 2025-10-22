@@ -38,8 +38,8 @@ impl App {
     pub fn draw_modal_delete_branch(&mut self, frame: &mut Frame) {
         
         let current = get_current_branch(&self.repo);
-        let alias = self.oid_manager.get_alias_by_idx(self.graph_selected);
-        let color = self.branch_manager.colors.get(&alias).unwrap();
+        let alias = self.oids.get_alias_by_idx(self.graph_selected);
+        let color = self.branches.colors.get(&alias).unwrap();
         
         let mut lines = Vec::new();
         let mut length = 25;
@@ -75,7 +75,7 @@ impl App {
         lines.push(Line::default());
             
         let mut height = 10;
-        let branches = self.branch_manager.visible.get(&alias).unwrap();
+        let branches = self.branches.visible.get(&alias).unwrap();
 
         branches
             .iter()
@@ -83,7 +83,7 @@ impl App {
             .enumerate()
             .for_each(|(idx, branch)| {
                 height += 1;
-                let is_local = self.branch_manager.local
+                let is_local = self.branches.local
                     .values()
                     .any(|branches| branches.iter().any(|b| b.as_str() == branch));
 
