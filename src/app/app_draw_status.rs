@@ -26,7 +26,6 @@ use crate::{
         }
     },
     helpers::{
-        palette::*,
         text::*
     },
     app::app::{

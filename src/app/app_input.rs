@@ -2,7 +2,6 @@
 use std::{
     io
 };
-use git2::Oid;
 #[rustfmt::skip]
 use indexmap::IndexMap;
 #[rustfmt::skip]
@@ -21,7 +20,6 @@ use ratatui::{
 use edtui::{
     EditorMode,
 };
-use crate::{core::chunk::NONE, git::actions::commits::{create_branch, delete_branch}};
 #[rustfmt::skip]
 use crate::{
     app::app::{
@@ -40,7 +38,9 @@ use crate::{
                 reset_to_commit,
                 unstage_all,
                 fetch_over_ssh,
-                push_over_ssh
+                push_over_ssh,
+                create_branch,
+                delete_branch
             }
         },
         queries::{
@@ -231,7 +231,7 @@ impl App {
                                     self.reload();
                                     self.focus = Focus::Viewport;
                                 }
-                                Err(err) => {
+                                Err(_) => {
                                     // TODO
                                 }
                             }
@@ -422,7 +422,7 @@ impl App {
                         self.focus = Focus::Viewport;
                         self.reload();
                     }
-                    Err(err) => {
+                    Err(_) => {
                         // TODO
                     }
                 }
@@ -789,7 +789,6 @@ impl App {
                 _ => {}
             },
             Focus::Branches => {
-                let total = self.oid_branch_vec.len();
                 self.branches_selected = self.branches_selected / 2
             },
             _ => {}

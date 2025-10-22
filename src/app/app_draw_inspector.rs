@@ -1,8 +1,4 @@
 #[rustfmt::skip]
-use git2::{
-    Oid
-};
-#[rustfmt::skip]
 use ratatui::{
     Frame,
     style::Style,

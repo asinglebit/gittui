@@ -66,7 +66,7 @@ impl App {
         let head_oid_alias = self.oid_manager.get_alias_by_oid(head_oid);
 
         // Rendered lines
-        let buffer_range = render_buffer_range(
+        let _buffer_range = render_buffer_range(
             &self.theme,
             &self.oid_manager,
             &buffer.history,

@@ -11,12 +11,6 @@ use ratatui::{
     },
 };
 #[rustfmt::skip]
-use crate::{
-    helpers::{
-        palette::*,
-    },
-};
-#[rustfmt::skip]
 use crate::app::{
     app::App,
 };

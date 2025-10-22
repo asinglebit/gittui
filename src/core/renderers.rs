@@ -13,7 +13,6 @@ use std::{
 };
 #[rustfmt::skip]
 use git2::{
-    Oid,
     Repository
 };
 #[rustfmt::skip]
@@ -27,7 +26,6 @@ use ratatui::{
         Span
     },
 };
-use crate::{app::app::OidManager, core::{chunk::NONE}};
 #[rustfmt::skip]
 use crate::{
     core::chunk::Chunk,
@@ -37,9 +35,15 @@ use crate::{
 };
 #[rustfmt::skip]
 use crate::{
-    app::app_input::{
-        Command,
-        KeyBinding
+    app::{
+        app::OidManager,
+        app_input::{
+            Command,
+            KeyBinding
+        }
+    },
+    core::{
+        chunk::NONE
     },
     helpers::{
         palette::*,

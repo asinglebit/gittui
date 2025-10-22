@@ -8,36 +8,14 @@ use ratatui::{
     },
     widgets::{
         Block,
-        Scrollbar,
-        ScrollbarOrientation,
-        ScrollbarState,
         List,
         ListItem
     }
 };
 #[rustfmt::skip]
 use crate::{
-    helpers::{
-        palette::*
-    },
-};
-#[rustfmt::skip]
-use crate::{
     app::app::{
-        App,
-        Focus,
-    },
-    git::{
-        queries::{
-            commits::{
-                get_git_user_info
-            }
-        }
-    },
-    helpers::{
-        text::{
-            center_line
-        }
+        App
     }
 };
 
@@ -55,7 +33,7 @@ impl App {
         
         // Calculate maximum available width for text
         let available_width = self.layout.graph.width as usize - 1;
-        let max_text_width = available_width.saturating_sub(2);
+        let _max_text_width = available_width.saturating_sub(2);
 
         // Get vertical dimensions
         let total_lines = self.viewer_lines.len();
@@ -73,9 +51,8 @@ impl App {
 
         // Calculate scroll
         let start = self.viewer_scroll.get().min(total_lines.saturating_sub(visible_height));
-        let end = (start + visible_height).min(total_lines);
+        let _end = (start + visible_height).min(total_lines);
 
-        let a = get_git_user_info(&self.repo).unwrap();
         // Setup list items
         let mut list_items: Vec<ListItem> = Vec::new();
 
@@ -87,7 +64,7 @@ impl App {
                 (visible_height / 2).saturating_sub((3 + 11 - 3) / 2)
             };
 
-        for idx in 0..dummies { list_items.push(ListItem::from(Line::default())); }
+        for _ in 0..dummies { list_items.push(ListItem::from(Line::default())); }
 
         if self.layout.app.width < 80 {
             list_items.push(ListItem::from(Line::from(Span::styled(format!("guita╭"), Style::default().fg(self.theme.COLOR_GRASS))).centered()));
