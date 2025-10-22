@@ -163,7 +163,7 @@ impl Default for OidManager {
             zero: Oid::zero(),
             oids: Vec::new(),
             aliases: HashMap::new(),
-            sorted_aliases: Vec::new(),
+            sorted_aliases: vec![NONE],
         }
     }
 }
