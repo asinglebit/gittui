@@ -43,15 +43,11 @@ pub fn get_tip_oids(repo: &Repository, oid_manager: &mut OidManager) -> (HashMap
 }
 
 // Outcomes:
-// Update branch_oid_map: branch names to their latest commit OID
 // Update the oids vector
 #[allow(clippy::too_many_arguments)]
 pub fn get_branches_and_sorted_oids(
     walker: &LazyWalker,
-    tips_local: &HashMap<u32, Vec<String>>,
-    tips_remote: &HashMap<u32, Vec<String>>,
     oid_manager: &mut OidManager,
-    branch_oid_map: &mut HashMap<String, u32>,
     sorted: &mut Vec<u32>,
     amount: usize,
 ) {
@@ -62,18 +58,9 @@ pub fn get_branches_and_sorted_oids(
         return;
     }
 
-    // Seed each tip with its branch names
-    if oid_manager.get_commit_count() == 1 {
-        for (oidi, branches) in tips_local.iter().chain(tips_remote) {
-            for name in branches {
-                branch_oid_map.entry(name.clone()).or_insert(*oidi);
-            }
-        }
-    }
-
     // Walk all commits topologically and propagate branch membership backwards
     for oid in chunk {
-        
+
         // Get the alias
         let alias = oid_manager.get_alias_by_oid(oid);
         sorted.push(alias);

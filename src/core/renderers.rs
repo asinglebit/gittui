@@ -81,8 +81,9 @@ pub fn render_graph_range(
         let mut is_merged_before = false;
         let mut lane_idx = 0;
 
-        let delta = history.len() - end + global_idx;
-        let prev = history.get(delta - 1);
+        if history.len() < 1 {return vec![Line::default()];}
+        let delta = history.len() + global_idx - end;
+        let prev = if delta == 0 { None } else { history.get(delta - 1) };
         let last = history.get(delta).unwrap();
 
         if oid_manager.is_zero(&oid) {

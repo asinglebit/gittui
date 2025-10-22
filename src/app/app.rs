@@ -159,7 +159,6 @@ pub struct OidManager {
 
 impl Default for OidManager {
     fn default() -> Self {
-        
         OidManager {
             zero: Oid::zero(),
             oids: Vec::new(),
@@ -212,7 +211,6 @@ pub struct BranchManager {
     pub tips_remote: HashMap<u32, Vec<String>>,
     pub tips: HashMap<u32, Vec<String>>,
     pub tip_colors: HashMap<u32, Color>,
-    pub branch_oid_map: HashMap<String, u32>
 }
 
 impl Default for BranchManager {
@@ -222,7 +220,6 @@ impl Default for BranchManager {
             tips_remote: HashMap::new(),
             tips: HashMap::new(),
             tip_colors: HashMap::new(),
-            branch_oid_map: HashMap::new()
         }
     }
 }
@@ -506,7 +503,6 @@ impl App  {
                     tip_lanes: walk_ctx.tip_lanes.clone(),
                     tips_local: walk_ctx.tips_local.clone(),
                     tips_remote: walk_ctx.tips_remote.clone(),
-                    branch_oid_map: walk_ctx.branch_oid_map.clone(),
                     buffer: walk_ctx.buffer.clone(),
                     is_first_batch,
                     again,
@@ -588,7 +584,6 @@ impl App  {
             remote_oidi_branch_tuples.sort_by(|a, b| a.1.cmp(&b.1));
             self.oid_branch_vec = local_oidi_branch_tuples.into_iter().chain(remote_oidi_branch_tuples.into_iter()).collect();
 
-            self.branch_manager.branch_oid_map = result.branch_oid_map;
             self.buffer = result.buffer;
 
             for (oidi, lane_idx) in result.tip_lanes.iter() {

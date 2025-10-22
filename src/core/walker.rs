@@ -131,7 +131,6 @@ pub struct Walker {
     pub tip_lanes: HashMap<u32, usize>,
     pub tips_local: HashMap<u32, Vec<String>>,
     pub tips_remote: HashMap<u32, Vec<String>>,
-    pub branch_oid_map: HashMap<String, u32>,
 
     // Pagination
     pub amount: usize
@@ -149,7 +148,6 @@ pub struct WalkerOutput {
     pub tip_lanes: HashMap<u32, usize>,
     pub tips_local: HashMap<u32, Vec<String>>,
     pub tips_remote: HashMap<u32, Vec<String>>,
-    pub branch_oid_map: HashMap<String, u32>,
 
     // Pagination
     pub again: bool,
@@ -173,7 +171,6 @@ impl Walker {
         let mut oid_manager = OidManager::default();
         let tip_lanes = HashMap::new();
         let (tips_local, tips_remote) = get_tip_oids(&repo, &mut oid_manager);
-        let branch_oid_map: HashMap<String, u32> = HashMap::new();
         
         // Lazy walker
         let walker = LazyWalker::new(repo.clone(), visible_branches, &mut oid_manager).expect("Error");
@@ -192,7 +189,6 @@ impl Walker {
             tip_lanes,
             tips_local,
             tips_remote,
-            branch_oid_map,
 
             // Pagination
             amount
@@ -212,10 +208,7 @@ impl Walker {
         let mut sorted_batch: Vec<u32> = Vec::new();
         get_branches_and_sorted_oids(
             &self.walker,
-            &self.tips_local,
-            &self.tips_remote,
             &mut self.oid_manager,
-            &mut self.branch_oid_map,
             &mut sorted_batch,
             self.amount,
         );
