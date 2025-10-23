@@ -34,6 +34,7 @@ use crate::{
 impl App {
 
     pub fn draw_graph(&mut self, frame: &mut Frame) {
+
         // Get vertical dimensions
         let total_lines = self.oids.get_commit_count();
         let visible_height = self.layout.graph.height as usize;
@@ -46,12 +47,7 @@ impl App {
         }
 
         // Trap selection
-        self.trap_selection(
-            self.graph_selected,
-            &self.graph_scroll,
-            total_lines,
-            visible_height,
-        );
+        self.trap_selection(self.graph_selected, &self.graph_scroll, total_lines, visible_height);
 
         // Calculate scroll
         let start = self.graph_scroll.get().min(total_lines.saturating_sub(visible_height));
@@ -99,70 +95,59 @@ impl App {
         let mut rows = Vec::with_capacity(end - start + 1);
         let mut width = 0;
         if !graph_range.is_empty() {
+
             for idx in 0..graph_range.len() {
+
+                // Find the maximum width of the graph range
                 width = graph_range
                     .iter()
                     .map(|line| {
                         line.spans
                             .iter()
-                            .filter(|span| !span.content.is_empty()) // only non-empty spans
-                            .map(|span| span.content.chars().count()) // use chars() for wide characters
+                            .filter(|span| !span.content.is_empty()) // Only non-empty spans
+                            .map(|span| span.content.chars().count()) // Use chars() for wide characters
                             .sum::<usize>()
                     })
                     .max()
                     .unwrap_or(0) as u16;
-
+                
+                // Assemble the row
                 let mut row = Row::new(vec![
                     WidgetCell::from(graph_range.get(idx).cloned().unwrap_or_default()),
                     WidgetCell::from(message_range.get(idx).cloned().unwrap_or_default()),
                 ]);
+
+                // Change the row background if selected
                 if idx + start == self.graph_selected && self.focus == Focus::Viewport {
                     row = row.style(Style::default().bg(self.theme.COLOR_GREY_800));
                 } else if (idx + start).is_multiple_of(2) {
                     row = row.style(Style::default().bg(self.theme.COLOR_GREY_900));
                 }
+
+                // Save out
                 rows.push(row);
             }
         }
 
         // Setup the table
-        let table = Table::new(
-            rows,
-            [
+        let table = Table::new(rows, [
                 ratatui::layout::Constraint::Length(width),
-                ratatui::layout::Constraint::Min(0),
-            ],
-        )
-        .block(
-            Block::default()
+                ratatui::layout::Constraint::Min(0)])
+            .block(Block::default()
                 .borders(Borders::RIGHT | Borders::LEFT)
                 .border_style(Style::default().fg(self.theme.COLOR_BORDER))
-                .border_type(ratatui::widgets::BorderType::Rounded),
-        )
-        .column_spacing(5);
+                .border_type(ratatui::widgets::BorderType::Rounded))
+            .column_spacing(5);
 
         // Render the table
         frame.render_widget(table, self.layout.graph);
 
+        // Setup the scrollbar
         if total_lines > visible_height {
-            let mut scrollbar_state =
-                ScrollbarState::new(total_lines.saturating_sub(visible_height))
-                    .position(self.graph_scroll.get());
+            let mut scrollbar_state =ScrollbarState::new(total_lines.saturating_sub(visible_height)).position(self.graph_scroll.get());
             let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .begin_symbol(
-                    if (self.is_inspector && self.graph_selected != 0) || self.is_status {
-                        Some("─")
-                    } else {
-                        Some("╮")
-                    },
-                )
-                .end_symbol(
-                    if (self.is_inspector && self.graph_selected != 0) || self.is_status {
-                        Some("─")
-                    } else {
-                        Some("╯")
-                    },
-                )
+                .begin_symbol(if (self.is_inspector && self.graph_selected != 0) || self.is_status { Some("─") } else { Some("╮") })
+                .end_symbol(if (self.is_inspector && self.graph_selected != 0) || self.is_status { Some("─") } else { Some("╯") })
                 .track_symbol(Some("│"))
                 .thumb_symbol("▌")
                 .thumb_style(Style::default().fg(if self.focus == Focus::Viewport {

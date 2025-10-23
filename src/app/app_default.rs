@@ -90,7 +90,7 @@ impl Default for App {
             name: String::new(),
             email: String::new(),
 
-            // Walker utilities    
+            // Walker utilities
             color,
             buffer: RefCell::new(Buffer::default()),
             walker_rx: None,

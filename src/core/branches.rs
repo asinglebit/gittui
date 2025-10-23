@@ -1,3 +1,4 @@
+use std::default;
 #[rustfmt::skip]
 use std::{
     cell::{
@@ -22,13 +23,15 @@ use crate::{
         }
     },
     helpers::{
+        palette::{
+            Theme
+        },
         colors::{
             ColorPicker
         }
     }
 };
 
-#[derive(Default, Clone)]
 pub struct Branches {
     pub local: HashMap<u32, Vec<String>>,
     pub remote: HashMap<u32, Vec<String>>,
@@ -39,7 +42,23 @@ pub struct Branches {
     pub visible: HashMap<u32, Vec<String>>,
 }
 
+impl Default for Branches {
+
+    fn default() -> Self {
+        Self {
+            local: Default::default(),
+            remote: Default::default(),
+            all: Default::default(),
+            colors: Default::default(),
+            sorted: Default::default(),
+            indices: Default::default(),
+            visible: Default::default(),
+        }
+    }
+}
+
 impl Branches {
+
     pub fn feed(
         &mut self,
         oids: &Oids,
@@ -105,4 +124,25 @@ impl Branches {
             self.indices.push(oids.get_sorted_aliases().iter().position(|o| oidi == o).unwrap_or(usize::MAX));
         });
     }
+
+    pub fn get_sorted_aliases(&self) -> &Vec<(u32, String)> {
+        &self.sorted
+    }
+
+    pub fn get_color(&self, theme: &Theme, branch_alias: &u32) -> Color {
+        *self.colors.get(branch_alias).unwrap_or(&theme.COLOR_TEXT)
+    }
+
+    pub fn is_visible(&self, branch_alias: &u32, branch_name: &String) -> bool {
+        self.visible
+            .get(branch_alias)
+            .is_some_and(|branch_names| branch_names.iter().any(|current_branch| current_branch == branch_name))
+    }
+
+    pub fn is_local(&self, branch_name: &String) -> bool {
+        self.local
+            .values()
+            .any(|branches| branches.iter().any(|current_branch| current_branch.as_str() == branch_name))
+    }
+
 }

@@ -15,13 +15,17 @@ use ratatui::{
         ListItem
     },
 };
-use crate::helpers::text::truncate_with_ellipsis;
 #[rustfmt::skip]
 use crate::{
     app::app::{
         App,
         Focus
     },
+    helpers::{
+        text::{
+            truncate_with_ellipsis
+        }
+    }
 };
 
 impl App {
@@ -29,12 +33,7 @@ impl App {
     pub fn draw_branches(&mut self, frame: &mut Frame) {
         
         // Padding
-        let padding = ratatui::widgets::Padding {
-            left: 2,
-            right: 0,
-            top: 0,
-            bottom: 0,
-        };
+        let padding = ratatui::widgets::Padding { left: 2, right: 0, top: 0, bottom: 0 };
         
         // Calculate maximum available width for text
         let available_width = self.layout.branches.width as usize - 1;
@@ -42,26 +41,19 @@ impl App {
 
         // Lines
         let mut lines: Vec<Line<'_>> = Vec::new();
-        for (oid, branch) in self.branches.sorted.iter() {
-            let is_visible = self
-                .branches.visible
-                .get(oid)
-                .is_some_and(|branches| branches.iter().any(|b| b == branch));
+        for (branch_alias, branch_name) in self.branches.get_sorted_aliases().iter() {
 
-            let is_local = self.branches.local.values().any(|branches| branches.iter().any(|b| b.as_str() == branch));
+            // Get branch descriptors
+            let is_visible = self.branches.is_visible(branch_alias, branch_name);
+            let is_local = self.branches.is_local(branch_name);
 
-            lines.push(Line::from(vec![
-                Span::styled(
-                    format!("{} {}", if is_visible { if is_local { "●" } else { "◆" } } else if is_local { "○" } else { "◇" }, truncate_with_ellipsis(branch, max_text_width - 1)),
-                    Style::default().fg(
-                        if is_visible {
-                            *self.branches.colors.get(oid).unwrap_or(&self.theme.COLOR_TEXT)
-                        } else {
-                            self.theme.COLOR_TEXT
-                        },
-                    ),
-                ),
-            ]));
+            // Text
+            let truncated = truncate_with_ellipsis(branch_name, max_text_width - 1);
+            let icon = if is_visible { if is_local { "●" } else { "◆" } } else if is_local { "○" } else { "◇" };
+            let color = if is_visible { self.branches.get_color(&self.theme, branch_alias) } else { self.theme.COLOR_TEXT };
+
+            // Render a branch
+            lines.push(Line::from(Span::styled(format!("{icon} {truncated}"), Style::default().fg(color))));
         }
 
         // Get vertical dimensions

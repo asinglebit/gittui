@@ -90,7 +90,19 @@ Clone the repo and build with Cargo:
 ```bash
 git clone https://github.com/asinglebit/guitar.git
 cd guitar
-cargo build --release path-to-your-repo
+cargo build --release
+```
+
+Your binary path after a successfull build:
+
+```bash
+guitar/target/release/guitar
+```
+
+Copy it wherever you want and run with a path to repo you wish to inspect
+
+```bash
+guitar ../path/to/your/repo
 ```
 
 ### 🌟 Motivation

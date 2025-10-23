@@ -54,19 +54,7 @@ impl App {
             selection_style: Style::default(),
             block: Some(
                 Block::default()
-                    .padding(Padding {
-                        left: 1,
-                        right: 2,
-                        top: 0,
-                        bottom: 0,
-                    })
-                    // .title(vec![
-                    //     Span::styled("─", Style::default().fg(self.theme.COLOR_BORDER)),
-                    //     Span::styled(" editor ", Style::default().fg(if self.focus == Focus::Viewport { self.theme.COLOR_GREY_500 } else { self.theme.COLOR_TEXT } )),
-                    //     Span::styled("─", Style::default().fg(self.theme.COLOR_BORDER)),
-                    // ])
-                    // .title_alignment(ratatui::layout::Alignment::Right)
-                    // .title_style(Style::default().fg(self.theme.COLOR_GREY_400))
+                    .padding(Padding { left: 1, right: 2, top: 0, bottom: 0 })
                     .borders(Borders::ALL)
                     .border_type(ratatui::widgets::BorderType::Rounded)
                     .border_style(Style::default().fg(self.theme.COLOR_GREY_800))

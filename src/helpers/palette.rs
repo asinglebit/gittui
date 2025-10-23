@@ -53,7 +53,7 @@ impl Default for Theme {
 
 impl Theme {
 
-    pub fn classic() -> Self {
+    pub const fn classic() -> Self {
         Self {
             name:                   ThemeNames::Classic,
             COLOR_RED:              Color::Rgb(239, 83, 80),
@@ -89,7 +89,7 @@ impl Theme {
             COLOR_TEXT_SELECTED:    Color::Rgb(224, 224, 224),
         }
     }
-    pub fn ansi() -> Self {
+    pub const fn ansi() -> Self {
         Self {
             name:                   ThemeNames::Ansi,
             COLOR_RED:              Color::Red,
@@ -125,7 +125,7 @@ impl Theme {
             COLOR_TEXT_SELECTED:    Color::Reset,
         }
     }
-    pub fn monochrome() -> Self {
+    pub const fn monochrome() -> Self {
         Self {
             name:                   ThemeNames::Monochrome,
             COLOR_RED:              Color::White,
