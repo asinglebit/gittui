@@ -136,7 +136,7 @@ guitar ../path/to/your/repo
     - Pop changes
     - Render tags
 
-I work on **guita╭** in my spare time, and give priority on the features I need in my day-to-day life. Use it with caution, and feel free to report issues or contribute improvements!
+I work on **guita╭** in my spare time, and give priority to the features I need in my day-to-day life. Use it with caution, and feel free to report issues or contribute improvements!
 
 ### 🖼️ Screenshots
 
