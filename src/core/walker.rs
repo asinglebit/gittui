@@ -127,7 +127,7 @@ impl Walker {
         // Determine current HEAD oid
         let head_oid = self.repo.head().unwrap().target().unwrap();
 
-        // Get the oidi
+        // Get the alias
         let head_alias = self.oids.get_alias_by_oid(head_oid);
 
         // Sort commits
@@ -148,7 +148,7 @@ impl Walker {
 
         // Go through the commits, inferring the graph
         for &alias in sorted_batch.iter() {
-            let mut merger_oidi: u32 = NONE;
+            let mut merger_alias: u32 = NONE;
             let oid = self.oids.get_oid_by_alias(alias);
             let commit = self.repo.find_commit(*oid).unwrap();
             let parents: Vec<Oid> = commit.parent_ids().collect();
@@ -170,7 +170,7 @@ impl Walker {
             self.buffer.borrow_mut().update(chunk);
 
             for chunk in &self.buffer.borrow().curr {
-                if !chunk.is_dummy() && alias == chunk.oidi {
+                if !chunk.is_dummy() && alias == chunk.alias {
                     is_commit_found = true;
 
                     if self.branches_local.contains_key(&alias) || self.branches_remote.contains_key(&alias) {
@@ -188,7 +188,7 @@ impl Walker {
                             }
                         }
                         if !is_merger_found {
-                            merger_oidi = chunk.oidi;
+                            merger_alias = chunk.alias;
                         }
                     }
                 }
@@ -201,8 +201,8 @@ impl Walker {
             }
 
             // Now we can borrow mutably
-            if merger_oidi != NONE {
-                self.buffer.borrow_mut().merger(merger_oidi);
+            if merger_alias != NONE {
+                self.buffer.borrow_mut().merger(merger_alias);
             }
 
             // Serialize

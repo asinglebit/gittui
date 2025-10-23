@@ -33,8 +33,8 @@ pub struct Buffer {
 }
 
 impl Buffer {
-    pub fn merger(&mut self, oidi: u32) {
-        self.mergers.push_back(oidi);
+    pub fn merger(&mut self, alias: u32) {
+        self.mergers.push_back(alias);
     }
 
     pub fn update(&mut self, chunk: Chunk) {
@@ -50,9 +50,9 @@ impl Buffer {
 
         // If we have a planned merge later on
         if let Some(merger_idx) = self.curr.iter().position(|inner| {
-            self.mergers.iter().any(|oidi| *oidi == inner.oidi)
+            self.mergers.iter().any(|alias| *alias == inner.alias)
         }) {
-            if let Some(merger_pos) = self.mergers.iter().position(|oidi| *oidi == self.curr[merger_idx].oidi) {
+            if let Some(merger_pos) = self.mergers.iter().position(|alias| *alias == self.curr[merger_idx].alias) {
                 self.mergers.remove(merger_pos);
             }
 
@@ -75,9 +75,9 @@ impl Buffer {
 
         // Replace or append buffer chunk
         if let Some(first_idx) = self.curr.iter().position(|inner| {
-            inner.parent_a == chunk.oidi
+            inner.parent_a == chunk.alias
         }) {
-            let old_oidi = chunk.oidi;
+            let old_alias = chunk.alias;
 
             // Replace chunk
             self.curr[first_idx] = chunk.clone();
@@ -88,18 +88,18 @@ impl Buffer {
 
             // Place dummies in case of branching
             for (i, inner) in self.curr.iter_mut().enumerate() {
-                if inner.oidi == old_oidi {
+                if inner.alias == old_alias {
                     continue;
                 }
 
                 let mut parents_changed = false;
 
-                if inner.parent_a == old_oidi {
+                if inner.parent_a == old_alias {
                     inner.parent_a = NONE;
                     parents_changed = true;
                 }
 
-                if inner.parent_b == old_oidi {
+                if inner.parent_b == old_alias {
                     inner.parent_b = NONE;
                     parents_changed = true;
                 }
@@ -108,12 +108,12 @@ impl Buffer {
                     *inner = Chunk::dummy();
                     self.delta.ops.push_back(DeltaOp::Replace {
                         index: i,
-                        new: inner.clone(),
+                        new: inner.clone()
                     });
                 } else {
                     self.delta.ops.push_back(DeltaOp::Replace {
                         index: i,
-                        new: inner.clone(),
+                        new: inner.clone()
                     });
                 }
             }
@@ -121,10 +121,9 @@ impl Buffer {
             self.curr.push_back(chunk.clone());
             self.delta.ops.push_back(DeltaOp::Insert {
                 index: self.curr.len() - 1,
-                item: chunk,
+                item: chunk
             });
         }
-
     }
 
     pub fn backup(&mut self) {

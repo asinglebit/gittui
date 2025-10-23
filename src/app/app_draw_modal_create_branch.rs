@@ -67,13 +67,6 @@ impl App {
         let modal_area = Rect::new(x, y, modal_width, modal_height);
 
         frame.render_widget(Clear, modal_area);
-
-        let padding = ratatui::widgets::Padding {
-            left: 3,
-            right: 3,
-            top: 1,
-            bottom: 1,
-        };
         
         // Modal block
         let modal_block = Block::default()
@@ -81,7 +74,7 @@ impl App {
             .border_style(Style::default().fg(self.theme.COLOR_GREY_600))
             .title(Span::styled(if self.create_branch_editor.mode == EditorMode::Normal {" (esc) "} else { "─ esc ─" }, Style::default().fg(if self.create_branch_editor.mode == EditorMode::Normal { self.theme.COLOR_GREY_500 } else { self.theme.COLOR_GREY_600 })))
             .title_alignment(Alignment::Right)
-            .padding(padding)
+            .padding(Padding { left: 3, right: 3, top: 1, bottom: 1})
             .border_type(ratatui::widgets::BorderType::Rounded);
 
         // Modal content
@@ -98,26 +91,16 @@ impl App {
             selection_style: Style::default(),
             block: Some(
                 Block::default()
-                    .padding(Padding {
-                        left: 1,
-                        right: 1,
-                        top: 0,
-                        bottom: 0,
-                    })
+                    .padding(Padding { left: 1, right: 1, top: 0, bottom: 0})
                     .borders(Borders::TOP)
                     .border_type(ratatui::widgets::BorderType::Rounded)
-                    .border_style(Style::default().fg(self.theme.COLOR_GREY_800))
-            ),
+                    .border_style(Style::default().fg(self.theme.COLOR_GREY_800))),
             status_line: Some(EditorStatusLine::default()
-                        .style_text(Style::default().fg(self.theme.COLOR_TEXT))
-                        .style_line(Style::default().fg(self.theme.COLOR_GREY_800))
-                        .align_left(true)
-                    )
+                .style_text(Style::default().fg(self.theme.COLOR_TEXT))
+                .style_line(Style::default().fg(self.theme.COLOR_GREY_800))
+                .align_left(true))
         };
-        let editor_view = EditorView::new(&mut self.create_branch_editor)
-            .theme(custom_theme);
-            // .wrap(true);
-            // .syntax_highlighter(Some(SyntaxHighlighter::new("dracula", "json")));
+        let editor_view = EditorView::new(&mut self.create_branch_editor).theme(custom_theme);
         
         let input_area = Rect {
             x: modal_area.x + modal_area.width / 2 - 29,

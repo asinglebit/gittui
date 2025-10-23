@@ -9,7 +9,7 @@ pub const NONE: u32 = u32::MAX;
 
 #[derive(Clone)]
 pub struct Chunk {
-    pub oidi: u32,
+    pub alias: u32,
     pub parent_a: u32,
     pub parent_b: u32,
     pub marker: Markers,
@@ -18,7 +18,7 @@ pub struct Chunk {
 impl Default for Chunk {
     fn default() -> Self {
         Chunk {
-            oidi: NONE,
+            alias: NONE,
             parent_a: NONE,
             parent_b: NONE,
             marker: Markers::Dummy
@@ -29,16 +29,16 @@ impl Default for Chunk {
 impl Chunk {
     pub fn uncommitted(parent_a: u32, parent_b: u32) -> Self {
         Chunk {
-            oidi: NONE,
+            alias: NONE,
             parent_a,
             parent_b,
             marker: Markers::Uncommitted,
         }
     }
 
-    pub fn commit(oidi: u32, parent_a: u32, parent_b: u32) -> Self {
+    pub fn commit(alias: u32, parent_a: u32, parent_b: u32) -> Self {
         Chunk {
-            oidi,
+            alias,
             parent_a,
             parent_b,
             marker: Markers::Commit,
@@ -47,7 +47,7 @@ impl Chunk {
 
     pub fn dummy() -> Self {
         Chunk {
-            oidi: NONE,
+            alias: NONE,
             parent_a: NONE,
             parent_b: NONE,
             marker: Markers::Dummy,

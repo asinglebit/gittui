@@ -12,6 +12,7 @@ use ratatui::{
         ScrollbarOrientation,
         ScrollbarState,
         List,
+        Padding,
         ListItem
     },
 };
@@ -34,14 +35,6 @@ use crate::{
 impl App {
 
     pub fn draw_inspector(&mut self, frame: &mut Frame) {
-        
-        // Padding
-        let padding = ratatui::widgets::Padding {
-            left: 1,
-            right: 1,
-            top: 0,
-            bottom: 0,
-        };
         
         // Calculate maximum available width for text
         let available_width = self.layout.inspector.width as usize - 1;
@@ -66,100 +59,46 @@ impl App {
 
             // Assemble lines
             lines = vec![
-                Line::from(vec![Span::styled("commit sha:", Style::default().fg(self.theme.COLOR_GREY_500))]),
-                Line::from(vec![Span::styled(
-                    truncate_with_ellipsis(&format!("#{}", oid), max_text_width),
-                    Style::default().fg(self.theme.COLOR_TEXT),
-                )]),
+                Line::from(Span::styled("commit sha:", Style::default().fg(self.theme.COLOR_GREY_500))),
+                Line::from(Span::styled(truncate_with_ellipsis(&format!("#{}", oid), max_text_width), Style::default().fg(self.theme.COLOR_TEXT))),
                 Line::default(),
-                Line::from(vec![Span::styled("parent shas:", Style::default().fg(self.theme.COLOR_GREY_500))]),
+                Line::from(Span::styled("parent shas:", Style::default().fg(self.theme.COLOR_GREY_500))),
             ];
-
             for parent_id in commit.parent_ids() {
-                lines.push(Line::from(vec![Span::styled(
-                    truncate_with_ellipsis(&format!("#{}", parent_id), max_text_width),
-                    Style::default().fg(self.theme.COLOR_TEXT),
-                )]));
+                let text = truncate_with_ellipsis(&format!("#{}", parent_id), max_text_width);
+                lines.push(Line::from(Span::styled(text, Style::default().fg(self.theme.COLOR_TEXT))));
             }
-
-            if let Some(branches) = self.branches.all.get(&alias)
-                && let Some(color) = self.branches.colors.get(&alias) {
-                    lines.extend(vec![
-                        Line::default(),
-                    ]);
-                    lines.push(Line::from(vec![Span::styled(
-                        "featured branches:",
-                        Style::default().fg(self.theme.COLOR_GREY_500),
-                    )]));
-                    for branch in branches {
-                        lines.push(Line::from(vec![
-                            Span::styled(
-                                truncate_with_ellipsis(&format!("● {}", branch), max_text_width),
-                                Style::default().fg(*color),
-                            )
-                        ]));
-                    }
+            if let Some(branches) = self.branches.all.get(&alias) && let Some(color) = self.branches.colors.get(&alias) {
+                lines.push(Line::default());
+                lines.push(Line::from(Span::styled("featured branches:", Style::default().fg(self.theme.COLOR_GREY_500))));
+                for branch in branches {
+                    let text = truncate_with_ellipsis(&format!("● {}", branch), max_text_width);
+                    lines.push(Line::from(Span::styled(text, Style::default().fg(*color))));
                 }
-
+            }
+            lines.push(Line::default());
             lines.extend(vec![
+                Line::from(Span::styled(format!("authored by: {}", author.name().unwrap_or("-")), Style::default().fg(self.theme.COLOR_GREY_500),)),
+                Line::from(Span::styled(author.email().unwrap_or("").to_string(), Style::default().fg(self.theme.COLOR_TEXT),)),
+                Line::from(Span::styled(timestamp_to_utc(author.when()), Style::default().fg(self.theme.COLOR_TEXT),)),
                 Line::default(),
+                Line::from(Span::styled(format!("committed by: {}", committer.name().unwrap_or("-")), Style::default().fg(self.theme.COLOR_GREY_500),)),
+                Line::from(Span::styled(committer.email().unwrap_or("").to_string(), Style::default().fg(self.theme.COLOR_TEXT),)),
+                Line::from(Span::styled(timestamp_to_utc(committer.when()).to_string(), Style::default().fg(self.theme.COLOR_TEXT),)),
+                Line::default(),
+                Line::from(Span::styled("message summary:", Style::default().fg(self.theme.COLOR_GREY_500),))
             ]);
-
-            lines.extend(vec![
-                Line::from(vec![Span::styled(
-                    format!("authored by: {}", author.name().unwrap_or("-")),
-                    Style::default().fg(self.theme.COLOR_GREY_500),
-                )]),
-                Line::from(vec![Span::styled(
-                    author.email().unwrap_or("").to_string(),
-                    Style::default().fg(self.theme.COLOR_TEXT),
-                )]),
-                Line::from(vec![Span::styled(
-                    timestamp_to_utc(author.when()),
-                    Style::default().fg(self.theme.COLOR_TEXT),
-                )]),
-                Line::default(),
-                Line::from(vec![Span::styled(
-                    format!("committed by: {}", committer.name().unwrap_or("-")),
-                    Style::default().fg(self.theme.COLOR_GREY_500),
-                )]),
-                Line::from(vec![Span::styled(
-                    committer.email().unwrap_or("").to_string(),
-                    Style::default().fg(self.theme.COLOR_TEXT),
-                )]),
-                Line::from(vec![Span::styled(
-                    timestamp_to_utc(committer.when()).to_string(),
-                    Style::default().fg(self.theme.COLOR_TEXT),
-                )]),
-                Line::default(),
-                Line::from(vec![Span::styled(
-                    "message summary:",
-                    Style::default().fg(self.theme.COLOR_GREY_500),
-                )])
-            ]);
-
             let wrapped = wrap_words(sanitize(summary), max_text_width);
             for line in wrapped {
-                lines.push(Line::from(vec![Span::styled(
-                    line,
-                    Style::default().fg(self.theme.COLOR_TEXT),
-                )]));
-            }
-            
+                lines.push(Line::from(Span::styled(line, Style::default().fg(self.theme.COLOR_TEXT))));
+            }            
             lines.extend(vec![
                 Line::default(),
-                Line::from(vec![Span::styled(
-                    "message body:",
-                    Style::default().fg(self.theme.COLOR_GREY_500),
-                )])
+                Line::from(Span::styled("message body:", Style::default().fg(self.theme.COLOR_GREY_500)))
             ]);
-
             let wrapped = wrap_words(sanitize(body), max_text_width);
             for line in wrapped {
-                lines.push(Line::from(vec![Span::styled(
-                    line,
-                    Style::default().fg(self.theme.COLOR_TEXT),
-                )]));
+                lines.push(Line::from(Span::styled(line, Style::default().fg(self.theme.COLOR_TEXT))));
             }
         }
 
@@ -197,9 +136,8 @@ impl App {
         
         // Setup the list
         let list = List::new(list_items)
-            .block(
-                Block::default()
-                    .padding(padding)
+            .block(Block::default()
+                .padding(Padding{ left: 1, right: 1, top: 0, bottom: 0})
             );
 
         frame.render_widget(list, self.layout.inspector);

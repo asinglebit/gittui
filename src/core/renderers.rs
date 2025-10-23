@@ -70,7 +70,7 @@ pub fn render_graph_range(
     oids: &Oids,
     all: &HashMap<u32, Vec<String>>,
     history: &Vector<Vector<Chunk>>,
-    head_oidi: u32,
+    head_alias: u32,
     start: usize,
     end: usize,
 ) -> Vec<Line<'static>> {
@@ -80,10 +80,10 @@ pub fn render_graph_range(
 
     // Go through the sorted commits, inferring the graph
     let sorted_aliases = oids.get_sorted_aliases();
-    for (global_idx, oidi) in sorted_aliases.iter().enumerate().take(end).skip(start) {
+    for (global_idx, alias) in sorted_aliases.iter().enumerate().take(end).skip(start) {
 
         // Get commit oid
-        let oid = oids.get_oid_by_alias(*oidi);
+        let oid = oids.get_oid_by_alias(*alias);
 
         // Clear the render line
         layers.clear();
@@ -145,12 +145,12 @@ pub fn render_graph_range(
                         layers.pipe(SYM_EMPTY, lane_idx);
                     }
                 }
-            } else if *oidi == chunk.oidi {
+            } else if *alias == chunk.alias {
                 is_commit_found = true;
                 let is_two_parents = chunk.parent_a != NONE && chunk.parent_b != NONE;
-                if is_two_parents && !(all.contains_key(oidi)) {
+                if is_two_parents && !(all.contains_key(alias)) {
                     layers.commit(SYM_MERGE, lane_idx);
-                } else if all.contains_key(oidi) {
+                } else if all.contains_key(alias) {
                     layers.commit(SYM_COMMIT_BRANCH, lane_idx);
                 } else {
                     layers.commit(SYM_COMMIT, lane_idx);
@@ -178,7 +178,7 @@ pub fn render_graph_range(
 
                     let mut mergee_idx: usize = 0;
                     for chunk_nested in last {
-                        if *oidi == chunk_nested.oidi {
+                        if *alias == chunk_nested.alias {
                             break;
                         }
                         mergee_idx += 1;
@@ -186,7 +186,7 @@ pub fn render_graph_range(
 
                     for (chunk_nested_idx, chunk_nested) in last.iter().enumerate() {
                         if !is_mergee_found {
-                            if *oidi == chunk_nested.oidi {
+                            if *alias == chunk_nested.alias {
                                 is_mergee_found = true;
                                 if is_merger_found {
                                     is_drawing = !is_drawing;
@@ -297,7 +297,7 @@ pub fn render_graph_range(
             } else {
                 layers.commit(SYM_EMPTY, lane_idx);
                 layers.commit(SYM_EMPTY, lane_idx);
-                if (chunk.parent_a == head_oidi || chunk.parent_b == head_oidi) && lane_idx == 0 {
+                if (chunk.parent_a == head_alias || chunk.parent_b == head_alias) && lane_idx == 0 {
                     layers.pipe_custom(SYM_VERTICAL_DOTTED, lane_idx, theme.COLOR_GREY_500);
                 } else if chunk.parent_a == NONE && chunk.parent_b == NONE {
                     layers.pipe(" ", lane_idx);
@@ -311,7 +311,7 @@ pub fn render_graph_range(
         }
 
         if !is_commit_found {
-            if all.contains_key(oidi) {
+            if all.contains_key(alias) {
                 layers.commit(SYM_COMMIT_BRANCH, lane_idx);
             } else {
                 layers.commit(SYM_COMMIT, lane_idx);
@@ -403,10 +403,10 @@ pub fn render_buffer_range(
         let formatted_snapshot: String = snapshot
             .iter()
             .map(|chunk| {
-                let oid_str = if chunk.oidi == NONE {
+                let oid_str = if chunk.alias == NONE {
                     "--".to_string()
                 } else {
-                    format!("{}", chunk.oidi)
+                    format!("{}", chunk.alias)
                 };
 
                 let parents_formatted = match (chunk.parent_a, chunk.parent_b) {
