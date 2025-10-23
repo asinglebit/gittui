@@ -121,21 +121,22 @@ guitar ../path/to/your/repo
 
 **guita╭** is still a work in progress. Some areas that need attention include:
 
-- 🖥️ **Logging window** – show detailed logs and messages in-app.  
-- 🔐 **Credential manager** – smooth handling of SSH/HTTPS credentials.  
-- 🌐 **Manage remotes** – add, remove, and inspect Git remotes.  
-- 🧪 **Add tests** – many parts of the app are experimental and require thorough testing, especially on large repositories.  
-- ⚙️ **Git features**:
-    - Rename branch  
-    - Pull branch  
-    - Rebase branch  
-    - Merge branch
+- **Logging window** – show detailed logs and messages in-app.  
+- **Credential manager** – smooth handling of SSH/HTTPS credentials.  
+- **Manage remotes** – add, remove, and inspect Git remotes.  
+- **Add tests** – many parts of the app are experimental and require thorough testing, especially on large repositories.  
+- **Git features**:
+    - Rename branches 
+    - Pull branches
+    - Rebase branches  
+    - Merge branches
     - Octopus merge handling and rendering  
-    - Cherry-pick commit  
-    - Stash  
-    - Pop
+    - Cherry-pick commit
+    - Stash changes
+    - Pop changes
+    - Render tags
 
-I work on **guita╭** in my spare time, and based on the features I need in my day-to-day life. Use it with caution, and feel free to report issues or contribute improvements!
+I work on **guita╭** in my spare time, and give priority on the features I need in my day-to-day life. Use it with caution, and feel free to report issues or contribute improvements!
 
 ### 🖼️ Screenshots
 
