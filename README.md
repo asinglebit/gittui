@@ -73,7 +73,7 @@ Exit                                                           Ctrl + c
 </pre>
 </div>
 
-### 🎨 Features
+### Features
 
 - 🖼️ **Beautiful graph rendering** – visualize commit history clearly.  
 - 🚀 **Blazing-fast traversal** – works smoothly with very large repositories.  
@@ -83,7 +83,19 @@ Exit                                                           Ctrl + c
 - 🦀 **Written in Rust** – safety, speed, and fun.  
 - 🖥️ **Pure TUI experience** – ratatui based rendering.
 
-### 🚀 Installation
+### Motivation
+
+I am building **guita╭** as a personal exercise in procrustination.
+
+The goal is simple:
+
+- Render Git commit graphs beautifully and efficiently in the terminal.  
+- Traverse massive repositories instantly – hundreds of thousands of commits spanning decades.  
+- Jump anywhere in history without lag.
+- Enjoy a cozy experience with pleasing colors and smooth, terminal-friendly navigation.
+- Include a fast, built-in diff viewer.
+
+### Installation
 
 Clone the repo and build with Cargo:
 
@@ -105,21 +117,7 @@ Copy it wherever you want and run with a path to repo you wish to inspect
 guitar ../path/to/your/repo
 ```
 
-### 🌟 Motivation
-
-I am building **guita╭** as a personal exercise in procrustination.
-
-The goal is simple:
-
-- Render Git commit graphs beautifully and efficiently in the terminal.  
-- Traverse massive repositories instantly – hundreds of thousands of commits spanning decades.  
-- Jump anywhere in history without lag.  
-- Enjoy a cozy experience with pleasing colors and smooth, terminal-friendly navigation.  
-- Include a fast, built-in diff viewer.  
-
-**Why guita╭?** Because working with Git in the terminal should feel fun, not frustrating.
-
-### ⚠️ Work in Progress
+### Work in Progress
 
 **guita╭** is still a work in progress. Some areas that need attention include:
 
@@ -135,10 +133,9 @@ The goal is simple:
     - Octopus merge handling and rendering  
     - Cherry-pick commit  
     - Stash  
-    - Pop  
-    - Jump to parent commit
+    - Pop
 
-Use it with caution, and feel free to report issues or contribute improvements!
+I work on **guita╭** in my spare time, and based on the features I need in my day-to-day life. Use it with caution, and feel free to report issues or contribute improvements!
 
 ### 🖼️ Screenshots
 

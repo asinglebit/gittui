@@ -1,4 +1,3 @@
-use std::default;
 #[rustfmt::skip]
 use std::{
     cell::{
@@ -67,6 +66,7 @@ impl Branches {
         branches_local: HashMap<u32, Vec<String>>,
         branches_remote: HashMap<u32, Vec<String>>
     ) {
+
         // Initialize
         self.local = branches_local;
         self.remote = branches_remote;

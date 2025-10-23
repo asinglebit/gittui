@@ -48,8 +48,6 @@ impl Buffer {
             });
         }
 
-        // let mut curr = self.curr.clone();
-
         // If we have a planned merge later on
         if let Some(merger_idx) = self.curr.iter().position(|inner| {
             self.mergers.iter().any(|oidi| *oidi == inner.oidi)
@@ -141,7 +139,7 @@ impl Buffer {
     pub fn decompress(&mut self, start: usize, end: usize) {
         self.history.clear();
 
-        // Find nearest checkpoint, rewrite this later to binary search
+        // Find the nearest checkpoint, rewrite this later to binary search
         let checkpoint_idx = self.checkpoints.keys()
             .rev()
             .find(|&&idx| idx <= start)
