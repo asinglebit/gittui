@@ -48,7 +48,7 @@ jobs:
 
       - name: Rename Windows binary
         if: runner.os == 'Windows'
-        run: Rename-Item target\release\guitar target\release\guitar-windows.exe
+        run: Rename-Item target\release\guitar.exe target\release\guitar-windows.exe
         shell: pwsh
 
       - name: Upload binary artifact
