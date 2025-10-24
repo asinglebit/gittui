@@ -75,7 +75,7 @@ Exit                                                           Ctrl + c
 
 ### Features
 
-- **Beautiful graph rendering** – topological + chronological commit grapph rendering.  
+- **Beautiful graph rendering** – topological/chronological commit graph rendering.  
 - **Blazing-fast traversal** – works smoothly with very large repositories.  
 - **Immediate jumps** – move through history without waiting.  
 - **Vibrant, terminal-friendly colors** – easy on the eyes for long coding sessions.  
@@ -97,7 +97,7 @@ The goal is simple:
 
 ### Prebuilt binaries
 
-Ubuntu/Debian, MacOS, Windows 11
+Please check the releases [here](https://github.com/asinglebit/guitar/releases) on github. Available for Ubuntu/Debian, MacOS, Windows 11.
 
 ### Building
 
