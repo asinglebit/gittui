@@ -7,7 +7,7 @@ on:
       - main
       - develop
     tags:
-      - 'v*.*.*'
+      - 'v*.*.*'   # Trigger release on tags like v1.0.0
 
 env:
   CARGO_TERM_COLOR: always
@@ -35,16 +35,21 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build release
+        run: cargo build --release --all-features
+
+      - name: Rename binary per OS
         run: |
-          cargo build --release --all-features
-          # Rename binaries per OS
-          if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            mv target/release/guitar target/release/guitar-windows.exe
-          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-            mv target/release/guitar target/release/guitar-macos
-          else
+          if [ "$RUNNER_OS" == "Linux" ]; then
             mv target/release/guitar target/release/guitar-linux
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            mv target/release/guitar target/release/guitar-macos
           fi
+        shell: bash
+
+      - name: Rename Windows binary
+        if: runner.os == 'Windows'
+        run: Rename-Item target\release\guitar target\release\guitar-windows.exe
+        shell: pwsh
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
@@ -56,7 +61,7 @@ jobs:
     name: Create Release
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/')  # Only run on tag pushes
     steps:
       - name: Download artifacts from all OS
         uses: actions/download-artifact@v4
