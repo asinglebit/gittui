@@ -95,7 +95,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-binary
-          path: target/release/your-binary-name
+          path: target/release/guitar
 
   # test:
   #   name: test ${{ matrix.os }}
