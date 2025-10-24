@@ -1,16 +1,16 @@
 name: CI
 
 permissions:
-  contents: write
+  contents: write   # required for creating a release
 
 on:
-  pull_request:
   push:
     branches:
       - main
       - develop
     tags:
       - 'v*.*.*'   # Trigger release on tags like v1.0.0
+  pull_request:
 
 env:
   CARGO_TERM_COLOR: always
@@ -40,47 +40,33 @@ jobs:
       - name: Build release
         run: cargo build --release --all-features
 
-      - name: Rename binary per OS
-        run: |
-          if [ "$RUNNER_OS" == "Linux" ]; then
-            mv target/release/guitar target/release/guitar-linux
-          elif [ "$RUNNER_OS" == "macOS" ]; then
-            mv target/release/guitar target/release/guitar-macos
-          fi
-        shell: bash
-
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-binary
-          path: target/release/*
+          path: |
+            target/release/guitar*
+            target/release/guitar.exe
 
   release:
-    name: Create Release
+    name: Create GitHub Release
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')  # Only run on tag pushes
+    if: startsWith(github.ref, 'refs/tags/v')   # only run on tag push
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Flatten artifacts safely
+      - name: Flatten artifact directory
         run: |
           mkdir -p artifacts_flat
-          find artifacts -type f \( -name "guitar*" -o -name "guitar*.exe" \) -exec cp {} artifacts_flat/ \;
+          cp -r artifacts/*/* artifacts_flat/ || true
+          ls -R artifacts_flat
 
       - name: Create GitHub Release
-        id: create_release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ github.ref_name }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload binaries to release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: artifacts_flat/*
         env:
