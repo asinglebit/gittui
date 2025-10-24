@@ -37,7 +37,7 @@ Beautiful and cozy terminal-based Git client
 
 Select                                                            Enter 
 Next Pane                                                           Tab 
-Previous Pane                                                 Shift + ? 
+Previous Pane                                               Shift + Tab 
 Page Up                                                          Pageup 
 Page Down                                                      Pagedown 
 Scroll Up                                                            Up 
