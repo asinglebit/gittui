@@ -40,12 +40,22 @@ jobs:
       - name: Build release
         run: cargo build --release --all-features
 
+      - name: Rename binary per OS
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            mv target/release/guitar target/release/guitar-linux
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            mv target/release/guitar target/release/guitar-macos
+          fi
+        shell: bash
+
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-binary
           path: |
-            target/release/guitar*
+            target/release/guitar-linux
+            target/release/guitar-macos
             target/release/guitar.exe
 
   release:
