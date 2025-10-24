@@ -23,7 +23,7 @@ Beautiful and cozy terminal-based Git client
 
 <div align="center">
 <pre>
-  .Keyboard Mappings
+  Keyboard Mappings
 ╭─────────────────────────────────────────────────────────────────────╮
 │ [_]   [_][_][_][_] [_][_][_][_] [_][_][_][_] [_][_][_] [_][_][_][_] │
 │                                                                     │
@@ -75,13 +75,13 @@ Exit                                                           Ctrl + c
 
 ### Features
 
-- 🖼️ **Beautiful graph rendering** – visualize commit history clearly.  
-- 🚀 **Blazing-fast traversal** – works smoothly with very large repositories.  
-- ⏩ **Immediate jumps** – move through history without waiting.  
-- 🎨 **Vibrant, terminal-friendly colors** – easy on the eyes for long coding sessions.  
-- 🧰 **Built-in diff viewer** – inspect changes without leaving the terminal.  
-- 🦀 **Written in Rust** – safety, speed, and fun.  
-- 🖥️ **Pure TUI experience** – ratatui based rendering.
+- **Beautiful graph rendering** – topological + chronological commit grapph rendering.  
+- **Blazing-fast traversal** – works smoothly with very large repositories.  
+- **Immediate jumps** – move through history without waiting.  
+- **Vibrant, terminal-friendly colors** – easy on the eyes for long coding sessions.  
+- **Built-in diff viewer** – inspect changes without leaving the terminal.  
+- **Written in Rust** – safety, speed, and fun.
+- **Pure TUI experience** – ratatui based rendering.
 
 ### Motivation
 
@@ -95,7 +95,11 @@ The goal is simple:
 - Enjoy a cozy experience with pleasing colors and smooth, terminal-friendly navigation.
 - Include a fast, built-in diff viewer.
 
-### Installation
+### Prebuilt binaries
+
+Ubuntu/Debian, MacOS, Windows 11
+
+### Building
 
 Clone the repo and build with Cargo:
 
@@ -119,7 +123,9 @@ guitar ../path/to/your/repo
 
 ### Work in Progress
 
-**guita╭** is still a work in progress. Some areas that need attention include:
+**guita╭** is still a work in progress. A lot of corner cases will result in panics as this is still a pre-alpha. No git user? Panic. Folder not a repository? Panic. You get the idea.
+
+Some other areas that need attention include:
 
 - **Logging window** – show detailed logs and messages in-app.  
 - **Credential manager** – smooth handling of SSH/HTTPS credentials.  
@@ -138,7 +144,7 @@ guitar ../path/to/your/repo
 
 I work on **guita╭** in my spare time, and give priority to the features I need in my day-to-day life. Use it with caution, and feel free to report issues or contribute improvements!
 
-### 🖼️ Screenshots
+### Screenshots
 
 <img width="1920" height="1008" alt="untitled" src="https://github.com/user-attachments/assets/5e175648-efc5-46a4-8fc1-6dda4c709d8e" />
 <img width="1920" height="1080" alt="1" src="https://github.com/user-attachments/assets/87db026a-f419-46e3-8f20-f6389f3fa967" />
