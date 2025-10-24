@@ -11,73 +11,18 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
-# Ensure workflow restarts cleanly on PR updates
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
-  # fmt:
-  #   name: fmt
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v5
-
-  #     - name: Install Rust stable
-  #       uses: dtolnay/rust-toolchain@stable
-  #       with:
-  #         components: rustfmt
-
-  #     - name: Cache Cargo dependencies
-  #       uses: Swatinem/rust-cache@v2
-
-  #     - name: Check formatting
-  #       run: cargo fmt -- --check
-
-  # clippy:
-  #   name: clippy
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     contents: read
-  #     checks: write
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v5
-
-  #     - name: Install Rust stable
-  #       uses: dtolnay/rust-toolchain@stable
-  #       with:
-  #         components: clippy
-
-  #     - name: Cache Cargo dependencies
-  #       uses: Swatinem/rust-cache@v2
-
-  #     - name: Run Clippy checks
-  #       uses: clechasseur/rs-clippy-check@v5
-
-  # doc:
-  #   name: doc
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v5
-
-  #     - name: Install Rust nightly
-  #       uses: dtolnay/rust-toolchain@nightly
-
-  #     - name: Generate docs
-  #       run: cargo doc --no-deps --all-features
-  #       env:
-  #         RUSTDOCFLAGS: --cfg docsrs
-
   build:
-    name: build ${{ matrix.os }}
+    name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -97,27 +42,27 @@ jobs:
           name: ${{ matrix.os }}-binary
           path: target/release/guitar
 
-  # test:
-  #   name: test ${{ matrix.os }}
-  #   runs-on: ${{ matrix.os }}
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       os: [ubuntu-latest, macos-latest, windows-latest]
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v5
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts from all OS
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
-  #     - name: Install Rust
-  #       uses: dtolnay/rust-toolchain@stable
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  #     - name: Cache Cargo dependencies
-  #       uses: Swatinem/rust-cache@v2
-
-  #     # If Cargo.lock is missing, generate it
-  #     - name: Generate lockfile
-  #       if: hashFiles('Cargo.lock') == ''
-  #       run: cargo generate-lockfile
-
-  #     - name: Run tests
-  #       run: cargo test --locked --all-features --all-targets --verbose
+      - name: Upload binaries to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/**/* 
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
