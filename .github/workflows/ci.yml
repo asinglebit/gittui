@@ -66,11 +66,11 @@ jobs:
         with:
           path: artifacts
 
-      - name: Flatten artifacts
+      - name: Flatten artifacts safely
         run: |
           mkdir -p artifacts_flat
-          cp -r artifacts/*/* artifacts_flat/
-      
+          find artifacts -type f \( -name "guitar*" -o -name "guitar*.exe" \) -exec cp {} artifacts_flat/ \;
+
       - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v1
