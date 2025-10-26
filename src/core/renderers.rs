@@ -95,7 +95,7 @@ pub fn render_graph_range(
         let mut lane_idx = 0;
 
         if history.is_empty() {return vec![Line::default()];}
-        let delta = history.len() + global_idx - end;
+        let delta = (history.len() + global_idx).saturating_sub(end);
         let prev = if delta == 0 { None } else { history.get(delta - 1) };
         let last = history.get(delta).unwrap();
 
