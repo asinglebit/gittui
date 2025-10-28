@@ -32,6 +32,7 @@ mod core {
     pub mod batcher;
     pub mod oids;
     pub mod branches;
+    pub mod tags;
 }
 pub mod git {
     pub mod actions {

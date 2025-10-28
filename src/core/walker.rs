@@ -33,8 +33,9 @@ use crate::{
     git::{
         queries::{
             commits::{
-                get_branches_and_sorted_oids,
-                get_tip_oids
+                get_sorted_oids,
+                get_tip_oids,
+                get_tag_oids
             }
         }
     },
@@ -58,6 +59,9 @@ pub struct Walker {
     pub branches_local: HashMap<u32, Vec<String>>,
     pub branches_remote: HashMap<u32, Vec<String>>,
 
+    pub tags_lanes: HashMap<u32, usize>,
+    pub tags_local: HashMap<u32, Vec<String>>,
+
     // Batching
     pub amount: usize
 }
@@ -74,6 +78,9 @@ pub struct WalkerOutput {
     pub branches_lanes: HashMap<u32, usize>,
     pub branches_local: HashMap<u32, Vec<String>>,
     pub branches_remote: HashMap<u32, Vec<String>>,
+
+    pub tags_lanes: HashMap<u32, usize>,
+    pub tags_local: HashMap<u32, Vec<String>>,
 
     // Batching
     pub is_again: bool,
@@ -97,6 +104,9 @@ impl Walker {
         let mut oids = Oids::default();
         let branches_lanes = HashMap::new();
         let (branches_local, branches_remote) = get_tip_oids(&repo, &mut oids);
+
+        let tags_lanes = HashMap::new();
+        let tags_local = get_tag_oids(&repo, &mut oids);
         
         // Batcher
         let batcher = Batcher::new(repo.clone(), visible, &mut oids).expect("Error");
@@ -115,6 +125,8 @@ impl Walker {
             branches_lanes,
             branches_local,
             branches_remote,
+            tags_lanes,
+            tags_local,
 
             // Pagination
             amount
@@ -132,7 +144,7 @@ impl Walker {
 
         // Sort commits
         let mut sorted_batch: Vec<u32> = Vec::new();
-        get_branches_and_sorted_oids(
+        get_sorted_oids(
             &self.batcher,
             &mut self.oids,
             &mut sorted_batch,
@@ -177,6 +189,10 @@ impl Walker {
                         self.branches_lanes.insert(alias, lane_idx);
                     }
 
+                    if self.tags_local.contains_key(&alias) {
+                        self.tags_lanes.insert(alias, lane_idx);
+                    }
+
                     if chunk.parent_a != NONE && chunk.parent_b != NONE {
                         let mut is_merger_found = false;
                         for chunk_nested in &self.buffer.borrow().curr {
@@ -198,6 +214,10 @@ impl Walker {
 
             if !is_commit_found {
                 self.branches_lanes.insert(alias, lane_idx);
+
+                if self.tags_local.contains_key(&alias) {
+                    self.tags_lanes.insert(alias, lane_idx);
+                }
             }
 
             // Now we can borrow mutably

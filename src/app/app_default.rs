@@ -40,6 +40,9 @@ use crate::{
         branches::{
             Branches
         },
+        tags::{
+            Tags
+        },
         oids::{
             Oids
         }
@@ -100,6 +103,7 @@ impl Default for App {
             // Walker data
             oids: Oids::default(),
             branches: Branches::default(),
+            tags: Tags::default(),
             uncommitted: UncommittedChanges::default(),
 
             // Cache

@@ -44,10 +44,28 @@ pub fn get_tip_oids(repo: &Repository, oids: &mut Oids) -> (HashMap<u32, Vec<Str
     (local, remote)
 }
 
+// Get all tags in a repo
+pub fn get_tag_oids(repo: &Repository, oids: &mut Oids) -> HashMap<u32, Vec<String>> {
+    let mut local: HashMap<u32, Vec<String>> = HashMap::new();
+
+    // Iterate all references
+    for reference in repo.references().unwrap().flatten() {
+        if let Some(oid) = reference.target() {
+            let alias = oids.get_alias_by_oid(oid);
+            let name = reference.name().unwrap_or("unknown");
+
+            if let Some(stripped) = name.strip_prefix("refs/tags/") {
+                local.entry(alias).or_default().push(stripped.to_string());
+            }
+        }
+    }
+
+    local
+}
+
 // Outcomes:
 // Update the oids vector
-#[allow(clippy::too_many_arguments)]
-pub fn get_branches_and_sorted_oids(
+pub fn get_sorted_oids(
     batcher: &Batcher,
     oids: &mut Oids,
     sorted: &mut Vec<u32>,
@@ -60,7 +78,7 @@ pub fn get_branches_and_sorted_oids(
         return;
     }
 
-    // Walk all commits topologically and propagate branch membership backwards
+    // Walk all commits topologically
     for oid in chunk {
 
         // Get the alias

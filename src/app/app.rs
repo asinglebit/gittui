@@ -75,6 +75,9 @@ use crate::{
         buffer::{
             Buffer
         },
+        tags::{
+            Tags
+        }
     },
     helpers::{
         palette::*,
@@ -156,6 +159,7 @@ pub struct App {
     // Walker data
     pub oids: Oids,
     pub branches: Branches,
+    pub tags: Tags,
     pub uncommitted: UncommittedChanges,
 
     // Cache
@@ -401,6 +405,8 @@ impl App  {
                     branches_lanes: walk_ctx.branches_lanes.clone(),
                     branches_local: walk_ctx.branches_local.clone(),
                     branches_remote: walk_ctx.branches_remote.clone(),
+                    tags_lanes: walk_ctx.tags_lanes.clone(),
+                    tags_local: walk_ctx.tags_local.clone(),
                     buffer: walk_ctx.buffer.clone(),
                     is_first,
                     is_again,
@@ -443,13 +449,21 @@ impl App  {
             // Buffer
             self.buffer = result.buffer;
 
-            // Mapping of tip oids of the branches to the colors            
+            // Update branches
             self.branches.feed(
                 &self.oids,
                 &self.color,
                 &result.branches_lanes,
                 result.branches_local,
                 result.branches_remote
+            );
+
+            // Update tags
+            self.tags.feed(
+                &self.oids,
+                &self.color,
+                &result.tags_lanes,
+                result.tags_local
             );
 
             if !result.is_again {

@@ -443,7 +443,9 @@ pub fn render_message_range(
     oids: &Oids,
     local: &HashMap<u32, Vec<String>>,
     visible: &HashMap<u32, Vec<String>>,
-    colors: &mut HashMap<u32, Color>,
+    tags: &HashMap<u32, Vec<String>>,
+    branch_colors: &mut HashMap<u32, Color>,
+    tag_colors: &mut HashMap<u32, Color>,
     start: usize,
     end: usize,
     selected: usize,
@@ -464,7 +466,7 @@ pub fn render_message_range(
                 for branch in visible {
                     // Only render branches that are visible
                     if visible.iter().any(|b| b == branch) {
-                        // Check if the branch ios local
+                        // Check if the branch is local
                         let is_local = local
                             .values()
                             .any(|branches| branches.iter().any(|b| b.as_str() == branch));
@@ -475,7 +477,27 @@ pub fn render_message_range(
                                 if is_local { SYM_COMMIT_BRANCH } else { "◆" },
                                 branch
                             ),
-                            Style::default().fg(if let Some(color) = colors.get(&alias) {
+                            Style::default().fg(if let Some(color) = branch_colors.get(&alias) {
+                                *color
+                            } else {
+                                theme.COLOR_TEXT
+                            }),
+                        ));
+                    }
+                }
+            }
+
+            if let Some(tags) = tags.get(&alias) {
+                for tag in tags {
+                    // Render tags
+                    if tags.iter().any(|b| b == tag) {
+                        spans.push(Span::styled(
+                            format!(
+                                "{} {} ",
+                                "⚑",
+                                tag
+                            ),
+                            Style::default().fg(if let Some(color) = tag_colors.get(&alias) {
                                 *color
                             } else {
                                 theme.COLOR_TEXT
