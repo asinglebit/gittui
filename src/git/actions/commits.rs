@@ -40,7 +40,7 @@ pub fn checkout_branch(
     repo: &Repository,
     visible: &mut HashMap<u32, Vec<String>>,
     local: &mut HashMap<u32, Vec<String>>,
-    oidi: u32,
+    alias: u32,
     branch_name: &str,
 ) -> Result<(), git2::Error> {
     // Helper to checkout a local branch
@@ -67,11 +67,11 @@ pub fn checkout_branch(
 
             let mut local_branch = repo.branch(branch, &commit, false)?;
             local_branch.set_upstream(Some(branch_name))?;
-            local.entry(oidi)
+            local.entry(alias)
                 .or_default()
                 .push(branch.to_string());
             visible
-                .entry(oidi)
+                .entry(alias)
                 .or_default()
                 .push(branch.to_string());
 
@@ -320,3 +320,4 @@ pub fn delete_branch(repo: &Repository, branch: &str) -> Result<(), Error> {
 
     Ok(())
 }
+

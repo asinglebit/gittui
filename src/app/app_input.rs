@@ -1061,6 +1061,7 @@ impl App {
             }
             let oid = self.oids.get_oid_by_idx(self.graph_selected);
             reset_to_commit(&self.repo, *oid, git2::ResetType::Hard).expect("Error");
+            self.branches.visible.clear();
             self.reload();
             self.focus = Focus::Viewport;
         }
@@ -1073,6 +1074,7 @@ impl App {
             }
             let oid = self.oids.get_oid_by_idx(self.graph_selected);
             reset_to_commit(&self.repo, *oid, git2::ResetType::Mixed).expect("Error");
+            self.branches.visible.clear();
             self.reload();
             self.focus = Focus::Viewport;
         }
